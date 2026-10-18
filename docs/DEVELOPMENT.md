@@ -106,4 +106,14 @@ cd android
 ./gradlew --no-daemon assembleDebug
 ```
 
-A successful workflow uploads the debug APK as an Actions artifact, not a stable Release installer. The Android wrapper does not include the Node.js multiplayer server.
+Pushes to `main` and pull requests upload the web files and debug APK as Actions artifacts. Pushing a `v*` tag also creates a GitHub Release with a web ZIP and the Android debug APK attached. Tags containing a hyphen, such as `v1.0.0-beta.1`, create prereleases. The Android wrapper and web ZIP do not include the Node.js multiplayer server; desktop installers are not generated.
+
+To publish a version after committing the desired changes:
+
+```bash
+git tag -a v1.0.0-beta.1 -m "Qurioso 1.0.0 beta 1"
+git push origin main
+git push origin v1.0.0-beta.1
+```
+
+Use a new tag for each release. The release job runs only after both builds succeed.

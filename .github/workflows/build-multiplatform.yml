@@ -82,3 +82,60 @@ jobs:
           name: qurioso-android-debug.apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+  publish-release:
+    name: Publish release downloads
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-web-and-pwa, build-android-apk]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: qurioso-web-build
+          path: release/web
+
+      - name: Download Android APK
+        uses: actions/download-artifact@v4
+        with:
+          name: qurioso-android-debug.apk
+          path: release/android
+
+      - name: Prepare release files
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cd release/web
+          zip -r "../qurioso-web-${RELEASE_TAG}.zip" .
+          cd ../..
+          cp release/android/app-debug.apk "release/qurioso-android-debug-${RELEASE_TAG}.apk"
+          cat > release/notes.md <<'NOTES'
+          ## Classroom activities
+          Open https://napo.github.io/qurioso/?app=classroom to use Qurioso without installing anything.
+
+          ## Downloads
+          - **Web ZIP**: static website files. This archive does not include the multiplayer server.
+          - **Android debug APK**: experimental, automatically debug-signed build for testing. It does not include the Node.js multiplayer server.
+
+          Windows, macOS and Linux desktop installers are not available in this release. Network quizzes currently require the local Node.js server, with all devices on the same LAN.
+          NOTES
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          release_options=()
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            release_options+=(--prerelease)
+          fi
+          gh release create "$RELEASE_TAG" \
+            --verify-tag \
+            --title "Qurioso $RELEASE_TAG" \
+            --notes-file release/notes.md \
+            "${release_options[@]}" \
+            "release/qurioso-web-${RELEASE_TAG}.zip" \
+            "release/qurioso-android-debug-${RELEASE_TAG}.apk"
