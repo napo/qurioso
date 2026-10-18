@@ -112,6 +112,8 @@ Online images, Commons searches and YouTube/Vimeo playback need Internet access.
 
 The public site is **[napo.github.io/qurioso](https://napo.github.io/qurioso/)**.
 
+The entire landing page is available in **[Italian](https://napo.github.io/qurioso/?lang=it)**, **[English](https://napo.github.io/qurioso/?lang=en)** and **[German](https://napo.github.io/qurioso/?lang=de)**. Use the language selector in the header. The selected language is remembered in the browser and passed to the classroom application. A `lang` URL parameter overrides the saved preference; otherwise, Qurioso uses the saved preference, a supported browser language, or Italian as the fallback. Translation strings are in `src/i18n/landing.ts`.
+
 The landing page offers two entry points:
 
 - `?app=classroom` opens the browser-only classroom library, without multiplayer connections, PIN controls or installation prompts.

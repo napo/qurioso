@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Globe, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
-import { Language } from '../../i18n/translations';
 
 export const LanguageSelector: React.FC = () => {
   const { language, setLanguage, languages } = useLanguage();
@@ -23,6 +22,10 @@ export const LanguageSelector: React.FC = () => {
   return (
     <div className="relative" ref={dropdownRef}>
       <button
+        type="button"
+        aria-expanded={isOpen}
+        aria-label={{ it: 'Lingua', en: 'Language', de: 'Sprache' }[language]}
+        onKeyDown={event => { if (event.key === 'Escape') setIsOpen(false); }}
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-surface-soft hover:bg-surface-hover text-xs font-semibold text-muted border border-line transition cursor-pointer"
         title="Cambia Lingua / Change Language / Sprache wechseln"
@@ -37,6 +40,9 @@ export const LanguageSelector: React.FC = () => {
           {languages.map((l) => (
             <button
               key={l.code}
+              type="button"
+              lang={l.code}
+              aria-pressed={language === l.code}
               onClick={() => {
                 setLanguage(l.code);
                 setIsOpen(false);

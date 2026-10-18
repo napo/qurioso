@@ -11,6 +11,7 @@ import { loadVideo, storeVideo, loadQuizzes, storeQuizzes } from '../src/service
 // A controlled media provider exercises the real adapters without network or third-party playback.
 test('YouTube and Vimeo quiz checkpoints pause, show feedback, resume, and ignore repeated events', { timeout: 10000 }, async t => {
   const dom = new JSDOM('<div id="app"></div>', { url: 'http://localhost:39817' });
+  dom.window.localStorage.setItem('qurioso_language', 'it');
   const originalFetch = globalThis.fetch;
   for (const [key, value] of Object.entries({
     window: dom.window, document: dom.window.document, navigator: dom.window.navigator,

@@ -18,27 +18,32 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
+    const supported = (value: string | null | undefined): value is Language => value === 'it' || value === 'en' || value === 'de';
     if (typeof window !== 'undefined') {
+      const explicit = new URLSearchParams(window.location.search).get('lang');
+      if (supported(explicit)) return explicit;
       try {
-        const saved = localStorage.getItem('qurioso_language') as Language;
-        if (saved && (saved === 'it' || saved === 'en' || saved === 'de')) {
-          return saved;
-        }
-        // Browser language detection
-        const navLang = navigator.language?.substring(0, 2).toLowerCase();
-        if (navLang === 'it' || navLang === 'de') {
-          return navLang as Language;
-        }
+        const saved = window.localStorage.getItem('qurioso_language');
+        if (supported(saved)) return saved;
       } catch {}
+      const browserLanguage = window.navigator.language?.slice(0, 2).toLowerCase();
+      if (supported(browserLanguage)) return browserLanguage;
     }
     return 'it';
   });
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+    try { window.localStorage.setItem('qurioso_language', language); } catch {}
+  }, [language]);
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem('qurioso_language', lang);
+        const url = new URL(window.location.href);
+        url.searchParams.set('lang', lang);
+        window.history.replaceState(window.history.state, '', url);
       } catch {}
     }
   };

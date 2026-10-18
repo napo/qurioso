@@ -19,6 +19,7 @@ const fixture = { query: { pages: { 42: {
 
 test('editor embeds local and Commons images with their credits; storage and JSON retain them', async (t) => {
   const dom = new JSDOM('<div id="app"></div>', { url: 'http://localhost:39817' });
+  dom.window.localStorage.setItem('qurioso_language', 'it');
   const nativeFetch = globalThis.fetch;
   const globals = {
     window: dom.window, document: dom.window.document, navigator: dom.window.navigator,
