@@ -15,6 +15,8 @@
     "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3",
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/canvas-confetti": "^1.9.0",
@@ -35,6 +37,7 @@
     "youtube-video-element": "^1.9.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.3",
     "@types/express": "^4.17.21",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^22.14.0",
