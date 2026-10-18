@@ -14,7 +14,7 @@ export function LandingPage() {
   }, []);
   return <div className="min-h-screen bg-white text-ink">
     <a href="#contenuto" className="sr-only focus:not-sr-only focus:block focus:p-3">Vai al contenuto</a>
-    <header className="max-w-6xl mx-auto px-5 md:px-8 py-6 flex items-center justify-between gap-5">
+    <header className="max-w-6xl mx-auto px-5 md:px-8 py-6 flex flex-wrap items-center justify-between gap-5">
       <a href="./" aria-label="Qurioso, pagina iniziale"><QuriosoLogo size="md" /></a>
       <nav aria-label="Navigazione principale" className="flex gap-5 text-sm font-bold text-petrolio"><a href="?app=classroom" className="hover:underline">Attività in classe</a><a href="#quiz-in-rete" className="hover:underline">Quiz in Rete</a></nav>
     </header>
