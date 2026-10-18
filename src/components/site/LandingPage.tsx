@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowUpRight, Monitor, Network, Play, Download, Check, ChevronRight } from 'lucide-react';
+import { ArrowUpRight, Monitor, Network, Download, Check, ChevronRight } from 'lucide-react';
 import { QuriosoLogo } from '../common/QuriosoLogo';
 import { loadDesktopDownloads, type DesktopDownload } from '../../services/downloads';
 

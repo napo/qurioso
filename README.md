@@ -205,3 +205,14 @@ Qurioso non richiede collegamenti di account, chiavi API o registrazioni per svi
 - **Attività in classe**: docente e studenti usano un unico dispositivo, eventualmente collegato al proiettore. Il docente seleziona la risposta concordata dalla classe. Le domande non hanno scadenza automatica; nei quiz video il filmato si ferma ai checkpoint e riparte dopo la risposta e il confronto. Per i quiz classici è disponibile il riepilogo delle risposte collettive.
 
 L’attività in classe funziona anche con il solo sito statico (`npm run build`, pubblicando il contenuto di `dist`, ad esempio su GitHub Pages): chi lo usa non deve installare software. I pulsanti LAN sono disponibili quando viene rilevato il server di Qurioso. Non vengono raccolte risposte individuali dagli smartphone nella modalità classe. Quiz e file rimangono nell’archivio del browser del docente; esportare il JSON permette di trasferirli. I video YouTube/Vimeo richiedono Internet.
+
+### Pagina iniziale e GitHub Pages
+
+La pagina iniziale presenta Qurioso e offre due percorsi:
+
+- **Apri Attività in classe** apre `?app=classroom`, con libreria, creazione quiz e attività collettive direttamente nel browser. Non avvia connessioni multiplayer né mostra pulsanti PIN o installazione.
+- **Quiz in Rete** apre la sezione `#quiz-in-rete`, con istruzioni LAN e download desktop. Le build vengono lette dalla più recente Release stabile di `napo/qurioso`: sono collegati soltanto installer `.exe`, `.msi`, `.dmg`, `.pkg`, `.AppImage`, `.deb` e `.rpm`. Se mancano, viene indicato chiaramente; i sorgenti e gli artifact CI non vengono presentati come installer.
+
+L’app locale completa rimane raggiungibile con `?app=network`; i link QR con `?pin=...` continuano ad aprire direttamente la schermata partecipante. La modalità classe e quella locale mantengono lo stesso archivio se usate dallo stesso indirizzo e browser.
+
+Il workflow `.github/workflows/pages.yml` verifica e pubblica `dist` su GitHub Pages a ogni push su `main`, oppure tramite avvio manuale. In **Settings → Pages → Build and deployment** la sorgente deve essere **GitHub Actions**. La build usa percorsi relativi per funzionare anche sotto `/qurioso/`. La pubblicazione della pagina non genera gli installer desktop: il confezionamento delle applicazioni resta separato.
