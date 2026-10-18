@@ -1,0 +1,6 @@
+{
+  "name": "Qurioso - Interactive Multiplayer & Video Quiz Studio",
+  "description": "Qurioso: Piattaforma open-source di quiz multiplayer con QR Code, modalità video a pause automatiche e classifiche live.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

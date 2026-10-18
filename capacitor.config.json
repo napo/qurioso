@@ -1,0 +1,15 @@
+{
+  "appId": "com.qurioso.app",
+  "appName": "Qurioso",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "buildOptions": {
+      "keystorePath": "",
+      "releaseType": "APK"
+    }
+  }
+}
