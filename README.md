@@ -1,218 +1,149 @@
-# Qurioso ⚡ — Interactive Multiplayer & Video Quiz Studio
+<p align="center">
+  <a href="https://napo.github.io/qurioso/">
+    <img src="public/logo-on-white.png" alt="Qurioso" width="460" />
+  </a>
+</p>
 
-Applicazione interattiva moderna sviluppata in **React 19 + TypeScript + Vite + Tailwind CSS** pronta per essere depositata su GitHub per generare le build multipiattaforma (**Linux, Windows, macOS e Android**).
+<p align="center"><strong>Bring curiosity into the classroom.</strong></p>
+<p align="center">Create quizzes with images and videos. Discuss answers together, or let everyone join from their own device on the same local network.</p>
+<p align="center">
+  <a href="https://napo.github.io/qurioso/">Explore Qurioso</a> ·
+  <a href="https://napo.github.io/qurioso/?app=classroom">Open classroom activities</a> ·
+  <a href="https://napo.github.io/qurioso/#quiz-in-rete">Network quizzes and downloads</a>
+</p>
 
----
+## Two ways to use Qurioso
 
-## 🌍 Supporto Multilingue / Multilingual / Mehrsprachig
-Qurioso include il supporto completo per 3 lingue con selettore in tempo reale:
-- 🇮🇹 **Italiano** (predefinito)
-- 🇬🇧 **English**
-- 🇩🇪 **Deutsch**
+| | Classroom activities — “Attività in classe” | Network quizzes — “Quiz in Rete” |
+| --- | --- | --- |
+| How it works | The teacher displays the questions, listens to the class and selects the collective answer. | Each student answers individually from their own device using a QR code and game PIN. |
+| Devices | One shared device, optionally connected to a projector. | The teacher’s computer and the students’ phones, tablets or computers. |
+| Installation | Open the website in a browser. No installation required. | Run Qurioso’s local server on the teacher’s computer. Students only need a browser. |
+| Network | No connection between student devices is needed. Online videos and image searches require Internet access. | **All devices must be on the same local network (LAN or Wi-Fi)** and be allowed to communicate with each other. |
+| Questions | With or without video; no automatic time limit for collective answers. | Timed rounds, individual feedback, scores and leaderboards. |
 
----
+**[Start a classroom activity →](https://napo.github.io/qurioso/?app=classroom)**
 
-## 🌟 Caratteristiche Principali
+Desktop installers for Windows, macOS and Linux are **not available yet**. The website displays installers from the latest stable [GitHub Release](https://github.com/napo/qurioso/releases) when they are published. Until then, running a network quiz requires the development setup below. Publishing the website does not build desktop installers.
 
-1. **Creazione Quiz Interattivi**
-   - Domande a scelta multipla (fino a 6 risposte) e Vero/Falso.
-   - Simboli geometrici per distinguere le risposte, con superfici chiare nella palette petrolio e mandarino.
-   - Impostazione del timer per domanda (5s - 60s), moltiplicatori di punteggio e immagini di copertina.
-   - Salvataggio locale persistente ed esportazione/importazione rapida in file JSON.
+## Features
 
-2. **Partecipazione Online con QR Code & PIN di Gioco**
-   - **Schermo Presentatore / Proiettore**: Genera automaticamente un QR Code nitido e un Game PIN a 6 cifre.
-   - **Sessione Personalizzata per Utente**: I partecipanti scansionano il QR Code con il proprio smartphone per entrare istantaneamente nella sessione, scegliendo Nickname e Avatar personalizzato.
-   - **Sincronizzazione in Tempo Reale**: I pulsanti su smartphone si aggiornano istantaneamente allo scadere dei round con calcolo automatico della velocità di risposta e bonus streak!
-   - **Simulatore Bot Integrato**: Permette al presentatore di testare l'esperienza anche da solo con un click ("+3 Bot Test").
+- Create multiple-choice questions with up to six options, or true/false questions.
+- Add cover and question images using a URL, local JPG/PNG/WebP files or Wikimedia Commons search. Commons selections retain author, license and source credits.
+- Use a local MP4/WebM file, a direct video URL, YouTube or Vimeo. Videos pause at question checkpoints and resume after the answer and feedback.
+- Search YouTube or Vimeo in a new browser tab, then paste the chosen video link into Qurioso. No API keys or account connection to Qurioso are required.
+- Save quizzes in the browser and import or export them as JSON, including embedded images and uploaded videos.
+- In network quizzes, show answer distributions and final statistics, export results as CSV or JSON, and use test bots to try a session.
+- Switch between Italian, English and German. Some recently added interface text is currently in Italian.
+- Use the original white, petrolio and mandarino visual identity throughout the interface.
 
-3. **Modalità Video Quiz con Pause Automatiche**
-   - Carica qualsiasi video (HTML5 MP4/WebM o preset ad alta definizione).
-   - **Sequenza definita dall'utente**: Il video si interrompe ai secondi/minuti specificati nella timeline.
-   - **Sequenza casuale**: Qurioso calcola pause distribuite casualmente lungo la durata del video.
-   - Al checkpoint il video va in pausa automatica, appare la domanda del quiz e dopo la risposta il video riprende regolarmente.
+## Classroom activities
 
-4. **Classifiche e Analisi Risposte**
-   - Grafico a barre istantaneo sul presentatore per visualizzare la distribuzione delle scelte dei giocatori.
-   - Podio scenografico a 3 livelli con fuochi d'artificio e coriandoli animati.
-   - Tabella completa con posizione, accuratezza %, risposte corrette e tempo medio di reazione.
-   - Esportazione dei risultati in formato **CSV (per Excel / Google Sheets)** o **JSON**.
+1. Open [Qurioso in your browser](https://napo.github.io/qurioso/?app=classroom).
+2. Pick an example quiz, import a JSON quiz, or create your own.
+3. Choose **Attività in classe** on the quiz card.
+4. Display the questions and select the answer agreed on by the class.
 
----
+Students do not need to join from their phones. This mode collects a **collective answer**, rather than individual student submissions. Standard quizzes show a final summary of the class’s answers.
 
-## 🚀 Deposito su GitHub e Build Multi-Piattaforma
+For a video quiz, choose **Crea quiz video** or select **Quiz con video** at the top of the editor. Choose a source, set each question’s checkpoint in seconds and save. During a classroom activity, the video pauses at the checkpoints and questions stay open while the class discusses them.
 
-### 1. Inizializzare e caricare su GitHub
+YouTube and Vimeo require Internet access and videos that allow embedded playback. Platform or owner restrictions may prevent playback. Qurioso does not download videos from these platforms.
 
-Nel terminale del tuo progetto, esegui:
+## Network quizzes
 
-```bash
-git init
-git add .
-git commit -m "feat: initial commit of Qurioso"
-git branch -M main
-git remote add origin https://github.com/TUO-USERNAME/qurioso.git
-git push -u origin main
-```
+Qurioso runs an HTTP and WebSocket server on the teacher’s computer. Participants join using the LAN address, QR code and PIN shown by the presenter.
 
----
+- Connect the teacher’s computer and all participant devices to the **same LAN or Wi-Fi network**.
+- Allow connections to Qurioso’s listening port through the teacher’s firewall.
+- Guest networks and some school networks isolate clients; ask the network administrator if devices cannot reach each other.
+- A randomly selected port avoids port conflicts. It does not make the teacher’s computer accessible from the Internet.
 
-### 2. Build per Android (APK & AAB)
+Installing the website as a PWA or wrapping it with Capacitor does not provide the local multiplayer server. Desktop packaging with an included server is still to be implemented.
 
-Il repository include già il file di configurazione `capacitor.config.json`. Per compilare l'applicazione Android:
+## Development
 
-```bash
-# Compila il bundle di produzione
-npm run build
-
-# Installa Capacitor per Android
-npm install @capacitor/core @capacitor/android
-npx cap add android
-
-# Sincronizza i file web con il progetto Android nativo
-npx cap sync android
-
-# Apri il progetto in Android Studio per esportare l'APK o l'AAB per Google Play
-npx cap open android
-```
-
-Inoltre, il workflow di GitHub Actions in `.github/workflows/build-multiplatform.yml` compila automaticamente l'APK di debug ad ogni push!
-
----
-
-### 3. Build per Desktop (Linux, Windows, macOS)
-
-Puoi confezionare gli eseguibili desktop nativi usando Electron:
+Built with **React 19, TypeScript, Vite, Tailwind CSS, Express and WebSocket**. Requires **Node.js 22.12 or later**.
 
 ```bash
-# Installa electron e electron-builder
-npm install --save-dev electron electron-builder
-
-# Compila l'applicazione web
-npm run build
-
-# Per Linux (genera pacchetti .deb e .AppImage)
-npx electron-builder --linux deb AppImage
-
-# Per Windows (genera il file di installazione Setup.exe NSIS)
-npx electron-builder --win nsis
-
-# Per macOS (genera il file .dmg)
-npx electron-builder --mac dmg
-```
-
----
-
-### 4. Installazione Immediata PWA (Progressive Web App)
-
-Qurioso è una PWA completa con Service Worker e Web App Manifest integrati. Gli utenti possono:
-- Su **Android e Chrome/Edge Desktop**: Cliccare il pulsante **"Installa App"** direttamente nella barra superiore.
-- Su **iPhone / iPad (iOS Safari)**: Toccare l'icona **Condividi** e selezionare **"Aggiungi alla schermata Home"**.
-
----
-
-## 🛠️ Sviluppo Locale
-
-```bash
-# Installa le dipendenze
-npm install
-
-# Avvia HTTP + WebSocket: il terminale mostra la porta scelta automaticamente
+npm ci
 npm run dev
-
-# Compila per il rilascio in produzione
-npm run build
 ```
 
-Richiede **Node.js 22.12 o successivo**. Il file `package-lock.json` permette anche l'installazione riproducibile con `npm ci`.
+The terminal prints the local and LAN addresses with the selected port. Open the local address for the landing page, or append `?app=network` to open the full local application. QR links containing `?pin=...` open the participant screen directly.
 
-A ogni avvio il sistema sceglie una **porta libera**. Il terminale mostra l’indirizzo del presentatore (`http://localhost:PORTA`) e gli indirizzi Wi-Fi/LAN (`http://IP-LOCALE:PORTA`). Un unico server gestisce sia HTTP sia WebSocket; il QR Code include la porta effettiva e, quando apri l’app da localhost, usa automaticamente l’indirizzo LAN per i telefoni.
-
-I dispositivi devono essere sulla stessa rete, con traffico tra client consentito e firewall che permetta le connessioni alla porta scelta. Una porta casuale evita conflitti ma non rende il computer raggiungibile da Internet. Per un utilizzo con regole firewall fisse puoi impostare una porta stabile:
+By default, `PORT=0` selects an available port at each launch. For a fixed port:
 
 ```bash
 PORT=4444 npm run dev
 ```
 
-`PORT=0` (predefinito) ripristina la scelta automatica; viene letto anche un eventuale file `.env`.
+The server also reads `PORT` from an optional `.env` file; see [.env.example](.env.example). No API credentials are needed.
 
-**Archivio del browser:** IndexedDB, `localStorage` e installazioni PWA appartengono all’indirizzo completo, inclusa la porta. Cambiando porta i quiz salvati in precedenza non vengono mostrati (restano nell’archivio del vecchio indirizzo). Per mantenere lo stesso archivio usa una porta fissa oppure esporta/importa i quiz in JSON. La porta automatica è utile soprattutto per prove e sessioni temporanee.
-
-Per eseguire il bundle compilato con il server multiplayer:
+### Checks and production build
 
 ```bash
+npm run lint
+npm test
 npm run build
+```
+
+To serve the built application with the multiplayer server:
+
+```bash
 NODE_ENV=production npm start
 ```
 
-`npm run preview` mostra soltanto il frontend: per le partite tra dispositivi serve il server avviato con `npm start` o `npm run dev`. Non sono necessarie chiavi Gemini: il codice attuale non effettua chiamate AI. La variabile `PORT` permette di scegliere una porta fissa.
+`npm run preview` serves the frontend only. Network quizzes require `npm start` or `npm run dev`.
 
-I quiz e le immagini incorporate vengono salvati nel browser (IndexedDB, con recupero dei quiz precedenti da `localStorage`); le sessioni multiplayer sono in memoria e si perdono riavviando il server. Il server attuale non autentica i ruoli di presentatore e giocatore: prima di esporlo pubblicamente occorrono controlli di accesso e validazione delle richieste.
+Multiplayer sessions are held in server memory and disappear when the server restarts. The current server does not authenticate presenter and player roles; it is intended for trusted local networks. Public Internet multiplayer hosting requires additional access controls and request validation.
 
-### Logo e icone
+## Browser storage and portability
 
-- `public/logo.svg`: logo originale petrolio/mandarino fornito dall'autore.
-- `public/icon.svg`: sola Q estratta dai tracciati originali, con dettagli del viso e coda, senza ridisegni.
-- `public/icon-192.png`, `public/icon-512.png` e `public/apple-touch-icon.png`: versioni per PWA e schermata Home.
+Quizzes, embedded images and uploaded videos are stored locally in **IndexedDB**, with migration support for quizzes previously stored in `localStorage`. Uploaded videos are stored as blobs. Uploaded images can be up to 15 MB and are resized to a maximum of 1600 pixels on the longest side.
 
-Le istruzioni desktop sopra descrivono un possibile percorso di confezionamento: il progetto non include ancora l'entry point né la configurazione Electron. La build web è direttamente eseguibile; i pacchetti desktop richiedono ulteriore lavoro. Anche l'app Android necessita di un server multiplayer raggiungibile: Capacitor da solo non incorpora il backend Node.js.
+Browser storage belongs to the full origin, **including the port**. Changing the port, browser or computer gives you a different quiz library; data at the previous origin is not automatically moved. Use a fixed port for a stable local library, or export and import quizzes as JSON.
 
----
+Exported JSON includes uploaded video data and may be large. Export backups before clearing site data or moving to another device. If saving fails, the editor stays open so you can export your quiz.
 
-## 👤 Autore
-**Maurizio Napolitano**
-Email: [maurizio.napolitano@gmail.com](mailto:maurizio.napolitano@gmail.com)
+Online images, Commons searches and YouTube/Vimeo playback need Internet access. Embedded images and uploaded video files remain available locally.
 
----
+## GitHub Pages
 
-## 📄 Licenza
-Rilasciato sotto licenza **GNU Affero General Public License v3** (AGPL-3.0-or-later).
-Vedi il file [LICENSE](./LICENSE) per tutti i dettagli.
+The public site is **[napo.github.io/qurioso](https://napo.github.io/qurioso/)**.
 
-### Tema visivo
+The landing page offers two entry points:
 
-L’interfaccia usa uno sfondo bianco, il petrolio originale `#075E63` e il mandarino originale `#FF963B`. Superfici secondarie e bordi usano tinte leggere; il testo sul mandarino è scuro per mantenere contrasto. I token condivisi sono definiti in `src/index.css`.
+- `?app=classroom` opens the browser-only classroom library, without multiplayer connections, PIN controls or installation prompts.
+- `#quiz-in-rete` opens the network quiz download section and LAN instructions.
 
-### Sorgenti video e checkpoint
+The [Pages workflow](.github/workflows/pages.yml) runs checks, builds `dist` and deploys it on pushes to `main`, or when started manually. In **Settings → Pages → Build and deployment**, select **GitHub Actions** as the source. Relative asset paths support deployment under `/qurioso/`.
 
-Dalla pagina iniziale premi **Crea quiz video**, oppure nell’editor scegli **Quiz con video** nella sezione **Tipo di quiz** in alto. Poi scegli un file **MP4/WebM dal computer** oppure incolla un link **YouTube**, **Vimeo** o diretto al video e premi **Usa link**. Per ogni domanda imposta il checkpoint in secondi nella colonna a destra e salva il quiz. Dalla scheda del quiz scegli **Esegui Modalità Video con Pause**.
+Download links are read from the latest stable GitHub Release. Only published Windows (`.exe`, `.msi`), macOS (`.dmg`, `.pkg`) and Linux (`.AppImage`, `.deb`, `.rpm`) installers are displayed. Source archives and CI artifacts are not presented as installers. When an installer is missing, the page says so.
 
-I lettori YouTube e Vimeo mettono in pausa il video ai checkpoint e riprendono con **Continua Video**. Richiedono Internet e video che consentano la riproduzione incorporata; eventuali restrizioni del proprietario o della piattaforma vengono segnalate come errore di riproduzione. Non vengono scaricati video dalle piattaforme.
+The separate [multiplatform workflow](.github/workflows/build-multiplatform.yml) contains web and experimental Android build jobs. The repository includes a Capacitor configuration, but Android packaging does not include the Node.js multiplayer backend. There is currently no Electron entry point or desktop installer configuration.
 
-I file caricati vengono conservati come Blob in IndexedDB, sul computer del presentatore. Restano disponibili riaprendo il quiz allo stesso indirizzo/porta. L’esportazione JSON include anche i dati del video: il file esportato può quindi essere grande. Importando il JSON su un altro computer il video locale rimane utilizzabile senza dover cercare nuovamente il file originale.
+## Logo and social preview
 
-In **Prova Video Quiz → Configura Video** puoi cambiare sorgente per la sessione corrente; per conservarla nel quiz usa l’editor. Il dimostrativo usa il trailer di Big Buck Bunny ospitato da W3C, lungo circa 33 secondi; richiede Internet. I vecchi link dimostrativi non accessibili vengono sostituiti automaticamente anche nei quiz salvati.
+The visual identity uses a **white background**, **petrolio `#075E63`** and **mandarino `#FF963B`**, with lighter tints for secondary surfaces. Shared theme tokens are in [src/index.css](src/index.css).
 
-I checkpoint seguono i tempi impostati sulle domande. Il rilevamento gestisce aggiornamenti del tempo distanziati e avanzamenti manuali: le domande non vengono saltate quando il lettore supera il secondo esatto del checkpoint.
+- [Original logo](public/logo.svg): the supplied Qurioso wordmark.
+- [Logo on white](public/logo-on-white.png): the same logo on an opaque white background, used above so its colors remain consistent in light and dark GitHub themes.
+- [Q icon](public/icon.svg): extracted from the original paths, preserving the face and orange tail.
+- `public/icon-192.png`, `public/icon-512.png` and `public/apple-touch-icon.png`: application and home-screen icons.
+- [Social preview PNG](public/social-preview.png): a 1280 × 640 image for shared links, with an opaque white background.
+- [Editable social preview SVG](public/social-preview.svg): includes the original logo paths.
 
-### Immagini nei quiz
+The website declares Open Graph and Twitter Card metadata using the public PNG URL. For the **repository’s** social preview, upload the same PNG in **[Repository settings](https://github.com/napo/qurioso/settings) → Social preview → Edit → Upload an image**. GitHub manages this image separately from the website’s metadata.
 
-Nell’editor, **Copertina del quiz** e **Immagine della domanda** permettono di incollare un URL, scegliere un file JPG/PNG/WebP dal computer (fino a 15 MB) oppure usare **Cerca su Commons**. Le immagini locali grandi vengono ridimensionate fino a 1600 pixel sul lato lungo; le immagini scelte da Commons vengono scaricate e incorporate nel quiz.
+To regenerate the PNG after editing the SVG, using Inkscape:
 
-Le immagini incorporate restano disponibili senza Internet e sono incluse nell’esportazione/importazione JSON. Per Commons vengono conservati titolo, autore, licenza e link alla pagina sorgente, mostrati nell’editor e accanto alle immagini durante il gioco. La ricerca su Commons richiede Internet e non necessita di chiavi API. Google Immagini non è integrato.
+```bash
+inkscape public/social-preview.svg --export-type=png --export-filename=public/social-preview.png --export-width=1280 --export-height=640
+```
 
-L’archivio IndexedDB evita il limite ristretto di `localStorage`; entrambi restano legati all’indirizzo e alla porta. Un salvataggio fallito viene segnalato e mantiene aperto l’editor, così il quiz può essere esportato in JSON.
+## Author and license
 
-### Ricerca video senza credenziali
+**Maurizio Napolitano** — [maurizio.napolitano@gmail.com](mailto:maurizio.napolitano@gmail.com)
 
-In **Crea quiz video**, scrivi un argomento e premi **Cerca su YouTube** o **Cerca su Vimeo**: il sito si apre in una nuova scheda con la ricerca compilata. Copia il link del video scelto, torna a Qurioso e incollalo in **Incolla il link del video**, poi premi **Usa link**.
-
-Qurioso non richiede collegamenti di account, chiavi API o registrazioni per sviluppatori. Puoi anche caricare un file MP4/WebM dal computer. I video online richiedono Internet e devono consentire la riproduzione incorporata.
-
-### Due modalità di utilizzo
-
-- **Quiz in Rete**: Qurioso viene avviato sul computer del docente. Gli studenti, collegati alla stessa rete locale, rispondono ciascuno dal proprio dispositivo tramite QR e PIN. Questa modalità richiede il server locale.
-- **Attività in classe**: docente e studenti usano un unico dispositivo, eventualmente collegato al proiettore. Il docente seleziona la risposta concordata dalla classe. Le domande non hanno scadenza automatica; nei quiz video il filmato si ferma ai checkpoint e riparte dopo la risposta e il confronto. Per i quiz classici è disponibile il riepilogo delle risposte collettive.
-
-L’attività in classe funziona anche con il solo sito statico (`npm run build`, pubblicando il contenuto di `dist`, ad esempio su GitHub Pages): chi lo usa non deve installare software. I pulsanti LAN sono disponibili quando viene rilevato il server di Qurioso. Non vengono raccolte risposte individuali dagli smartphone nella modalità classe. Quiz e file rimangono nell’archivio del browser del docente; esportare il JSON permette di trasferirli. I video YouTube/Vimeo richiedono Internet.
-
-### Pagina iniziale e GitHub Pages
-
-La pagina iniziale presenta Qurioso e offre due percorsi:
-
-- **Apri Attività in classe** apre `?app=classroom`, con libreria, creazione quiz e attività collettive direttamente nel browser. Non avvia connessioni multiplayer né mostra pulsanti PIN o installazione.
-- **Quiz in Rete** apre la sezione `#quiz-in-rete`, con istruzioni LAN e download desktop. Le build vengono lette dalla più recente Release stabile di `napo/qurioso`: sono collegati soltanto installer `.exe`, `.msi`, `.dmg`, `.pkg`, `.AppImage`, `.deb` e `.rpm`. Se mancano, viene indicato chiaramente; i sorgenti e gli artifact CI non vengono presentati come installer.
-
-L’app locale completa rimane raggiungibile con `?app=network`; i link QR con `?pin=...` continuano ad aprire direttamente la schermata partecipante. La modalità classe e quella locale mantengono lo stesso archivio se usate dallo stesso indirizzo e browser.
-
-Il workflow `.github/workflows/pages.yml` verifica e pubblica `dist` su GitHub Pages a ogni push su `main`, oppure tramite avvio manuale. In **Settings → Pages → Build and deployment** la sorgente deve essere **GitHub Actions**. La build usa percorsi relativi per funzionare anche sotto `/qurioso/`. La pubblicazione della pagina non genera gli installer desktop: il confezionamento delle applicazioni resta separato.
+Released under the **GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)**. See [LICENSE](LICENSE).
