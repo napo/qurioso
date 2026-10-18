@@ -41,7 +41,7 @@ import { MultiplatformGuide } from './components/guide/MultiplatformGuide';
 import { useLanguage } from './context/LanguageContext';
 import { gameSync, ServerInfo } from './services/gameSync';
 
-export default function App() {
+export default function App({ classroomOnly = false }: { classroomOnly?: boolean }) {
   const { t } = useLanguage();
   // Navigation View State
   const [view, setView] = useState<'dashboard' | 'classroom' | 'host' | 'video_player' | 'player' | 'editor'>('dashboard');
@@ -70,10 +70,11 @@ export default function App() {
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
 
   useEffect(() => {
+    if (classroomOnly) return;
     gameSync.getServerInfo().then((info) => {
       if (info) setServerInfo(info);
     });
-  }, []);
+  }, [classroomOnly]);
 
   // Check URL query params on mount for instant QR code joining
   useEffect(() => {
@@ -206,7 +207,7 @@ export default function App() {
   if (view === 'video_player') {
     return (
       <div className="h-screen w-screen bg-white flex flex-col">
-        <VideoQuizPlayer quiz={selectedQuiz} onExit={() => setView('dashboard')} />
+        <VideoQuizPlayer quiz={selectedQuiz} classroom={classroomOnly} onExit={() => setView('dashboard')} />
       </div>
     );
   }
@@ -237,6 +238,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-qurioso-canvas text-ink flex flex-col select-none">
       <Header
+        classroomOnly={classroomOnly}
         onOpenGuide={() => setShowGuide(true)}
         onJoinClick={() => {
           setPlayerPin('');
@@ -249,6 +251,7 @@ export default function App() {
 
       {/* Main Content */}
       <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-8 space-y-8">
+        <a href="./" className="inline-block text-sm font-bold text-petrolio underline">← Torna alla pagina iniziale</a>
         {storageError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{storageError}</p>}
         {/* Hero Banner with Petrolio & Mandarino Brand Identity */}
         <div className="relative rounded-3xl bg-white border-2 border-line p-6 md:p-10 shadow-lg overflow-hidden">
@@ -258,15 +261,15 @@ export default function App() {
           <div className="relative z-10 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-soft text-petrolio border border-line text-xs font-bold mb-4 shadow-sm">
               <Sparkles className="w-3.5 h-3.5 text-accent-ink" />
-              <span>Quiz in Rete · Attività in classe</span>
+              <span>{classroomOnly ? 'Attività in classe · direttamente nel browser' : 'Quiz in Rete · Attività in classe'}</span>
             </div>
 
             <h1 className="text-3xl md:text-5xl font-black text-ink tracking-tight leading-tight">
-              {t.heroTitle}
+              {classroomOnly ? 'Una domanda, tutta la classe.' : t.heroTitle}
             </h1>
 
             <p className="mt-3 text-muted text-sm md:text-base leading-relaxed">
-              Scegli come usare Qurioso: <strong>Quiz in Rete</strong> per far rispondere ciascuno dal proprio dispositivo sulla stessa rete, oppure <strong>Attività in classe</strong> per proiettare le domande e raccogliere una risposta collettiva sul dispositivo del docente, anche interamente via web.
+              {classroomOnly ? 'Apri un quiz o creane uno nuovo. Proietta le domande, ascolta gli studenti e seleziona la risposta collettiva. Con o senza video, senza limite di tempo.' : 'Avvia un Quiz in Rete per far rispondere ciascuno dal proprio dispositivo sulla stessa rete, oppure scegli Attività in classe per raccogliere una risposta collettiva sul dispositivo del docente.'}
             </p>
 
             {/* Quick Hero Actions */}
@@ -287,13 +290,13 @@ export default function App() {
                 <span>Crea quiz video</span>
               </button>
 
-              <button
+              {!classroomOnly && <button
                 onClick={() => handleStartHost(quizzes[0])}
                 className="btn-petrolio flex items-center gap-2 px-5 py-3.5 rounded-2xl font-bold text-sm shadow-md transition active:scale-95 cursor-pointer"
               >
                 <Play className="w-4 h-4 text-accent-ink fill-mandarino" />
                 <span>Avvia Schermo Presentatore</span>
-              </button>
+              </button>}
 
               <button
                 onClick={() => handleStartVideoQuiz(quizzes[0])}
@@ -307,7 +310,7 @@ export default function App() {
         </div>
 
         {/* Real-time Server & Multi-device Highlights */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {!classroomOnly && <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-5 rounded-2xl bg-white border border-line flex items-start gap-3.5 shadow-lg">
             <div className="p-2.5 rounded-xl bg-mandarino/20 text-accent-ink border border-mandarino/30 shrink-0">
               <QrCode className="w-5 h-5" />
@@ -344,6 +347,8 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        }
 
         {/* Quizzes Collection Section */}
         <div>
@@ -433,6 +438,7 @@ export default function App() {
 
                     {/* Card Actions */}
                     <div className="mt-5 pt-4 border-t border-line space-y-2">
+                      {!classroomOnly && <>
                       {/* Primary Play Button */}
                       <button
                         disabled={!serverInfo}
@@ -445,6 +451,7 @@ export default function App() {
                       </button>
 
                       <p className="text-xs text-muted">{serverInfo ? 'Ogni partecipante risponde dal proprio dispositivo sulla stessa rete.' : 'Quiz in Rete richiede Qurioso avviato sul computer del docente.'}</p>
+                      </>}
                       <button type="button" onClick={() => { setSelectedQuiz(quiz); setView('classroom'); }} className="w-full py-3 px-3 rounded-xl btn-mandarino font-bold text-sm cursor-pointer">Attività in classe{isVideoQuiz ? ' con video' : ''}</button>
                       <p className="text-xs text-muted">Un solo dispositivo, risposta collettiva. Funziona via web senza installazioni.</p>
                       {/* If Video Quiz, provide direct video launch */}

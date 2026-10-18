@@ -16,12 +16,14 @@ import { useLanguage } from '../../context/LanguageContext';
 import { gameSync, ServerInfo } from '../../services/gameSync';
 
 interface HeaderProps {
+  classroomOnly?: boolean;
   onOpenGuide: () => void;
   onJoinClick: () => void;
   onCreateQuiz: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  classroomOnly = false,
   onOpenGuide,
   onJoinClick,
   onCreateQuiz,
@@ -31,10 +33,11 @@ export const Header: React.FC<HeaderProps> = ({
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
 
   useEffect(() => {
+    if (classroomOnly) return;
     gameSync.getServerInfo().then((info) => {
       if (info) setServerInfo(info);
     });
-  }, []);
+  }, [classroomOnly]);
 
   const handleToggleSound = () => {
     const muted = sounds.toggleMute();
@@ -48,11 +51,11 @@ export const Header: React.FC<HeaderProps> = ({
         <div>
           <div className="flex items-center gap-2.5">
             <h1><QuriosoLogo size="md" /></h1>
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-soft border border-line text-[10px] font-bold text-petrolio" title="Indirizzo HTTP e WebSocket della sessione corrente">
+            {!classroomOnly && <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-soft border border-line text-[10px] font-bold text-petrolio" title="Indirizzo HTTP e WebSocket della sessione corrente">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span className="hidden sm:inline">Porta {serverInfo?.port || '…'} Live</span>
               <span className="sm:hidden">:{serverInfo?.port || '…'}</span>
-            </div>
+            </div>}
           </div>
           <p className="text-[11px] text-muted hidden sm:block">
             {t.appTagline}
@@ -66,10 +69,10 @@ export const Header: React.FC<HeaderProps> = ({
         <LanguageSelector />
 
         {/* PWA Install Button */}
-        <PWAInstallButton />
+        {!classroomOnly && <PWAInstallButton />}
 
         {/* Join as Player Quick Button */}
-        <button
+        {!classroomOnly && <button
           onClick={onJoinClick}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-soft hover:bg-surface-hover text-xs font-semibold text-muted border border-line transition active:scale-95 cursor-pointer"
           title={t.joinWithPin}
@@ -77,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
           <Smartphone className="w-3.5 h-3.5 text-accent-ink" />
           <span className="hidden sm:inline">{t.joinWithPin}</span>
           <span className="sm:hidden">PIN</span>
-        </button>
+        </button>}
 
         {/* Create Quiz Button (Mandarino primary brand action) */}
         <button
