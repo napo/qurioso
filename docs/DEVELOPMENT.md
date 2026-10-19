@@ -97,6 +97,7 @@ To prepare a local Android project after installing the development dependencies
 npm run build
 npx --no-install cap add android
 npx --no-install cap sync android
+npm run android:icons
 ```
 
 Run `cap add` only when the `android` directory does not exist. With Java 21 and the Android SDK configured, build the debug APK from that directory:
@@ -147,4 +148,4 @@ node scripts/test-desktop.mjs release-desktop/linux-unpacked/qurioso
 
 The smoke check uses a temporary profile and does not alter the user’s quiz library. Linux CI runs it against the packaged application. Windows and macOS packages are built on native runners; their installers still need user acceptance testing on those platforms.
 
-The initial packages are unsigned, and macOS packages are not notarized. No automatic updater is configured. The branding uses the original Q icon.
+The initial packages are unsigned, and macOS packages are not notarized. No automatic updater is configured. The branding uses the original Q icon from `public/icon-512.png`: Linux and the desktop window use the PNG, Windows and NSIS use `resources/icons/icon.ico`, and macOS uses `resources/icons/icon.icns`. Android launcher icons for all densities, including adaptive and round launchers, are in `resources/icons/android/`; `npm run android:icons` installs them after Capacitor sync, including in CI.

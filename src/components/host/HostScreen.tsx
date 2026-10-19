@@ -531,7 +531,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz, onExit }) => {
                     key={option.id}
                     className={`p-5 rounded-2xl border-2 flex items-center gap-4 transition shadow-lg ${colorStyle.border} ${colorStyle.bg}`}
                   >
-                    <div className="w-10 h-10 rounded-xl bg-white/70 flex items-center justify-center text-ink shrink-0 text-xl font-black">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl font-black ${colorStyle.badge}`}>
                       {shapeSymbol}
                     </div>
                     <span className="font-bold text-lg md:text-xl text-ink">

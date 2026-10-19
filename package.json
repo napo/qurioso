@@ -17,7 +17,8 @@
     "desktop:dev": "npm run desktop:prepare && electron .",
     "desktop:pack": "npm run desktop:prepare && electron-builder --dir --publish never",
     "desktop:build": "npm run desktop:prepare && electron-builder --publish never",
-    "desktop:smoke": "node scripts/test-desktop.mjs"
+    "desktop:smoke": "node scripts/test-desktop.mjs",
+    "android:icons": "node scripts/prepare-android-icons.mjs"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",

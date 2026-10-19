@@ -377,7 +377,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
                     onClick={() => handleSelectOption(option.id)}
                     className={`h-36 sm:h-44 rounded-2xl border-2 flex flex-col items-center justify-center gap-3 transition-transform active:scale-95 shadow-md cursor-pointer ${colorStyle.bg} ${colorStyle.border}`}
                   >
-                    <div className="w-14 h-14 rounded-2xl bg-white/70 flex items-center justify-center text-ink shadow-inner text-3xl font-black">
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner text-3xl font-black ${colorStyle.badge}`}>
                       {shapeSymbol}
                     </div>
                     <span className="font-mono font-black text-sm uppercase tracking-wider text-ink">

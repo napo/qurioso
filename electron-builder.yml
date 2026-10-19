@@ -28,8 +28,10 @@ linux:
       StartupWMClass: Qurioso
 win:
   target: nsis
-  icon: public/icon-512.png
+  icon: resources/icons/icon.ico
 nsis:
+  installerIcon: resources/icons/icon.ico
+  uninstallerIcon: resources/icons/icon.ico
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
@@ -37,5 +39,5 @@ nsis:
 mac:
   target: dmg
   category: public.app-category.education
-  icon: public/icon-512.png
+  icon: resources/icons/icon.icns
   identity: null

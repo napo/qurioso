@@ -71,6 +71,7 @@ jobs:
             npx --no-install cap add android
           fi
           npx --no-install cap sync android
+          npm run android:icons
 
       - name: Build Android Debug APK
         working-directory: android

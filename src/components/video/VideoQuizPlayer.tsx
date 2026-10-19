@@ -467,7 +467,7 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
                         !showExplanation ? 'hover:scale-[1.02] active:scale-95' : ''
                       }`}
                     >
-                      <span className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center font-bold text-lg text-ink">
+                      <span className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-lg ${style.badge}`}>
                         {SHAPE_ICONS[option.shape] || '▲'}
                       </span>
                       <span className="flex-1 font-bold text-ink text-base">

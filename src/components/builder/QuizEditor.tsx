@@ -448,7 +448,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                       }`}
                     >
                       {/* Shape Badge */}
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-lg text-ink shrink-0 ${style.bg}`}>
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-lg shrink-0 ${style.badge}`}>
                         {SHAPE_ICONS[opt.shape] || '▲'}
                       </div>
 

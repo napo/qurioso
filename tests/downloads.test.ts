@@ -1,6 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { releaseDownloads, loadDesktopDownloads } from '../src/services/downloads';
+import { releaseDownloads, loadDesktopDownloads, formatDownloadSize } from '../src/services/downloads';
+
+test('download sizes come from release metadata and use localized decimal units', () => {
+  const asset = { name: 'Qurioso.exe', browser_download_url: 'https://github.com/napo/qurioso/releases/download/v1/Qurioso.exe' };
+  assert.equal(releaseDownloads({ assets: [{ ...asset, size: 123456789 }] })[0].size, 123456789);
+  for (const size of [undefined, null, '100', -1, NaN, Infinity, 1.5]) {
+    assert.equal(releaseDownloads({ assets: [{ ...asset, size }] })[0].size, undefined);
+  }
+  assert.equal(formatDownloadSize(123456789, 'it'), '123,5 MB');
+  assert.equal(formatDownloadSize(123456789, 'en'), '123.5 MB');
+  assert.equal(formatDownloadSize(0, 'it'), '0 B');
+  assert.equal(formatDownloadSize(999, 'it'), '999 B');
+  assert.equal(formatDownloadSize(1500, 'it'), '1,5 kB');
+  assert.equal(formatDownloadSize(1500000000, 'it'), '1,5 GB');
+});
 
 test('downloads expose only actual stable desktop installers belonging to this repository', () => {
   const asset = (name: string, url = `https://github.com/napo/qurioso/releases/download/v1/${name}`) => ({ name, browser_download_url: url });

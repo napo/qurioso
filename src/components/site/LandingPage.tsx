@@ -4,7 +4,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { landingTranslations } from '../../i18n/landing';
 import { LanguageSelector } from '../common/LanguageSelector';
 import { QuriosoLogo } from '../common/QuriosoLogo';
-import { loadDesktopDownloads, type DesktopDownload } from '../../services/downloads';
+import { formatDownloadSize, loadDesktopDownloads, type DesktopDownload } from '../../services/downloads';
 
 export function LandingPage() {
   const { language } = useLanguage();
@@ -77,7 +77,17 @@ export function LandingPage() {
           <div className="grid sm:grid-cols-3 gap-4 mt-7">
             {(['Windows', 'macOS', 'Linux'] as const).map(platform => {
               const items = downloads.filter(item => item.platform === platform);
-              return <div key={platform} className="rounded-xl border border-line p-5"><h3 className="text-xl font-bold text-petrolio">{platform}</h3>{items.some(item => item.prerelease) && <p className="mt-2 text-xs font-bold text-accent-ink">{t.previewBuild}</p>}{items.length ? items.map(item => <a key={item.url} href={item.url} className="mt-4 flex items-center gap-2 text-sm text-petrolio underline break-all"><Download size={16} className="shrink-0" />{item.name}</a>) : <p className="mt-3 text-sm text-muted">{downloadState === 'loading' ? t.checkingDownloads : downloadState === 'error' ? t.downloadError : t.buildUnavailable}</p>}</div>;
+              return <div key={platform} className="rounded-xl border border-line p-5">
+                <h3 className="text-xl font-bold text-petrolio">{platform}</h3>
+                {items.some(item => item.prerelease) && <p className="mt-2 text-xs font-bold text-accent-ink">{t.previewBuild}</p>}
+                {items.length ? items.map(item => <a key={item.url} href={item.url} className="mt-4 flex items-start gap-2 text-sm text-petrolio">
+                  <Download size={16} className="mt-0.5 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block underline break-all">{item.name}</span>
+                    <span className="mt-1 block text-xs text-muted">{item.size === undefined ? t.sizeUnavailable : formatDownloadSize(item.size, language)}</span>
+                  </span>
+                </a>) : <p className="mt-3 text-sm text-muted">{downloadState === 'loading' ? t.checkingDownloads : downloadState === 'error' ? t.downloadError : t.buildUnavailable}</p>}
+              </div>;
             })}
           </div>
           <a href="https://github.com/napo/qurioso/releases" target="_blank" rel="noopener noreferrer" className="inline-flex gap-2 items-center mt-5 text-sm font-bold text-petrolio underline">{t.allReleases} <ArrowUpRight size={16} /></a>
