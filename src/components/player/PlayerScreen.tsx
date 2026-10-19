@@ -14,13 +14,14 @@ import {
   Zap
 } from 'lucide-react';
 import { GameSession, Player, Question } from '../../types/quiz';
-import { gameSync } from '../../services/gameSync';
+import { gameSync, type PlayerRecovery } from '../../services/gameSync';
 import { sounds } from '../../services/soundEffects';
 import { OPTION_COLORS, SHAPE_ICONS, COLOR_KEYS, SHAPE_KEYS } from '../../utils/quizStyles';
 import { useLanguage } from '../../context/LanguageContext';
 import { QuriosoIcon, BRAND_COLORS } from '../common/QuriosoLogo';
 
 const AVATAR_OPTIONS = ['🦁', '🦊', '⚡', '🚀', '🌟', '🎨', '🐺', '🎮', '🦄', '🐼', '🍕', '🎯'];
+const newPlayerId = () => `p-${Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('')}`;
 
 interface PlayerScreenProps {
   initialPin?: string;
@@ -35,7 +36,12 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
   const [isJoined, setIsJoined] = useState<boolean>(false);
   const [isJoining, setIsJoining] = useState<boolean>(false);
   const [joinError, setJoinError] = useState<string>('');
-  const [playerId] = useState<string>(() => `p-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`);
+  const [playerId, setPlayerId] = useState<string>(newPlayerId);
+  const [recovering, setRecovering] = useState(true);
+  const [recoveryProblem, setRecoveryProblem] = useState('');
+  const [canRetry, setCanRetry] = useState(false);
+  const [storageWarning, setStorageWarning] = useState('');
+  const [leaving, setLeaving] = useState(false);
 
   // Synchronized session state
   const [session, setSession] = useState<GameSession | null>(null);
@@ -47,6 +53,42 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
   const ownAnswerRef = useRef<{ roundId?: string; optionId: string } | undefined>(undefined);
   const [answerSubmittedAt, setAnswerSubmittedAt] = useState<number | null>(null);
 
+  const updatePublicUrl = (sessionPin?: string) => {
+    const url = new URL(window.location.href);
+    if (sessionPin) { url.searchParams.set('role', 'player'); url.searchParams.set('pin', sessionPin); }
+    else { url.searchParams.delete('role'); url.searchParams.delete('pin'); }
+    window.history.replaceState({}, '', url);
+  };
+  const applyRecovery = (result: PlayerRecovery) => {
+    if (result.status === 'recovered') {
+      const { session: restored, player, ownAnswer } = result;
+      setPin(restored.pin); setPlayerId(player.id); setNickname(player.nickname); setAvatar(player.avatar);
+      activeRoundRef.current = restored.roundId || String(restored.questionStartTime);
+      ownAnswerRef.current = ownAnswer ? { roundId: restored.roundId, optionId: ownAnswer.optionId } : undefined;
+      setSelectedOptionId(ownAnswer?.optionId || null); setSession(restored); setIsJoined(true);
+      updatePublicUrl(restored.pin);
+    } else { setRecoveryProblem(result.message || ''); setCanRetry(result.status === 'unavailable'); }
+  };
+  const recover = async () => {
+    setRecovering(true); setRecoveryProblem('');
+    applyRecovery(await gameSync.recoverPlayer(initialPin || undefined));
+    setRecovering(false);
+  };
+  useEffect(() => { void recover(); return () => gameSync.cancelPlayerRecovery(); }, []);
+
+  const leave = async (goHome = false) => {
+    if (leaving) return;
+    setLeaving(true);
+    await gameSync.leavePlayer(isJoined ? pin : initialPin || undefined, isJoined ? playerId : undefined);
+    setIsJoined(false); setSession(null); setSelectedOptionId(null); ownAnswerRef.current = undefined; activeRoundRef.current = '';
+    setPlayerId(newPlayerId()); setNickname(''); setAvatar('🦊'); setRecoveryProblem(''); setCanRetry(false); setStorageWarning('');
+    updatePublicUrl();
+    setJoinError(''); setLeaving(false);
+    if (goHome) onExit?.();
+  };
+  const leaveControl = <div className="py-2 text-center"><button type="button" onClick={() => void leave()} className="rounded-xl border border-line bg-white px-4 py-2 text-sm font-bold text-petrolio">Abbandona partita</button>
+    {storageWarning && <p role="status" className="mt-2 text-sm text-muted">{storageWarning}</p>}</div>;
+
   // Subscribe to room updates
   useEffect(() => {
     if (!isJoined || !pin) return;
@@ -54,14 +96,11 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
     // Register on the server
     gameSync.register(pin, 'player', playerId);
 
-    // Initial fetch from server
-    gameSync.fetchSessionFromServer(pin).then((serverSession) => {
-      if (serverSession) {
-        setSession(serverSession);
-      }
-    });
-
     const unsubscribe = gameSync.subscribe((msg) => {
+      if (msg.type === 'PLAYER_SESSION_ENDED' && msg.pin === pin) {
+        setIsJoined(false); setSession(null); setRecoveryProblem(msg.message); setCanRetry(false);
+        return;
+      }
       if (msg.type === 'SESSION_STATE_UPDATE' && msg.session.pin === pin) {
         activeRoundRef.current = msg.session.roundId || String(msg.session.questionStartTime);
         ownAnswerRef.current = msg.ownAnswer ? { roundId: msg.session.roundId, optionId: msg.ownAnswer.optionId } : undefined;
@@ -72,6 +111,9 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
         }
       }
     });
+
+    // Subscribe first so an accepted-answer receipt is restored before choices are shown.
+    void gameSync.fetchSessionFromServer(pin, true);
 
     return () => {
       unsubscribe();
@@ -89,13 +131,17 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pin.trim() || !nickname.trim()) return;
+    if (isJoining || !pin.trim() || !nickname.trim()) return;
 
     setIsJoining(true);
     setJoinError('');
 
     const formattedPin = pin.trim();
     const cleanNick = nickname.trim();
+
+    // A different typed PIN may also have a saved identity. Never replace it with a fresh join.
+    const recovery = await gameSync.recoverPlayer(formattedPin);
+    if (recovery.status !== 'none') { applyRecovery(recovery); setIsJoining(false); return; }
 
     const newPlayer: Player = {
       id: playerId,
@@ -118,12 +164,14 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
       setJoinError('Partita non trovata o server non raggiungibile. Controlla il PIN e riprova.');
       return;
     }
+    setStorageWarning(gameSync.canRecoverPlayer(formattedPin, playerId) ? '' : 'Questo browser non consente di conservare la credenziale: mantieni aperta la pagina per non perdere l’identità.');
     const joinedSession = await gameSync.fetchSessionFromServer(formattedPin);
     if (joinedSession) {
       activeRoundRef.current = joinedSession.roundId || String(joinedSession.questionStartTime);
       setSession(joinedSession);
     }
     setIsJoined(true);
+    updatePublicUrl(formattedPin);
     sounds.playSelect();
 
     // Vibrate device briefly for tactile confirmation
@@ -161,6 +209,18 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
   const isLeaderboard = session?.status === 'leaderboard';
   const isFinished = session?.status === 'finished';
 
+  if (recovering || recoveryProblem || leaving) return <main className="min-h-screen bg-qurioso-canvas p-6 flex flex-col items-center justify-center gap-4 text-center text-petrolio">
+    <QuriosoIcon size={44} />
+    <p role="status">{leaving ? 'Uscita dalla partita in corso…' : recovering ? 'Recupero della partecipazione in corso…' : recoveryProblem}</p>
+    {!recovering && !leaving && <div className="flex flex-wrap justify-center gap-3">
+      {canRetry && <button type="button" className="btn-petrolio rounded-xl px-5 py-3" onClick={() => void recover()}>Riprova recupero</button>}
+      <button type="button" className="btn-mandarino rounded-xl px-5 py-3" onClick={() => void leave()}>Torna all’ingresso</button>
+    </div>}
+  </main>;
+  if (isJoined && !session) return <main className="min-h-screen bg-qurioso-canvas p-6 flex flex-col items-center justify-center text-petrolio">
+    <p role="status">Sincronizzazione della partita in corso…</p>{leaveControl}
+  </main>;
+
   // 1. JOIN FORM VIEW
   if (!isJoined) {
     return (
@@ -173,7 +233,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
           </div>
           {onExit && (
             <button
-              onClick={onExit}
+              onClick={() => void leave(true)}
               className="px-3 py-1.5 rounded-xl bg-surface-soft hover:bg-surface-hover text-xs font-semibold text-muted border border-line cursor-pointer"
             >
               {t.cancelAndReturn || 'Esci'}
@@ -311,6 +371,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
         <div className="text-center text-[11px] text-muted">
           Rimani su questa schermata per rispondere alle domande
+          {leaveControl}
         </div>
       </div>
     );
@@ -327,6 +388,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
           ⚡
         </div>
         <p className="text-sm font-bold text-ink mt-6">La domanda sta arrivando sul tuo telefono...</p>
+        {leaveControl}
       </div>
     );
   }
@@ -337,6 +399,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
       <h2 className="text-2xl font-black text-petrolio">Guarda il video sullo schermo del docente</h2>
       <p role="status" className="mt-4 text-muted">La prossima domanda apparirà qui. Non chiudere questa pagina.</p>
       <p className="mt-6 font-bold">{nickname} · {myPlayer?.score ?? 0} pt</p>
+      {leaveControl}
     </div>;
   }
 
@@ -410,6 +473,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
         {/* Bottom bar */}
         <div className="pt-2 text-center text-[11px] text-muted">
           Qurioso Live Multi-device
+          {leaveControl}
         </div>
       </div>
     );
@@ -462,6 +526,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
         <div className="text-center text-[11px] text-muted">
           In attesa della prossima domanda...
+          {leaveControl}
         </div>
       </div>
     );
@@ -485,12 +550,13 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
       {onExit && (
         <button
-          onClick={onExit}
+          onClick={() => void leave(true)}
           className="btn-mandarino px-8 py-3 rounded-2xl font-bold text-sm cursor-pointer shadow-lg"
         >
           Torna alla Home
         </button>
       )}
+      {!onExit && leaveControl}
     </div>
   );
 };

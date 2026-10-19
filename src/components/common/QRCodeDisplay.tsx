@@ -3,12 +3,14 @@ import QRCode from 'qrcode';
 import { Copy, Check, ExternalLink, Wifi, Globe, Smartphone } from 'lucide-react';
 import { getJoinBaseUrl, isLoopbackOrigin } from '../../utils/connectionUrl';
 import { gameSync, ServerInfo } from '../../services/gameSync';
+import { copyText } from '../../utils/clipboard';
 
 interface QRCodeDisplayProps {
   pin: string;
   className?: string;
   size?: number;
   showDetails?: boolean;
+  baseUrl?: string;
 }
 
 export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
@@ -16,6 +18,7 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
   className = '',
   size = 210,
   showDetails = true,
+  baseUrl: suppliedBaseUrl,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [copied, setCopied] = useState(false);
@@ -32,12 +35,13 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
 
   // A phone cannot reach the presenter's localhost; prefer the LAN URL locally.
   const desktop = Boolean(window.quriosoDesktop);
-  const baseUrl = getJoinBaseUrl(window.location.origin, serverInfo, desktop ? 'lan' : selectedHostType);
+  const baseUrl = suppliedBaseUrl ?? getJoinBaseUrl(window.location.origin, serverInfo, desktop ? 'lan' : selectedHostType);
 
   const joinUrl = `${baseUrl}/?pin=${pin}&role=player`;
 
   useEffect(() => {
     if (canvasRef.current) {
+      if (!baseUrl) return;
       QRCode.toCanvas(
         canvasRef.current,
         joinUrl,
@@ -57,25 +61,23 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
     }
   }, [joinUrl, size]);
 
-  const copyToClipboard = () => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(joinUrl).then(() => {
+  const copyToClipboard = async () => {
+    if (await copyText(joinUrl)) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-      });
     }
   };
 
   const openPlayerTab = () => {
     if (typeof window !== 'undefined') {
-      window.open(joinUrl, '_blank', 'width=420,height=780');
+      window.open(joinUrl, '_blank', 'noopener,noreferrer,width=420,height=780');
     }
   };
 
   return (
     <div className={`flex flex-col items-center bg-white p-4 rounded-2xl shadow-lg border-2 border-line text-muted ${className}`}>
       {/* Network target selector if LAN IP is detected */}
-      {serverInfo?.localIps && serverInfo.localIps.length > 0 && (
+      {suppliedBaseUrl === undefined && serverInfo?.localIps && serverInfo.localIps.length > 0 && (
         <div className="flex items-center gap-1.5 p-1 bg-surface-soft rounded-xl mb-3 text-xs w-full max-w-[240px]">
           {!desktop && <button
             onClick={() => setSelectedHostType('origin')}
@@ -107,7 +109,7 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
       {desktop && serverInfo && !serverInfo.localIps.length && <p role="status" className="text-sm text-petrolio">Collega il computer a una rete LAN o Wi-Fi per far partecipare gli studenti.</p>}
       {/* QR Canvas */}
       <div className="relative p-1 bg-white rounded-xl shadow-inner border border-line">
-        <canvas ref={canvasRef} hidden={(desktop && !serverInfo?.localIps.length) || selectedHostType === 'lan' && !serverInfo} className="rounded-lg max-w-full h-auto block" />
+        <canvas ref={canvasRef} aria-label="QR con PIN precompilato" hidden={!baseUrl || (suppliedBaseUrl === undefined && ((desktop && !serverInfo?.localIps.length) || selectedHostType === 'lan' && !serverInfo))} className="rounded-lg max-w-full h-auto block" />
       </div>
 
       {showDetails && (!desktop || Boolean(serverInfo?.localIps.length)) && (

@@ -174,6 +174,8 @@ test('real host and player components exchange correct answers across rounds wit
   await waitFor(async () => (await getSession(pin))?.status === 'finished', 'host continues the same game after reconnect');
   await act(async () => root.unmount());
 
+  await gameSync.removeSession(pin); // Explicit exit; unmount alone now preserves the room for refresh recovery.
+
   // Mount the actual phone component against the same real HTTP server.
   root = createRoot(document.getElementById('app')!);
   const phonePin = '654321';
@@ -246,6 +248,8 @@ test('real host and player components exchange correct answers across rounds wit
   assert.equal(document.querySelector('video')!.src, DEMO_VIDEO_URL);
 
 
+  // Navigate explicitly to the dashboard; joining now retains the public player URL for refresh.
+  dom.window.history.replaceState({}, '', '/?app=network');
   // Exercise the user's dashboard entry point, not only the isolated editor.
   await act(async () => root.unmount());
   dom.window.matchMedia = (() => ({ matches: false })) as any;

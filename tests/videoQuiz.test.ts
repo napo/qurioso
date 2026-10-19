@@ -115,7 +115,8 @@ test('YouTube and Vimeo quiz checkpoints pause, show feedback, resume, and ignor
   await click('Salva Quiz');
   assert.equal(saved!.videoConfig!.videoType, 'youtube');
   assert.equal(saved!.videoConfig!.videoUrl, 'https://www.youtube.com/watch?v=M7lc1UVf-VE');
-  assert.equal(saved!.videoConfig!.checkpoints.length, saved!.questions.length);
+  assert.equal(saved!.videoConfig!.checkpoints.length, 0, 'new video quizzes keep questions unassigned until the teacher places them');
+  assert.equal(saved!.videoConfig!.checkpointMode, 'explicit');
 });
 
 test('saved question timestamps override old checkpoints; coarse updates and seeks cannot skip questions', () => {

@@ -81,7 +81,10 @@ test('real transport authenticates automatic reconnects, ignores local spoofing 
   assert.ok(hostRegistration?.token);
   assert.notEqual(hostRegistration.token, playerRegistration.token);
   assert.equal(JSON.stringify(playerEvents).includes(hostRegistration.token), false);
-  assert.equal(localStorage.length, 0, 'no credentials or private snapshots are written to localStorage');
+  assert.equal(localStorage.length, 2, 'only the player recovery record and last-room pointer are persisted');
+  assert.equal(localStorage.getItem('qurioso_presenter_recovery_v1'), null);
+  assert.equal(JSON.stringify(localStorage).includes(hostRegistration.token), false, 'presenter secret is never persisted in localStorage');
+  assert.deepEqual(Object.keys(JSON.parse(localStorage.getItem('qurioso_player_recovery_v1:' + state.pin)!)).sort(), ['expiresAt', 'pin', 'playerId', 'token']);
 
   // Legacy cross-tab/cache data must never be an alternate authority for multiplayer.
   const spoofed = { ...state, status: 'finished' };

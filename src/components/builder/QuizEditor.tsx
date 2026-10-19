@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Plus,
   Trash2,
@@ -18,8 +18,10 @@ import {
 } from 'lucide-react';
 import { Quiz, Question, QuestionOption } from '../../types/quiz';
 import { OPTION_COLORS, SHAPE_ICONS } from '../../utils/quizStyles';
-import { VideoSourcePicker } from '../common/VideoSourcePicker';
-import { prepareVideoQuiz, exportVideoQuiz, quizCheckpoints } from '../../services/videoQuiz';
+import { VideoTimelineEditor } from './VideoTimelineEditor';
+import { VideoQuizPlayer } from '../video/VideoQuizPlayer';
+import { editorDraft, type EditorDraft } from '../../services/quizStorage';
+import { prepareVideoQuiz, exportVideoQuiz, quizCheckpoints, editableVideoQuiz, setQuestionCheckpoint } from '../../services/videoQuiz';
 import { ImagePicker } from '../common/ImagePicker';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -36,7 +38,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
 }) => {
   const { t } = useLanguage();
   const [quiz, setQuiz] = useState<Quiz>(() => {
-    if (initialQuiz) return JSON.parse(JSON.stringify(initialQuiz));
+    if (initialQuiz) return editableVideoQuiz(JSON.parse(JSON.stringify(initialQuiz)));
     return {
       id: `quiz-${Date.now()}`,
       title: t.untitledQuiz,
@@ -75,16 +77,54 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
   const [activeQuestionIndex, setActiveQuestionIndex] = useState<number>(0);
   const currentQuestion: Question | undefined = quiz.questions[activeQuestionIndex];
 
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [timelinePending, setTimelinePending] = useState(false);
+  const [previewQuiz, setPreviewQuiz] = useState<Quiz>();
+  const baseline = useRef(JSON.stringify(quiz));
+  const [draftReady, setDraftReady] = useState(false);
+  const [draftCandidate, setDraftCandidate] = useState<EditorDraft>();
+  const [draftError, setDraftError] = useState('');
+  const dirty = JSON.stringify(quiz) !== baseline.current;
+  useEffect(() => {
+    let cancelled = false;
+    editorDraft('read').then(draft => {
+      if (cancelled) return;
+      if (draft?.quiz && JSON.stringify(editableVideoQuiz(draft.quiz)) !== baseline.current) setDraftCandidate(draft);
+      else setDraftReady(true);
+    }).catch(() => { if (!cancelled) { setDraftReady(true); setDraftError('Recupero bozze non disponibile. Esporta il quiz prima di chiudere la pagina.'); } });
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    if (!dirty || !draftReady || isSaving) return;
+    const timer = setTimeout(() => { editorDraft('write', quiz).then(() => setDraftError('')).catch(error => setDraftError(error.message)); }, 500);
+    return () => clearTimeout(timer);
+  }, [quiz, dirty, draftReady, isSaving]);
+  useEffect(() => {
+    if (!dirty && !videoBusy && !timelinePending) return;
+    const protect = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', protect);
+    return () => window.removeEventListener('beforeunload', protect);
+  }, [dirty, videoBusy, timelinePending]);
+  const exitEditor = async () => {
+    if ((dirty || videoBusy || timelinePending) && !window.confirm('Ci sono modifiche non salvate. Vuoi scartarle e uscire dall’editor?')) return;
+    try { await editorDraft('delete'); } catch { /* Explicit discard still permits exit. */ }
+    onCancel();
+  };
+  const selectQuestion = (id: string) => { if (timelinePending && id !== currentQuestion?.id && !window.confirm('Il tempo modificato non è stato applicato. Vuoi scartare questa modifica e cambiare domanda?')) return; const index = quiz.questions.findIndex(q => q.id === id); if (index >= 0) setActiveQuestionIndex(index); };
+  const createId = () => `q-${Date.now()}-${Array.from(crypto.getRandomValues(new Uint8Array(6)), b => b.toString(16).padStart(2, '0')).join('')}`;
+
   const videoDraftRef = useRef(quiz.videoConfig);
   const chooseVideoMode = (enabled: boolean) => {
+    if (timelinePending && !window.confirm('Il tempo modificato non è stato applicato. Vuoi scartare questa modifica e cambiare modalità?')) return;
+    setTimelinePending(false);
     if (!enabled && quiz.videoConfig) videoDraftRef.current = quiz.videoConfig;
     setQuiz(prev => ({ ...prev, videoConfig: enabled ? prev.videoConfig || videoDraftRef.current || {
-      videoUrl: '', videoTitle: '', videoType: 'html5', pauseMode: 'defined', checkpoints: [],
+      videoUrl: '', videoTitle: '', videoType: 'html5', pauseMode: 'defined', checkpointMode: 'explicit', checkpoints: [],
     } : undefined }));
   };
 
   // Add Question
-  const addQuestion = (type: 'multiple_choice' | 'true_false' = 'multiple_choice') => {
+  const addQuestion = (type: 'multiple_choice' | 'true_false' = 'multiple_choice', timestamp?: number) => {
     let newOptions: QuestionOption[] = [];
     if (type === 'true_false') {
       newOptions = [
@@ -101,7 +141,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
     }
 
     const newQ: Question = {
-      id: `q-${Date.now()}`,
+      id: createId(),
       text: '',
       type,
       timeLimit: 20,
@@ -110,10 +150,10 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
       explanation: '',
     };
 
-    setQuiz((prev) => ({
-      ...prev,
-      questions: [...prev.questions, newQ],
-    }));
+    setQuiz(prev => {
+      const next = { ...prev, questions: [...prev.questions, newQ] };
+      return timestamp !== undefined && next.videoConfig ? setQuestionCheckpoint(next, newQ.id, timestamp) : next;
+    });
     setActiveQuestionIndex(quiz.questions.length);
   };
 
@@ -122,8 +162,9 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
     const qToDup = quiz.questions[idx];
     const duplicated: Question = {
       ...JSON.parse(JSON.stringify(qToDup)),
-      id: `q-${Date.now()}`,
+      id: createId(),
       text: qToDup.text ? `${qToDup.text} (${t.duplicate})` : '',
+      ...(quiz.videoConfig ? { videoTimestamp: undefined } : {}),
     };
 
     const newQuestions = [...quiz.questions];
@@ -136,7 +177,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
   const deleteQuestion = (idx: number) => {
     if (quiz.questions.length <= 1) return;
     const newQuestions = quiz.questions.filter((_, i) => i !== idx);
-    setQuiz((prev) => ({ ...prev, questions: newQuestions }));
+    setQuiz(prev => ({ ...prev, questions: newQuestions, videoConfig: prev.videoConfig ? { ...prev.videoConfig, checkpoints: prev.videoConfig.checkpoints.filter(cp => cp.questionId !== quiz.questions[idx].id) } : undefined }));
     if (activeQuestionIndex >= newQuestions.length) {
       setActiveQuestionIndex(Math.max(0, newQuestions.length - 1));
     }
@@ -179,21 +220,20 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
   // Import JSON quiz
   const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    e.target.value = '';
+    if (!file || (dirty && !window.confirm('Sostituire le modifiche correnti con il quiz importato?'))) return;
 
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
         const imported = JSON.parse(event.target?.result as string);
-        if (imported && imported.questions && Array.isArray(imported.questions)) {
-          setQuiz({
-            ...imported,
-            id: `quiz-${Date.now()}`,
-          });
-          setActiveQuestionIndex(0);
-        }
-      } catch {
-        // invalid JSON
+        if (!imported || typeof imported.title !== 'string' || !imported.settings || !Array.isArray(imported.questions) || !imported.questions.length ||
+            imported.questions.some((q: Question) => !q || typeof q.id !== 'string' || typeof q.text !== 'string' || !Array.isArray(q.options) || q.options.length < 2) ||
+            (imported.videoConfig && (typeof imported.videoConfig.videoUrl !== 'string' || !Array.isArray(imported.videoConfig.checkpoints)))) throw new Error('Il file non contiene un quiz valido.');
+        setQuiz(editableVideoQuiz({ ...imported, id: `quiz-${Date.now()}` }));
+        setVideoDuration(0); setActiveQuestionIndex(0); setSaveError('');
+      } catch (error) {
+        setSaveError(error instanceof Error ? error.message : 'Importazione non riuscita.');
       }
     };
     reader.readAsText(file);
@@ -204,6 +244,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
     setSaveError('');
     setIsSaving(true);
     try {
+      prepareVideoQuiz(quiz, videoDuration);
       const exportedQuiz = await exportVideoQuiz(quiz);
       const objectUrl = URL.createObjectURL(new Blob([JSON.stringify(exportedQuiz, null, 2)], { type: 'application/json' }));
       const downloadAnchor = document.createElement('a');
@@ -217,13 +258,98 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
     finally { setIsSaving(false); }
   };
 
+  const questionSettings = currentQuestion && (
+          <div className="w-full lg:w-64 shrink-0 bg-white border-t lg:border-t-0 lg:border-l border-line p-4 flex flex-col gap-5 lg:overflow-y-auto">
+            <span className="text-xs uppercase font-extrabold tracking-wider text-muted">
+              {t.questionSettings}
+            </span>
+
+            {/* Time Limit */}
+            <div>
+              <label className="block text-xs font-semibold text-muted mb-2 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-petrolio" />
+                {t.timeLimitLabel}
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[5, 10, 15, 20, 30, 60].map((sec) => (
+                  <button
+                    key={sec}
+                    onClick={() => updateCurrentQuestion({ timeLimit: sec })}
+                    className={`py-1.5 text-xs font-bold rounded-lg transition cursor-pointer ${
+                      currentQuestion.timeLimit === sec
+                        ? 'bg-petrolio text-white'
+                        : 'bg-surface-soft text-muted hover:text-ink'
+                    }`}
+                  >
+                    {sec}s
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Points */}
+            <div>
+              <label className="block text-xs font-semibold text-muted mb-2 flex items-center gap-1.5">
+                <Award className="w-3.5 h-3.5 text-accent-ink" />
+                {t.standardPointsLabel}
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { label: '0 pts', val: 0 },
+                  { label: '1000', val: 1000 },
+                  { label: '2000 (2x)', val: 2000 },
+                ].map((p) => (
+                  <button
+                    key={p.val}
+                    onClick={() => updateCurrentQuestion({ points: p.val })}
+                    className={`py-1.5 text-xs font-bold rounded-lg transition cursor-pointer ${
+                      currentQuestion.points === p.val
+                        ? 'bg-mandarino text-ink'
+                        : 'bg-surface-soft text-muted hover:text-ink'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Video Checkpoint Timestamp */}
+            <div hidden={!!quiz.videoConfig} className="border-t border-line pt-4">
+              <label className="block text-xs font-semibold text-muted mb-1 flex items-center gap-1.5">
+                <Video className="w-3.5 h-3.5 text-petrolio" />
+                {t.videoCheckpointLabel}
+              </label>
+              <p className="text-[11px] text-muted mb-2">
+                {t.videoCheckpointHint}
+              </p>
+              <input
+                type="number"
+                min={0}
+                value={currentQuestion.videoTimestamp ?? quizCheckpoints(quiz).find(cp => cp.questionId === currentQuestion.id)?.timestamp ?? (activeQuestionIndex + 1) * 10}
+                onChange={(e) => updateCurrentQuestion({ videoTimestamp: Number(e.target.value) })}
+                className="w-full bg-white border border-line rounded-xl px-3 py-2 text-xs text-ink focus:outline-none focus:border-petrolio"
+              />
+            </div>
+          </div>
+
+  );
+
+  if (draftCandidate) return <main className="h-full overflow-auto flex flex-col items-center justify-center p-6 gap-4 bg-white text-petrolio" role="dialog" aria-modal="true" aria-label="Recupera bozza">
+    <h2 className="text-2xl font-bold">C’è una bozza non salvata</h2><p>{draftCandidate.quiz.title}</p>
+    <div className="flex flex-wrap gap-3"><button className="btn-petrolio rounded-xl px-5 py-3" onClick={() => { setQuiz(editableVideoQuiz(draftCandidate.quiz)); setActiveQuestionIndex(0); setVideoDuration(0); setDraftCandidate(undefined); setDraftReady(true); }}>Riprendi bozza</button>
+      <button className="btn-mandarino rounded-xl px-5 py-3" onClick={async () => { try { await editorDraft('delete'); } catch { setDraftError('Impossibile cancellare la bozza precedente.'); } setDraftCandidate(undefined); setDraftReady(true); }}>Scarta bozza</button></div>
+  </main>;
+  if (previewQuiz) return <div className="h-full flex flex-col min-h-0"><p className="shrink-0 bg-surface-soft p-2 text-center text-sm text-petrolio">Prova attività · nessuna sessione multiplayer, nessun risultato permanente</p>
+    <div className="flex-1 min-h-0"><VideoQuizPlayer quiz={previewQuiz} classroom preview onExit={() => setPreviewQuiz(undefined)} /></div></div>;
+
   return (
-    <div className="flex flex-col h-full w-full bg-white text-ink overflow-hidden">
+    <div className={`quiz-editor flex flex-col h-full w-full bg-white text-ink overflow-hidden ${quiz.videoConfig ? 'quiz-editor-video' : ''}`}>
       {/* Top Header */}
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white border-b border-line">
         <div className="flex items-center gap-3">
           <button
-            onClick={onCancel}
+            aria-label="Esci dall’editor" onClick={() => void exitEditor()}
             className="p-1.5 rounded-xl hover:bg-surface-hover text-muted hover:text-ink transition cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -251,7 +377,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
           </label>
 
           <button
-            disabled={isSaving || videoBusy}
+            disabled={isSaving || videoBusy || timelinePending || !draftReady}
             onClick={handleExportJSON}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-soft hover:bg-surface-hover text-muted text-xs font-semibold rounded-xl border border-line transition cursor-pointer"
             title={t.exportJsonFile}
@@ -260,11 +386,16 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
             <span>{t.exportJsonFile}</span>
           </button>
 
+          {quiz.videoConfig && <button type="button" className="btn-petrolio rounded-xl px-4 py-2 text-sm font-bold disabled:opacity-50" disabled={isSaving || videoBusy || timelinePending || !draftReady} onClick={() => {
+            setSaveError('');
+            try { const prepared = prepareVideoQuiz(quiz, videoDuration); if (!quizCheckpoints(prepared).length) throw new Error('Associa almeno una domanda al video prima di provare l’attività.'); setPreviewQuiz(prepared); }
+            catch (error) { setSaveError(error instanceof Error ? error.message : 'Anteprima non disponibile.'); }
+          }}>Prova attività</button>}
           <button
-            disabled={isSaving || videoBusy}
+            disabled={isSaving || videoBusy || timelinePending || !draftReady}
             onClick={async () => {
               setIsSaving(true); setSaveError('');
-              try { await onSave(prepareVideoQuiz(quiz)); }
+              try { const prepared = prepareVideoQuiz(quiz, videoDuration); await onSave(prepared); baseline.current = JSON.stringify(quiz); await editorDraft('delete'); }
               catch (error) { setSaveError(error instanceof Error ? error.message : 'Salvataggio non riuscito.'); }
               finally { setIsSaving(false); }
             }}
@@ -293,9 +424,12 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
       </section>
 
       {/* Editor Body: Left Sidebar (Question Thumbnails) + Center (Question Editor) + Right Sidebar (Settings) */}
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+      {(saveError || draftError) && <p role="alert" className="shrink-0 px-4 py-2 text-sm text-rose-700">{saveError || draftError}</p>}
+      <div className="editor-body flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+        {quiz.videoConfig && <VideoTimelineEditor quiz={quiz} selectedQuestionId={currentQuestion?.id} onChange={setQuiz} onSelect={selectQuestion}
+          onCreateAt={seconds => addQuestion('multiple_choice', seconds)} onDuration={setVideoDuration} onBusy={setVideoBusy} onPending={setTimelinePending} />}
         {/* Left Sidebar: Questions List */}
-        <div className="w-full lg:w-52 xl:w-64 shrink-0 max-h-56 lg:max-h-none bg-white border-b lg:border-b-0 lg:border-r border-line flex flex-col">
+        <div className="editor-question-list w-full lg:w-52 xl:w-64 shrink-0 max-h-56 lg:max-h-none bg-white border-b lg:border-b-0 lg:border-r border-line flex flex-col">
           <div className="p-3 border-b border-line flex items-center justify-between">
             <span className="text-xs uppercase font-extrabold tracking-wider text-muted">
               {t.questionsSidebarTitle} ({quiz.questions.length})
@@ -307,7 +441,9 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
             {quiz.questions.map((q, idx) => (
               <div
                 key={q.id}
-                onClick={() => setActiveQuestionIndex(idx)}
+                role="button" tabIndex={0} aria-label={`Modifica domanda ${idx + 1}: ${q.text || 'senza titolo'}`}
+                onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); selectQuestion(q.id); } }}
+                onClick={() => selectQuestion(q.id)}
                 className={`group relative p-3 rounded-xl border text-left cursor-pointer transition ${
                   activeQuestionIndex === idx
                     ? 'bg-petrolio/20 border-petrolio shadow-md ring-1 ring-petrolio'
@@ -321,6 +457,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                 <div className="text-xs font-semibold text-ink line-clamp-2">
                   {q.text || t.noQuestionText}
                 </div>
+                {quiz.videoConfig && !quizCheckpoints(quiz).some(cp => cp.questionId === q.id) && <p className="text-xs text-accent-ink mt-1">Non associata al video</p>}
 
                 {/* Hover Quick Actions */}
                 <div className="hidden group-hover:flex items-center gap-1 mt-2 pt-2 border-t border-line justify-end">
@@ -392,17 +529,12 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
 
         {/* Center: Main Question Editor Canvas */}
         {currentQuestion && (
-          <div className="min-w-0 shrink-0 lg:shrink flex-1 flex flex-col lg:overflow-y-auto p-4 md:p-6 bg-white">
+          <div className="editor-question-canvas min-w-0 shrink-0 lg:shrink flex-1 flex flex-col lg:overflow-y-auto p-4 md:p-6 bg-white">
             {saveError && <p role="alert" className="w-full max-w-3xl mx-auto mb-4 text-sm text-rose-700">{saveError}</p>}
             <div className="w-full max-w-3xl mx-auto mb-6 space-y-3">
-              {quiz.videoConfig && <>
-                <VideoSourcePicker value={quiz.videoConfig} onBusyChange={setVideoBusy} onChange={selection => {
-                  setQuiz(prev => ({ ...prev, videoConfig: prev.videoConfig ? { ...prev.videoConfig, ...selection } : undefined }));
-                }} />
-                <p className="text-xs text-muted">Per ogni domanda imposta il tempo del checkpoint nella colonna a destra. Il video si fermerà e riprenderà dopo la risposta.</p>
-              </>}
+              <details open={!quiz.videoConfig}><summary className="text-sm font-bold text-petrolio cursor-pointer">Copertina del quiz</summary>
               <ImagePicker label="Copertina del quiz" value={quiz.coverImage} attribution={quiz.coverAttribution}
-                onChange={(url, attribution) => setQuiz(prev => ({ ...prev, coverImage: url, coverAttribution: attribution }))} />
+                onChange={(url, attribution) => setQuiz(prev => ({ ...prev, coverImage: url, coverAttribution: attribution }))} /></details>
             </div>
             {/* Question Text Input */}
             <div className="w-full max-w-3xl mx-auto mb-6">
@@ -410,7 +542,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                 {t.questionTextInputLabel}
               </label>
               <textarea
-                rows={2}
+                aria-label="Testo della domanda" rows={2}
                 value={currentQuestion.text}
                 onChange={(e) => updateCurrentQuestion({ text: e.target.value })}
                 placeholder={t.questionTextInputLabel}
@@ -419,8 +551,8 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
             </div>
 
             <div className="w-full max-w-3xl mx-auto mb-6">
-              <ImagePicker key={currentQuestion.id} label="Immagine della domanda" value={currentQuestion.mediaUrl} attribution={currentQuestion.mediaAttribution}
-                onChange={(url, attribution) => updateCurrentQuestion({ mediaUrl: url, mediaType: url ? 'image' : undefined, mediaAttribution: attribution })} />
+<details open={!quiz.videoConfig}><summary className="text-sm font-bold text-petrolio cursor-pointer">Immagine della domanda</summary><ImagePicker key={currentQuestion.id} label="Immagine della domanda" value={currentQuestion.mediaUrl} attribution={currentQuestion.mediaAttribution}
+                onChange={(url, attribution) => updateCurrentQuestion({ mediaUrl: url, mediaType: url ? 'image' : undefined, mediaAttribution: attribution })} /></details>
             </div>
 
             {/* Options Grid */}
@@ -452,20 +584,19 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                         {SHAPE_ICONS[opt.shape] || '▲'}
                       </div>
 
-                      {/* Input Text */}
-                      <input
-                        type="text"
-                        value={opt.text}
-                        onChange={(e) => updateOption(opt.id, { text: e.target.value })}
-                        placeholder={`Option ${optIdx + 1}...`}
-                        className="flex-1 bg-transparent border-0 focus:outline-none font-bold text-sm text-ink placeholder-muted"
-                      />
+                      {/* Long video answers remain readable and editable without pushing controls out. */}
+                      {quiz.videoConfig ? <textarea aria-label={`Risposta ${optIdx + 1}`} rows={2} value={opt.text}
+                        onChange={event => updateOption(opt.id, { text: event.target.value })} placeholder={`Option ${optIdx + 1}...`}
+                        className="min-w-0 w-full flex-1 resize-y bg-transparent border-0 focus:outline-none font-bold text-sm text-ink placeholder-muted" /> : <input
+                        type="text" value={opt.text} onChange={event => updateOption(opt.id, { text: event.target.value })} placeholder={`Option ${optIdx + 1}...`}
+                        className="min-w-0 flex-1 bg-transparent border-0 focus:outline-none font-bold text-sm text-ink placeholder-muted" />}
 
                       {/* Correct Checkbox */}
                       <button
                         type="button"
                         onClick={() => updateOption(opt.id, { isCorrect: !opt.isCorrect })}
-                        className={`w-7 h-7 rounded-xl flex items-center justify-center transition cursor-pointer ${
+                        aria-label={`Risposta ${optIdx + 1} corretta`} aria-pressed={opt.isCorrect}
+                        className={`shrink-0 w-7 h-7 rounded-xl flex items-center justify-center transition cursor-pointer ${
                           opt.isCorrect
                             ? 'bg-emerald-100 text-emerald-800 shadow-md'
                             : 'border-2 border-line hover:border-line text-transparent'
@@ -480,6 +611,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
               </div>
             </div>
 
+            {quiz.videoConfig && <details className="mt-3 rounded-xl border border-line p-3"><summary className="font-bold text-sm text-petrolio cursor-pointer">Impostazioni della domanda</summary>{questionSettings}</details>}
             {/* Explanation card */}
             <div className="w-full max-w-3xl mx-auto mt-6 bg-white p-4 rounded-2xl border border-line">
               <label className="block text-xs font-bold text-muted mb-1.5 flex items-center gap-1.5">
@@ -497,82 +629,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
           </div>
         )}
 
-        {/* Right Sidebar: Question Settings */}
-        {currentQuestion && (
-          <div className="w-full lg:w-64 shrink-0 bg-white border-t lg:border-t-0 lg:border-l border-line p-4 flex flex-col gap-5 lg:overflow-y-auto">
-            <span className="text-xs uppercase font-extrabold tracking-wider text-muted">
-              {t.questionSettings}
-            </span>
-
-            {/* Time Limit */}
-            <div>
-              <label className="block text-xs font-semibold text-muted mb-2 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-petrolio" />
-                {t.timeLimitLabel}
-              </label>
-              <div className="grid grid-cols-3 gap-1.5">
-                {[5, 10, 15, 20, 30, 60].map((sec) => (
-                  <button
-                    key={sec}
-                    onClick={() => updateCurrentQuestion({ timeLimit: sec })}
-                    className={`py-1.5 text-xs font-bold rounded-lg transition cursor-pointer ${
-                      currentQuestion.timeLimit === sec
-                        ? 'bg-petrolio text-white'
-                        : 'bg-surface-soft text-muted hover:text-ink'
-                    }`}
-                  >
-                    {sec}s
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Points */}
-            <div>
-              <label className="block text-xs font-semibold text-muted mb-2 flex items-center gap-1.5">
-                <Award className="w-3.5 h-3.5 text-accent-ink" />
-                {t.standardPointsLabel}
-              </label>
-              <div className="grid grid-cols-3 gap-1.5">
-                {[
-                  { label: '0 pts', val: 0 },
-                  { label: '1000', val: 1000 },
-                  { label: '2000 (2x)', val: 2000 },
-                ].map((p) => (
-                  <button
-                    key={p.val}
-                    onClick={() => updateCurrentQuestion({ points: p.val })}
-                    className={`py-1.5 text-xs font-bold rounded-lg transition cursor-pointer ${
-                      currentQuestion.points === p.val
-                        ? 'bg-mandarino text-ink'
-                        : 'bg-surface-soft text-muted hover:text-ink'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Video Checkpoint Timestamp */}
-            <div className="border-t border-line pt-4">
-              <label className="block text-xs font-semibold text-muted mb-1 flex items-center gap-1.5">
-                <Video className="w-3.5 h-3.5 text-petrolio" />
-                {t.videoCheckpointLabel}
-              </label>
-              <p className="text-[11px] text-muted mb-2">
-                {t.videoCheckpointHint}
-              </p>
-              <input
-                type="number"
-                min={0}
-                value={currentQuestion.videoTimestamp ?? quizCheckpoints(quiz).find(cp => cp.questionId === currentQuestion.id)?.timestamp ?? (activeQuestionIndex + 1) * 10}
-                onChange={(e) => updateCurrentQuestion({ videoTimestamp: Number(e.target.value) })}
-                className="w-full bg-white border border-line rounded-xl px-3 py-2 text-xs text-ink focus:outline-none focus:border-petrolio"
-              />
-            </div>
-          </div>
-        )}
+        {!quiz.videoConfig && questionSettings}
       </div>
     </div>
   );

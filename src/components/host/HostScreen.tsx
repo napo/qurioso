@@ -27,6 +27,8 @@ import { gameSync, BOT_PLAYERS, generateBotAnswer, ServerInfo } from '../../serv
 import { sounds } from '../../services/soundEffects';
 import { OPTION_COLORS, SHAPE_ICONS, COLOR_KEYS, SHAPE_KEYS } from '../../utils/quizStyles';
 import { QRCodeDisplay } from '../common/QRCodeDisplay';
+import { JoinInstructions } from '../common/JoinInstructions';
+import { getJoinAddresses } from '../../utils/connectionUrl';
 import { FinalPodium } from '../leaderboard/FinalPodium';
 import { applyPlayerAnswer, publicQuestion } from '../../services/sessionState';
 import { HostVideoPlayer, type HostVideoControls } from '../video/HostVideoPlayer';
@@ -38,36 +40,45 @@ import { QuriosoIcon, BRAND_COLORS } from '../common/QuriosoLogo';
 interface HostScreenProps {
   quiz: Quiz;
   onExit: () => void;
+  recoveredSession?: GameSession;
 }
 
-export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit }) => {
+export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit, recoveredSession }) => {
   const isVideo = Boolean(sourceQuiz.videoConfig);
   // Runtime ordering only: saved quizzes and their question arrays are never changed.
   const quiz = useMemo(() => isVideo ? { ...sourceQuiz, questions: quizCheckpoints(sourceQuiz).map(cp => sourceQuiz.questions.find(q => q.id === cp.questionId)!) } : sourceQuiz, [sourceQuiz, isVideo]);
   const videoControls = useRef<HostVideoControls>(null);
   const [videoReady, setVideoReady] = useState(false);
   const [syncError, setSyncError] = useState('');
-  const [videoQuestionsOpened, setVideoQuestionsOpened] = useState(0);
+  const [videoQuestionsOpened, setVideoQuestionsOpened] = useState(recoveredSession?.videoQuestionsOpened || 0);
+  const [recoveryWarning, setRecoveryWarning] = useState('');
+  const [ending, setEnding] = useState(false);
+  const endingRef = useRef(false);
+  const lastVideoPublish = useRef(0);
   const writeVersion = useRef(0);
   const { t } = useLanguage();
   // Session initialization
-  const [pin] = useState<string>(() => gameSync.generatePin());
-  const [status, setStatus] = useState<GameSession['status']>('lobby');
-  const [players, setPlayers] = useState<Record<string, Player>>({});
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
-  const [questionStartTime, setQuestionStartTime] = useState<number>(0);
-  const [timeRemaining, setTimeRemaining] = useState<number>(20);
-  const [currentAnswers, setCurrentAnswers] = useState<GameSession['answersForCurrentQuestion']>({});
+  const [pin] = useState<string>(() => recoveredSession?.pin || gameSync.generatePin());
+  const [status, setStatus] = useState<GameSession['status']>(recoveredSession?.status || 'lobby');
+  const [players, setPlayers] = useState<Record<string, Player>>(recoveredSession?.players || {});
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(recoveredSession?.currentQuestionIndex || 0);
+  const [questionStartTime, setQuestionStartTime] = useState<number>(recoveredSession?.questionStartTime || 0);
+  const [timeRemaining, setTimeRemaining] = useState<number>(recoveredSession?.timeRemaining || 20);
+  const [currentAnswers, setCurrentAnswers] = useState<GameSession['answersForCurrentQuestion']>(recoveredSession?.answersForCurrentQuestion || {});
   const [countdownNum, setCountdownNum] = useState<number>(3);
   const [showQRModal, setShowQRModal] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
+  const [selectedAddress, setSelectedAddress] = useState('');
+  const joinAddresses = getJoinAddresses(window.location.origin, serverInfo);
+  const joinAddress = joinAddresses.includes(selectedAddress) ? selectedAddress : joinAddresses[0] || '';
+  const joinInstructions = <JoinInstructions pin={pin} addresses={joinAddresses} address={joinAddress} onAddressChange={setSelectedAddress} />;
 
   const currentQuestion: Question | undefined = quiz.questions[currentQuestionIndex];
   const totalQuestions = quiz.questions.length;
 
   // Event callbacks always read the current snapshot, independent of React renders.
-  const sessionRef = useRef<GameSession>({
+  const sessionRef = useRef<GameSession>(recoveredSession || {
     pin, quizId: quiz.id, quizTitle: quiz.title, mode: isVideo ? 'video' : 'standard', status: 'lobby',
     currentQuestionIndex: 0, questionStartTime: 0, timeRemaining: 20,
     players: {}, answersForCurrentQuestion: {}, totalQuestions,
@@ -75,6 +86,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const advancingRef = useRef(false);
   const broadcastCurrentSession = async (updatedPartial: Partial<GameSession> = {}) => {
+    if (endingRef.current) return false;
     const version = ++writeVersion.current;
     const previous = sessionRef.current;
     const next = { ...previous, ...updatedPartial };
@@ -84,7 +96,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
     setCurrentQuestionIndex(next.currentQuestionIndex);
     setQuestionStartTime(next.questionStartTime);
     setCurrentAnswers(next.answersForCurrentQuestion);
-    const accepted = await gameSync.createSessionOnServer(next, isVideo ? quiz : undefined);
+    const accepted = await gameSync.createSessionOnServer(next, isVideo ? quiz : undefined, quiz);
     if (!accepted && isVideo) {
       const remote = await gameSync.fetchSessionFromServer(pin, true);
       if (version === writeVersion.current) {
@@ -95,6 +107,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
       }
       setSyncError('Sessione non sincronizzata. Controlla la connessione e riprova.');
     } else if (accepted) setSyncError('');
+    if (accepted && !gameSync.canRecoverPresenter(pin)) setRecoveryWarning('Le impostazioni di questo browser impediscono il recupero dopo refresh. Mantieni aperta questa pagina.');
     return accepted;
   };
 
@@ -109,7 +122,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
   useEffect(() => {
     // Register on server
     gameSync.register(pin, 'host');
-    broadcastCurrentSession({ status: 'lobby' });
+    if (!recoveredSession) broadcastCurrentSession({ status: 'lobby' });
 
     const unsubscribe = gameSync.subscribe((msg) => {
       if (msg.type === 'PLAYER_JOIN' && msg.pin === pin) {
@@ -150,10 +163,11 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
       }
     });
 
+    if (recoveredSession) void gameSync.fetchSessionFromServer(pin, true);
     return () => {
       unsubscribe();
       if (countdownRef.current) clearInterval(countdownRef.current);
-      gameSync.removeSession(pin);
+      gameSync.unregister(pin);
     };
   }, [pin]);
 
@@ -172,8 +186,18 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
     broadcastCurrentSession({ ...next, status: current.status });
   };
 
+  const handleExit = async () => {
+    if (endingRef.current) return;
+    endingRef.current = true;
+    videoControls.current?.pause();
+    setEnding(true);
+    await gameSync.removeSession(pin);
+    onExit();
+  };
+
   // Launch Countdown
   const handleStartCountdown = () => {
+    if (countdownRef.current) return;
     sounds.playCountdown();
     setStatus('countdown');
     setCountdownNum(3);
@@ -187,6 +211,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
         sounds.playCountdown();
       } else {
         clearInterval(interval);
+        countdownRef.current = null;
         if (isVideo) void broadcastCurrentSession({ status: 'video' }).then(ok => { if (ok) void videoControls.current?.resume(); });
         else handleStartQuestion(0);
       }
@@ -195,7 +220,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
   };
 
   // Start question
-  const handleStartQuestion = (qIndex: number, videoTime?: number) => {
+  const handleStartQuestion = (qIndex: number, videoTime?: number, ended = false) => {
     const targetQ = quiz.questions[qIndex];
     if (!targetQ) return Promise.resolve(false);
 
@@ -210,7 +235,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
 
     return broadcastCurrentSession({
       status: 'question',
-      ...(isVideo ? { videoState: { currentTime: videoTime ?? sessionRef.current.videoState?.currentTime ?? 0, isPlaying: false, activeCheckpointIndex: qIndex } } : {}),
+      ...(isVideo ? { videoState: { currentTime: videoTime ?? sessionRef.current.videoState?.currentTime ?? 0, isPlaying: false, activeCheckpointIndex: qIndex, ended } } : {}),
       currentQuestionIndex: qIndex,
       currentQuestion: publicQuestion(quiz, qIndex),
       questionStartTime: now,
@@ -338,9 +363,9 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
   }, [status, playerCount, answersCount]);
 
   return (
-    <div className="min-h-screen bg-qurioso-canvas text-ink flex flex-col select-none">
+    <div className="host-screen bg-qurioso-canvas text-ink flex flex-col select-none" data-phase={status} data-mode={isVideo ? 'video' : 'standard'}>
       {/* Top Host Bar */}
-      <header className="px-6 py-3.5 bg-white backdrop-blur-md border-b border-line flex items-center justify-between z-20">
+      <header className="host-header px-4 py-2 bg-white backdrop-blur-md border-b border-line flex items-center justify-between z-20">
         <div className="flex items-center gap-3">
           <QuriosoIcon size={38} variant="contained" />
           <div>
@@ -390,7 +415,8 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
           </button>
 
           <button
-            onClick={onExit}
+            onClick={handleExit}
+            disabled={ending}
             className="px-3 py-1.5 rounded-xl bg-surface-soft hover:bg-surface-hover text-xs font-semibold text-muted transition cursor-pointer border border-line"
           >
             {t.exit || 'Esci'}
@@ -399,57 +425,32 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
       </header>
 
       {/* Main Stage View */}
-      <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden">
+      <main className="host-stage flex-1 flex flex-col items-center p-3 relative">
+        {recoveredSession && <p role="status" className="text-petrolio mb-4">Sessione recuperata · PIN {pin}. {isVideo ? 'Il video è in pausa: riprendi quando sei pronto.' : 'La partita continua dalla fase salvata sul server.'}</p>}
+        {recoveryWarning && <p role="status" className="text-muted mb-4">{recoveryWarning}</p>}
         {syncError && <p role="alert" className="text-rose-700 mb-4">{syncError}</p>}
-        {isVideo && <div className={status === 'finished' ? 'hidden' : 'w-full flex justify-center'}>
-          <HostVideoPlayer ref={videoControls} quiz={quiz} status={status} openedQuestions={videoQuestionsOpened} onReady={setVideoReady}
+        {isVideo && <div className={status === 'finished' ? 'hidden' : 'host-video w-full flex justify-center'}>
+          <HostVideoPlayer ref={videoControls} quiz={quiz} status={status} openedQuestions={videoQuestionsOpened} initialPlayback={recoveredSession?.videoState} onReady={setVideoReady}
             onCheckpoint={handleStartQuestion} onFinish={async () => { if (!await settleCurrentRound()) return false; return handleFinishQuiz(); }}
-            onPlayback={(currentTime, isPlaying) => {
+            onSourceChange={async selection => {
+              if (!await gameSync.savePresenterVideoSource(pin, selection)) setRecoveryWarning('La nuova sorgente non è stata salvata per il recupero. Dopo un refresh potrebbe essere necessario selezionarla di nuovo.');
+              await broadcastCurrentSession({ videoState: { currentTime: 0, isPlaying: false, ended: false, activeCheckpointIndex: sessionRef.current.currentQuestionIndex } });
+            }}
+            onPlayback={(currentTime, isPlaying, ended = false, force = false) => {
               const previous = sessionRef.current.videoState;
-              if (previous?.isPlaying === isPlaying || sessionRef.current.status !== 'video') return;
-              void broadcastCurrentSession({ videoState: { currentTime, isPlaying, activeCheckpointIndex: sessionRef.current.currentQuestionIndex } });
+              if (sessionRef.current.status !== 'video') return;
+              const now = performance.now();
+              if (!force && previous?.isPlaying === isPlaying && previous?.ended === ended && now - lastVideoPublish.current < 2000) return;
+              lastVideoPublish.current = now;
+              void broadcastCurrentSession({ videoState: { currentTime, isPlaying, ended, activeCheckpointIndex: sessionRef.current.currentQuestionIndex } });
             }} />
         </div>}
         {/* LOBBY VIEW */}
         {status === 'lobby' && (
           <div className="w-full max-w-6xl flex flex-col items-center">
-            {/* Lobby Banner Card */}
-            <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white border-2 border-line rounded-3xl p-6 md:p-10 shadow-lg backdrop-blur-xl relative overflow-hidden mb-8">
-              {/* Background ambient glow */}
-              <div className="absolute top-0 right-0 w-96 h-96 bg-petrolio/25 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
-              <div className="absolute bottom-0 left-0 w-80 h-80 bg-mandarino/15 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20"></div>
-
-              {/* Instructions and Big PIN */}
-              <div className="lg:col-span-7 flex flex-col gap-5 z-10">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-petrolio/40 border border-line text-petrolio text-xs font-bold w-fit">
-                  <Smartphone className="w-4 h-4 text-accent-ink" />
-                  <span>Connessione Diretta Smartphone via Server HTTP</span>
-                </div>
-
-                <h2 className="text-3xl md:text-5xl font-black text-ink tracking-tight leading-tight">
-                  Entra nel quiz con il tuo telefono!
-                </h2>
-
-                <p className="text-sm md:text-base text-muted max-w-xl">
-                  Inquadra il <strong className="text-ink">QR Code</strong> con la fotocamera del tuo smartphone oppure apri il browser e digita il codice PIN:
-                </p>
-
-                {/* PIN Showcase */}
-                <div className="bg-surface-soft border-2 border-mandarino p-4 md:p-6 rounded-2xl flex items-center justify-between gap-4 max-w-md shadow-md shadow-mandarino/15">
-                  <div>
-                    <span className="text-xs uppercase font-extrabold tracking-widest text-muted block">
-                      Codice Gioco PIN
-                    </span>
-                    <span className="text-4xl md:text-5xl font-mono font-black text-ink tracking-widest text-shadow">
-                      {pin}
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-[11px] text-muted">Giocatori collegati:</span>
-                    <span className="text-3xl font-black text-accent-ink">{playerCount}</span>
-                  </div>
-                </div>
-
+            <div className="host-lobby-banner w-full grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-4 items-center bg-white border-2 border-line rounded-2xl p-4 shadow-lg mb-3">
+              <div className="min-w-0 space-y-3">
+                {joinInstructions}
                 {/* Host Controls */}
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <button
@@ -475,13 +476,15 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
               </div>
 
               {/* QR Code Presentation */}
-              <div className="lg:col-span-5 flex flex-col items-center justify-center z-10">
-                <QRCodeDisplay pin={pin} size={230} showDetails={true} />
+              <div className="host-lobby-qr flex flex-col items-center justify-center gap-2">
+                <p className="font-bold text-petrolio">Oppure inquadra il QR</p>
+                <QRCodeDisplay pin={pin} baseUrl={joinAddress} size={190} showDetails={false} />
+                <p className="text-sm text-muted">PIN già compilato</p>
               </div>
             </div>
 
             {/* Players Lobby Wall */}
-            <div className="w-full bg-white border border-line rounded-2xl p-6 backdrop-blur-md">
+            <div className="host-lobby-players w-full bg-white border border-line rounded-2xl p-3">
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-line">
                 <div className="flex items-center gap-2">
                   <Users className="w-5 h-5 text-accent-ink" />
@@ -491,23 +494,23 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                 </div>
                 {playerCount === 0 && (
                   <span className="text-xs text-muted animate-pulse">
-                    In attesa che i partecipanti inquadrino il QR Code...
+                    In attesa dei partecipanti…
                   </span>
                 )}
               </div>
 
               {playerCount === 0 ? (
-                <div className="py-12 flex flex-col items-center justify-center text-center text-muted">
-                  <div className="w-16 h-16 rounded-2xl bg-surface-soft border border-line flex items-center justify-center mb-3">
+                <div className="py-2 flex flex-col items-center justify-center text-center text-muted">
+                  <div className="hidden">
                     <Smartphone className="w-8 h-8 text-accent-ink animate-bounce" />
                   </div>
                   <p className="font-semibold text-ink">Nessun giocatore ancora connesso</p>
                   <p className="text-xs text-muted mt-1 max-w-sm">
-                    Prendi il tuo telefono, inquadra il QR Code in alto e inserisci il tuo nome per entrare nella stanza in tempo reale!
+                    Apri l’indirizzo dal computer della LAN e partecipa con il PIN, oppure usa il QR da un dispositivo consentito.
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                <div className="host-player-list grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                   {Object.values(players).map((player) => (
                     <div
                       key={player.id}
@@ -523,6 +526,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
           </div>
         )}
 
+        {recoveredSession && status === 'countdown' && <button className="btn-mandarino rounded-xl px-6 py-3" onClick={handleStartCountdown}>Riprendi avvio del quiz</button>}
         {/* COUNTDOWN VIEW */}
         {status === 'countdown' && (
           <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
@@ -539,9 +543,9 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
 
         {/* ACTIVE QUESTION VIEW */}
         {status === 'question' && currentQuestion && (
-          <div className="w-full max-w-5xl flex flex-col gap-6">
+          <div className="host-question w-full max-w-5xl flex flex-col gap-3">
             {/* Question Header & Clock */}
-            <div className="bg-white border border-line rounded-3xl p-6 md:p-8 shadow-lg backdrop-blur-md flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="host-question-heading bg-white border border-line rounded-2xl p-4 shadow-lg flex flex-col md:flex-row items-center justify-between gap-3">
               <div className="flex-1">
                 <span className="text-xs uppercase font-extrabold text-accent-ink tracking-wider mb-2 block">
                   Domanda {currentQuestionIndex + 1} di {totalQuestions}
@@ -570,7 +574,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
             </div>
 
             {currentQuestion.mediaUrl && (
-              <figure className="space-y-2">
+              <figure className="host-question-image space-y-1">
                 <div className="w-full max-h-64 rounded-2xl overflow-hidden border border-line shadow-lg flex items-center justify-center bg-white">
                   <img src={currentQuestion.mediaUrl} alt="Immagine della domanda" className="max-h-64 w-auto object-contain" />
                 </div>
@@ -579,7 +583,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
             )}
 
             {/* 4 Interactive Answer Blocks */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="host-options grid grid-cols-1 md:grid-cols-2 gap-3">
               {currentQuestion.options.map((option, idx) => {
                 const colorKey = option.color;
                 const colorStyle = OPTION_COLORS[colorKey];
@@ -589,7 +593,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                 return (
                   <div
                     key={option.id}
-                    className={`p-5 rounded-2xl border-2 flex items-center gap-4 transition shadow-lg ${colorStyle.border} ${colorStyle.bg}`}
+                    className={`host-option p-3 rounded-2xl border-2 flex items-center gap-3 transition shadow-lg ${colorStyle.border} ${colorStyle.bg}`}
                   >
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl font-black ${colorStyle.badge}`}>
                       {shapeSymbol}
@@ -603,7 +607,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
             </div>
 
             {/* Host Skip Button */}
-            <div className="flex justify-end pt-2">
+            <div className="host-actions flex justify-end pt-2">
               <button
                 onClick={handleShowQuestionResults}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-soft hover:bg-surface-hover text-xs font-bold text-muted hover:text-ink border border-line transition cursor-pointer"
@@ -617,7 +621,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
 
         {/* QUESTION RESULTS VIEW */}
         {status === 'question_results' && currentQuestion && (
-          <div className="w-full max-w-4xl flex flex-col gap-6">
+          <div className="host-results w-full max-w-4xl flex flex-col gap-3">
             <div className="bg-white border border-line rounded-3xl p-6 md:p-8 shadow-lg backdrop-blur-md">
               <span className="text-xs uppercase font-extrabold text-accent-ink tracking-wider mb-2 block">
                 Risultati Domanda {currentQuestionIndex + 1}
@@ -673,7 +677,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
 
               {quiz.settings.showExplanation && currentQuestion.explanation && <p className="mt-4 text-petrolio">{currentQuestion.explanation}</p>}
               {/* Next Action Button */}
-              <div className="mt-8 flex justify-end">
+              <div className="host-actions mt-4 flex justify-end">
                 <button
                   onClick={handleShowLeaderboard}
                   className="btn-mandarino px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md transition cursor-pointer"
@@ -688,9 +692,9 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
 
         {/* LEADERBOARD VIEW */}
         {status === 'leaderboard' && (
-          <div className="w-full max-w-3xl flex flex-col gap-6">
+          <div className="host-leaderboard w-full max-w-3xl flex flex-col gap-3">
             <div className="bg-white border border-line rounded-3xl p-6 md:p-8 shadow-lg backdrop-blur-md">
-              <div className="flex items-center justify-between mb-6 pb-4 border-b border-line">
+              <div className="host-leaderboard-heading flex flex-wrap items-center justify-between gap-3 mb-3 pb-3 border-b border-line">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-mandarino/20 border border-mandarino/40 text-accent-ink">
                     <Trophy className="w-6 h-6" />
@@ -715,7 +719,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
               </div>
 
               {/* Ranked list */}
-              <div className="flex flex-col gap-2.5">
+              <div className="host-ranking flex flex-col gap-2.5">
                 {Object.values(players)
                   .sort((a, b) => b.score - a.score)
                   .map((p, idx) => (
@@ -763,9 +767,9 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                 setStatus('lobby');
                 setCurrentQuestionIndex(0);
                 setCurrentAnswers({});
-                broadcastCurrentSession({ status: 'lobby', currentQuestionIndex: 0, currentQuestion: undefined, questionStartTime: 0, answersForCurrentQuestion: {} });
+                broadcastCurrentSession({ status: 'lobby', currentQuestionIndex: 0, currentQuestion: undefined, questionStartTime: 0, answersForCurrentQuestion: {}, ...(isVideo ? { videoState: { currentTime: 0, isPlaying: false, activeCheckpointIndex: 0, ended: false } } : {}) });
               }}
-              onExit={onExit}
+              onExit={handleExit}
             />
           </div>
         )}
@@ -774,18 +778,15 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
       {/* Enlarged QR Code Modal */}
       {showQRModal && (
         <div className="fixed inset-0 bg-petrolio/15 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white border-2 border-line rounded-3xl p-6 md:p-8 max-w-md w-full flex flex-col items-center shadow-lg relative">
+          <div role="dialog" aria-modal="true" aria-label="Come partecipare" className="host-join-modal bg-white border-2 border-line rounded-3xl p-5 max-w-2xl w-full flex flex-col gap-3 shadow-lg relative">
             <button
-              onClick={() => setShowQRModal(false)}
+              aria-label="Chiudi istruzioni di accesso" onClick={() => setShowQRModal(false)}
               className="absolute top-4 right-4 p-2 rounded-xl bg-surface-soft text-muted hover:text-ink cursor-pointer"
             >
               ✕
             </button>
-            <h3 className="text-xl font-black text-ink mb-2">Scansiona con lo smartphone</h3>
-            <p className="text-xs text-muted text-center mb-4">
-              I partecipanti si collegano istantaneamente al server per giocare
-            </p>
-            <QRCodeDisplay pin={pin} size={260} showDetails={true} />
+            {joinInstructions}
+            <div className="flex justify-center"><QRCodeDisplay pin={pin} baseUrl={joinAddress} size={190} showDetails={false} /></div>
           </div>
         </div>
       )}

@@ -10,6 +10,7 @@ import { performance } from 'node:perf_hooks';
 import { remainingMs, receivedTimeMs, type RoundClock } from './server/roundClock';
 import type { GameSession, Player, Quiz } from './src/types/quiz';
 import { applyPlayerAnswer, publicQuestion } from './src/services/sessionState';
+import { PLAYER_CREDENTIAL_TTL_MS, playerCredentialExpired } from './src/types/playerCredential';
 import { MAX_MESSAGE_BYTES, MAX_PLAYERS, ProtocolError, check, object, id, pin as validatePin,
   player as validatePlayer, session as validateSession, submission, participantSession, videoQuizDefinition } from './server/sessionProtocol';
 
@@ -32,6 +33,7 @@ interface Room {
   openedQuestions: number;
   hostToken: string;
   playerTokens: Map<string, string>;
+  playerExpiries: Map<string, number>;
   roundPlayers: Record<string, Player>;
   revision: number;
   sequence: number;
@@ -68,12 +70,13 @@ function requireHost(room: Room, credential: unknown) {
 }
 function requirePlayer(room: Room, playerId: string, credential: unknown) {
   if (!matches(credential, room.playerTokens.get(playerId))) throw new ProtocolError(403, 'Player authorization required');
+  if (playerCredentialExpired(room.playerExpiries.get(playerId))) throw new ProtocolError(410, 'Player credential expired');
 }
 function reader(room: Room, req: express.Request): { host: boolean; playerId?: string } {
   if (!req.headers.authorization) return { host: false };
   const credential = bearer(req);
   if (matches(credential, room.hostToken)) return { host: true };
-  for (const [playerId, expected] of room.playerTokens) if (matches(credential, expected)) return { host: false, playerId };
+  for (const [playerId, expected] of room.playerTokens) if (matches(credential, expected)) { requirePlayer(room, playerId, credential); return { host: false, playerId }; }
   throw new ProtocolError(403, 'Invalid authorization');
 }
 function envelope(room: Room, host: boolean, playerId?: string) {
@@ -103,6 +106,9 @@ function broadcastState(room: Room) {
   // Serialize two distinct views, never a presenter payload to participant sockets.
   const host = envelope(room, true);
   for (const client of sessionClients.get(room.session.pin) || []) {
+    if (client.role === 'player' && (!room.playerTokens.has(client.playerId!) || playerCredentialExpired(room.playerExpiries.get(client.playerId!)))) {
+      client.ws.close(1008, 'Player credential expired'); continue;
+    }
     send(client.ws, client.role === 'host' ? host : envelope(room, false, client.playerId));
   }
 }
@@ -283,7 +289,7 @@ app.post('/api/session/create', (req, res) => {
   const session = validateSession(body.session);
   const videoQuiz = session.mode === 'video' ? videoQuizDefinition(body.videoQuiz) : undefined;
   if (videoQuiz) check(session.status === 'lobby' && videoQuiz.id === session.quizId && videoQuiz.questions.length === session.totalQuestions, 'Invalid video setup');
-  const room: Room = { session, videoQuiz, openedQuestions: 0, hostToken: credential!, playerTokens: new Map(), roundPlayers: structuredClone(session.players), revision: 0, sequence: 0, operations: new Map() };
+  const room: Room = { session, videoQuiz, openedQuestions: 0, hostToken: credential!, playerTokens: new Map(), playerExpiries: new Map(), roundPlayers: structuredClone(session.players), revision: 0, sequence: 0, operations: new Map() };
   if (body.operationId !== undefined) id(body.operationId);
   if (session.status === 'question') startRound(room);
   remember(room, body.operationId, body.session, body.revision);
@@ -297,8 +303,14 @@ app.get('/api/session/:pin', (req, res) => {
   const identity = reader(room, req);
   res.json({ success: true, ...envelope(room, identity.host, identity.playerId) });
 });
+app.get('/api/session/:pin/presenter', (req, res) => {
+  const room = roomFor(req.params.pin);
+  requireHost(room, bearer(req));
+  res.json({ success: true, ...envelope(room, true) });
+});
 app.post('/api/session/:pin/join', (req, res) => {
   const room = roomFor(req.params.pin);
+  if (room.session.status === 'finished') throw new ProtocolError(410, 'Session finished');
   const player = validatePlayer(object(req.body).player, true);
   let playerToken = room.playerTokens.get(player.id);
   if (Object.hasOwn(room.session.players, player.id)) {
@@ -307,13 +319,32 @@ app.post('/api/session/:pin/join', (req, res) => {
     if (Object.keys(room.session.players).length >= MAX_PLAYERS) throw new ProtocolError(429, 'Too many players');
     playerToken = secret();
     room.playerTokens.set(player.id, playerToken);
+    room.playerExpiries.set(player.id, Date.now() + PLAYER_CREDENTIAL_TTL_MS);
     room.session.players[player.id] = player;
     room.sequence++;
     // Only the presenter needs join events containing the private player record.
     broadcast(req.params.pin, { type: 'PLAYER_JOIN', pin: req.params.pin, player }, true);
     broadcastState(room);
   }
-  res.json({ success: true, playerToken, ...envelope(room, false, player.id) });
+  res.json({ success: true, playerToken, playerExpiresAt: room.playerExpiries.get(player.id), ...envelope(room, false, player.id) });
+});
+
+// Recover without joining or mutating players, rounds, answers, deadlines or scores.
+app.get('/api/session/:pin/player/:playerId', (req, res) => {
+  const room = roomFor(req.params.pin), playerId = id(req.params.playerId);
+  requirePlayer(room, playerId, bearer(req));
+  if (room.session.status === 'finished') throw new ProtocolError(410, 'Session finished');
+  res.json({ success: true, playerExpiresAt: room.playerExpiries.get(playerId), ...envelope(room, false, playerId) });
+});
+app.post('/api/session/:pin/player/:playerId/leave', (req, res) => {
+  const room = roomFor(req.params.pin), playerId = id(req.params.playerId);
+  requirePlayer(room, playerId, bearer(req));
+  room.playerTokens.delete(playerId); room.playerExpiries.delete(playerId);
+  // Retain historical answers and scores. Disconnecting alone never revokes anything.
+  for (const client of sessionClients.get(req.params.pin) || []) {
+    if (client.role === 'player' && client.playerId === playerId) client.ws.close(1000, 'Player left');
+  }
+  res.json({ success: true });
 });
 
 function receiveAnswer(room: Room, value: unknown, credential: unknown, registeredPlayerId?: string, bot = false) {

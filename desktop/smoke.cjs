@@ -1,4 +1,5 @@
 exports.run = async (window, port) => {
+  window.webContents.setBackgroundThrottling(false);
   const result = await window.webContents.executeJavaScript(`(async () => {
     const waitFor = async (condition, label) => {
       for (let n = 0; n < 100; n++) { if (await condition()) return; await new Promise(resolve => setTimeout(resolve, 50)); }
@@ -56,12 +57,40 @@ exports.run = async (window, port) => {
     store.put('saved', 'marker');
     await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
     database.close();
-    return { origin: location.origin, port: health.port, configuredPort: window.quriosoDesktop.serverPort,
+    return { pin, roundId: received.roundId, score: received.players[player.id].score, origin: location.origin, port: health.port, configuredPort: window.quriosoDesktop.serverPort,
       nodeAccess: typeof window.require, health: health.status, localIps: info.localIps, previous,
       title: document.title };
   })()`);
+  // A real renderer reload must recover the private host, without recreating the room.
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Desktop reload timed out')), 10000);
+    window.webContents.once('did-finish-load', () => { clearTimeout(timer); resolve(); });
+    window.webContents.reload();
+  });
+  const recovered = await window.webContents.executeJavaScript(`(async () => {
+    const waitFor = async condition => {
+      for (let n = 0; n < 150; n++) { if (await condition()) return; await new Promise(resolve => setTimeout(resolve, 40)); }
+      throw new Error('Presenter did not recover after desktop reload');
+    };
+    await waitFor(() => document.body.textContent.includes('Sessione recuperata'));
+    const pin = [...document.querySelectorAll('span')].find(el => /^\\d{6}$/.test(el.textContent || '')).textContent;
+    const state = (await (await fetch('/api/session/' + pin)).json()).session;
+    const activeSessions = (await (await fetch('/api/health')).json()).activeSessions;
+    const exit = [...document.querySelectorAll('header button')].find(button => ['Esci', 'Exit', 'Beenden'].includes(button.textContent.trim()));
+    if (!exit) throw new Error('Recovered host has no exit control');
+    exit.click();
+    await waitFor(async () => (await (await fetch('/api/health')).json()).activeSessions === 0);
+    if (sessionStorage.getItem('qurioso_presenter_recovery_v1')) throw new Error('Explicit exit retained the recovery credential');
+    return { pin, roundId: state.roundId, status: state.status, score: state.players['desktop-smoke-player'].score, activeSessions };
+  })()`);
+  if (recovered.pin !== result.pin || recovered.roundId !== result.roundId || recovered.status !== 'question_results' ||
+      recovered.score !== result.score || recovered.activeSessions !== 1) throw new Error('Desktop reload lost the active game');
   if (result.health !== 'ok' || result.port !== port || result.configuredPort !== port || result.nodeAccess !== 'undefined' || result.origin !== 'http://qurioso.localhost') {
     throw new Error(`Desktop smoke failed: ${JSON.stringify(result)}`);
   }
+  await require('./presenterSmoke.cjs').run(window, port);
+  await require('./studentSmoke.cjs').run(window);
+  await require('./editorSmoke.cjs').run(window);
+  await require('./updateSmoke.cjs').run(window, result.previous);
   return result;
 };

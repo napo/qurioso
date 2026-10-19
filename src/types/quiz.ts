@@ -53,6 +53,8 @@ export interface VideoQuizConfig {
   videoAssetId?: string;
   videoFileName?: string;
   pauseMode: 'defined' | 'random';
+  /** Explicit lists may omit unassigned questions; absent preserves legacy implicit checkpoints. */
+  checkpointMode?: 'explicit';
   checkpoints: {
     timestamp: number;
     questionId: string;
@@ -118,5 +120,6 @@ export interface GameSession {
     currentTime: number;
     isPlaying: boolean;
     activeCheckpointIndex: number;
+    ended?: boolean;
   };
 }

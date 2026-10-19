@@ -7,6 +7,7 @@ let window;
 let backend;
 let quitting = false;
 let backendPort;
+let updater;
 
 app.setName('Qurioso');
 if (smoke && process.env.QURIOSO_TEST_USER_DATA) app.setPath('userData', process.env.QURIOSO_TEST_USER_DATA);
@@ -85,16 +86,27 @@ async function start() {
   });
   window.once('ready-to-show', () => { if (!smoke) window.show(); });
   window.on('closed', () => { window = null; });
+  updater = await require('./updateController.cjs').createUpdateController({ app, dialog, shell, window, automatic: app.isPackaged && !smoke,
+    canOpenInstaller: async () => {
+      if (!window || window.isDestroyed()) return false;
+      try {
+        const health = await fetch(`http://127.0.0.1:${backendPort}/api/health`, { signal: AbortSignal.timeout(2000) }).then(response => response.json());
+        return health.activeSessions === 0 && await window.webContents.executeJavaScript(`location.origin === 'http://qurioso.localhost' && Boolean(document.querySelector('[data-qurioso-dashboard]'))`);
+      } catch { return false; }
+    },
+  });
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
     { label: 'Qurioso', submenu: [
       { label: 'Quiz in Rete', click: () => window?.loadURL(`${ORIGIN}/?app=network`) },
       { label: 'Attività in classe', click: () => window?.loadURL(`${ORIGIN}/?app=classroom`) },
+      { type: 'separator' }, ...updater.menuItems,
       { type: 'separator' }, { role: 'quit' },
     ] },
     { role: 'editMenu' }, { role: 'viewMenu' },
   ]));
   await window.loadURL(`${ORIGIN}/?app=network`);
+  updater.start();
   if (smoke) {
     const result = await require('./smoke.cjs').run(window, backendPort);
     console.log(`QURIOSO_SMOKE_RESULT=${JSON.stringify(result)}`);
@@ -103,5 +115,5 @@ async function start() {
 }
 
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => { quitting = true; window?.destroy(); backend?.kill(); });
+app.on('before-quit', () => { quitting = true; updater?.stop(); window?.destroy(); backend?.kill(); });
 app.on('will-quit', () => { backend?.kill(); });

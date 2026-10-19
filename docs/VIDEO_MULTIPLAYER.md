@@ -58,8 +58,10 @@ Una disconnessione temporanea recupera identità, risposta e punteggio con il to
 esistente; la coda del presentatore ritenta la stessa operazione. Il video resta
 nel componente montato durante domande e risultati. Gli errori di riproduzione
 consentono un nuovo tentativo o la scelta di un'altra sorgente senza ricreare la
-partita. I token restano in memoria: ricaricare interamente la pagina, chiudere il
-browser o riavviare il server non equivale a una breve disconnessione supportata.
+partita. Il presentatore può ora recuperare la stessa partita dopo un refresh, con video
+in pausa: vedi [PRESENTER_RECOVERY.md](PRESENTER_RECOVERY.md). I token degli studenti sono ora conservati per origine e partita per il
+[recupero dopo refresh e chiusura della scheda](PLAYER_RECOVERY.md). Riavviare il server elimina le stanze; il ripristino dopo
+chiusura del browser dipende dalla conservazione della scheda da parte del browser.
 
 I file locali rimangono nell'IndexedDB del docente. HTML5, YouTube e Vimeo usano
 lo stesso adattatore già impiegato dal lettore classroom; YouTube/Vimeo richiedono

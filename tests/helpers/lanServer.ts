@@ -6,16 +6,16 @@ import type { GameSession } from '../../src/types/quiz';
 import { DEFAULT_QUIZZES } from '../../src/data/defaultQuizzes';
 import { publicQuestion } from '../../src/services/sessionState';
 
-export async function startLanServer(t: TestContext) {
-  const child = spawn(process.execPath, ['--import', 'tsx', 'server.ts'], {
-    env: { ...process.env, NODE_ENV: 'production', PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe'],
+export async function startLanServer(t: TestContext, controlledClock = false) {
+  const child = spawn(process.execPath, ['--import', 'tsx', controlledClock ? 'tests/helpers/clockServer.ts' : 'server.ts'], {
+    env: { ...process.env, NODE_ENV: 'production', PORT: '0' }, stdio: controlledClock ? ['ignore', 'pipe', 'pipe', 'ipc'] : ['ignore', 'pipe', 'pipe'],
   });
   t.after(async () => { if (child.exitCode === null) { child.kill(); await once(child, 'exit'); } });
   let errors = '';
-  child.stderr.on('data', chunk => { errors += chunk; });
+  child.stderr!.on('data', chunk => { errors += chunk; });
   const base = await new Promise<string>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Server startup timed out: ' + errors)), 10000);
-    child.stdout.on('data', chunk => {
+    child.stdout!.on('data', chunk => {
       const match = chunk.toString().match(/Qurioso: (http:\/\/localhost:\d+)/);
       if (match) { clearTimeout(timer); resolve(match[1]); }
     });
@@ -46,7 +46,10 @@ export async function startLanServer(t: TestContext) {
     };
     return { ws, messages, next };
   };
-  return { base, request, mint, socket };
+  return { base, request, mint, socket, advanceClock: async (milliseconds: number) => {
+    if (!controlledClock) throw new Error('Clock control is test-only');
+    const ack = once(child, 'message'); child.send({ advanceMs: milliseconds }); await ack;
+  } };
 }
 export function round(pin = '123456'): GameSession {
   const quiz = DEFAULT_QUIZZES[0];

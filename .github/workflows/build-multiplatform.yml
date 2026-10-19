@@ -105,6 +105,12 @@ jobs:
             arch: arm64
     steps:
       - uses: actions/checkout@v4
+      - name: Verify release tag matches application version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node scripts/check-release-version.mjs "$RELEASE_TAG"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -156,6 +162,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - name: Download web build
         uses: actions/download-artifact@v4
         with:
@@ -199,6 +206,10 @@ jobs:
 
           These first desktop packages are unsigned; macOS packages are not notarized.
           NOTES
+          if [ -f "docs/releases/${RELEASE_TAG}.md" ]; then
+            cat "docs/releases/${RELEASE_TAG}.md" release/notes.md > release/notes-complete.md
+            mv release/notes-complete.md release/notes.md
+          fi
 
       - name: Publish GitHub Release
         env:

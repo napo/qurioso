@@ -33,6 +33,7 @@ import { QuriosoIcon } from '../common/QuriosoLogo';
 interface VideoQuizPlayerProps {
   quiz: Quiz;
   classroom?: boolean;
+  preview?: boolean;
   onFinish?: (finalScore: number) => void;
   onExit?: () => void;
 }
@@ -41,11 +42,14 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
   quiz,
   onFinish,
   classroom = false,
+  preview = false,
   onExit,
 }) => {
   const { t } = useLanguage();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const answerLockedRef = useRef(false);
+  const endedRef = useRef(false);
+  const [completed, setCompleted] = useState(false);
 
   // Video settings & state
   const [videoUrl, setVideoUrl] = useState<string>(
@@ -89,6 +93,7 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
 
 
   const loadVideo = (selection: VideoSelection) => {
+    endedRef.current = false; setCompleted(false);
     setVideoSelection(selection);
     setVideoUrl(selection.videoAssetId ? '' : resolveVideoSource(selection.videoUrl));
     setVideoError('');
@@ -136,6 +141,7 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
     setCurrentTime(now);
 
     if (!videoRef.current.duration || isNaN(videoRef.current.duration)) return;
+    if (Number.isFinite(videoRef.current.duration) && now >= videoRef.current.duration) endedRef.current = true;
     if (duration !== videoRef.current.duration) {
       setDuration(videoRef.current.duration);
     }
@@ -223,8 +229,14 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
     setSelectedOptionId(null);
     setIsAnswerCorrect(null);
 
+    // Drain simultaneous/crossed checkpoints before restarting playback.
+    const pending = endedRef.current ? checkpoints.findIndex((_, i) => !triggeredRef.current.has(i))
+      : nextCheckpoint(checkpoints, triggeredRef.current, videoRef.current?.currentTime || 0);
+    if (pending >= 0) { triggerQuestionAtCheckpoint(checkpoints[pending], pending); return; }
+    if (endedRef.current) { setCompleted(true); onFinish?.(score); return; }
+
     // Check if this was the last checkpoint
-    if (triggeredCheckpoints.size >= checkpoints.length) {
+    if (!preview && triggeredCheckpoints.size >= checkpoints.length) {
       // Completed all questions!
       sounds.playPodiumFanfare();
       confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
@@ -271,6 +283,7 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
 
   const restartVideo = () => {
     if (!videoRef.current) return;
+    endedRef.current = false; setCompleted(false);
     videoRef.current.currentTime = 0;
     triggeredRef.current = new Set();
     activeQuestionRef.current = false;
@@ -281,6 +294,13 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
     setAnsweredCount(0);
     playVideo();
   };
+
+  if (completed) return <main className="h-full overflow-auto bg-white text-petrolio flex flex-col items-center justify-center gap-4 p-6 text-center">
+    <QuriosoIcon size={48} /><h2 className="text-3xl font-black">Attività conclusa</h2>
+    <p>Domande svolte: {answeredCount} su {checkpoints.length}.</p>
+    <button className="btn-mandarino rounded-xl px-5 py-3 font-bold" onClick={() => { endedRef.current = false; setCompleted(false); triggeredRef.current = new Set(); activeQuestionRef.current = false; setTriggeredCheckpoints(new Set()); setActiveQuestion(null); setScore(0); setStreak(0); setAnsweredCount(0); setCurrentTime(0); }}>Ricomincia attività</button>
+    {onExit && <button className="btn-petrolio rounded-xl px-5 py-3 font-bold" onClick={onExit}>{preview ? 'Torna all’editor' : 'Esci'}</button>}
+  </main>;
 
   return (
     <div className="flex flex-col h-full w-full bg-white text-ink select-none">
@@ -318,20 +338,20 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
             </div>
           </div>
 
-          <button
+          {!preview && <button
             onClick={() => { if (videoRef.current) Promise.resolve(videoRef.current.pause()).catch(reportPlaybackError); setShowConfigModal(true); }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-soft hover:bg-surface-hover text-xs font-medium text-muted border border-line transition cursor-pointer"
           >
             <Settings className="w-3.5 h-3.5 text-petrolio" />
             <span>{t.configureVideo}</span>
-          </button>
+          </button>}
 
           {onExit && (
             <button
               onClick={onExit}
               className="px-3 py-1.5 rounded-xl bg-surface-soft hover:bg-surface-hover text-xs font-medium text-muted hover:text-ink transition cursor-pointer"
             >
-              {t.exit}
+              {preview ? 'Torna all’editor' : t.exit}
             </button>
           )}
         </div>
@@ -357,8 +377,13 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
             }
           }}
           onEnded={() => {
+            endedRef.current = true;
             setIsPlaying(false);
-            if (answeredCount >= checkpoints.length) {
+            if (activeQuestionRef.current) return;
+            const pending = checkpoints.findIndex((_, index) => !triggeredRef.current.has(index));
+            if (pending >= 0) { triggerQuestionAtCheckpoint(checkpoints[pending], pending); return; }
+            setCompleted(true); onFinish?.(score);
+            if (!preview && answeredCount >= checkpoints.length) {
               sounds.playPodiumFanfare();
               confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
             }
@@ -485,7 +510,7 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
                       </span>
                     )}
                   </div>
-                  {activeQuestion.explanation && (
+                  {quiz.settings.showExplanation && activeQuestion.explanation && (
                     <p className="text-xs text-muted mb-3 leading-relaxed">
                       {activeQuestion.explanation}
                     </p>
@@ -577,7 +602,7 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
           </div>
 
           {/* Mode Switchers */}
-          <div className="flex items-center gap-2">
+          {!preview && <div className="flex items-center gap-2">
             <button
               onClick={() => {
                 if (activeQuestionRef.current) return;
@@ -608,7 +633,7 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
               <Shuffle className="w-3.5 h-3.5" />
               <span>Sequenza Casuale</span>
             </button>
-          </div>
+          </div>}
         </div>
       </div>
 

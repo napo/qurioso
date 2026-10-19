@@ -26,7 +26,7 @@ test('YouTube and Vimeo host adapters pause once per checkpoint and keep playbac
   for (const [provider, url] of [['youtube', 'https://www.youtube.com/watch?v=M7lc1UVf-VE'], ['vimeo', 'https://vimeo.com/76979871']] as const) {
     const quiz = structuredClone(DEFAULT_QUIZZES[0]); quiz.videoConfig!.videoUrl = url;
     let opened = 0;
-    const ref = React.createRef<{ resume: () => Promise<void> }>();
+    const ref = React.createRef<{ resume: () => Promise<void>; pause: () => void }>();
     const render = async (status: GameSession['status']) => act(async () => root.render(React.createElement(HostVideoPlayer, {
       key: provider, ref, quiz, status, openedQuestions: opened,
       onReady() {}, onPlayback() {}, onFinish: async () => true,

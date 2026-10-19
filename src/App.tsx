@@ -27,7 +27,7 @@ import {
   Wifi,
   Smartphone
 } from 'lucide-react';
-import { Quiz } from './types/quiz';
+import { Quiz, GameSession } from './types/quiz';
 import { DEFAULT_QUIZZES } from './data/defaultQuizzes';
 import { Header } from './components/common/Header';
 import { QuriosoIcon } from './components/common/QuriosoLogo';
@@ -40,6 +40,7 @@ import { QuizEditor } from './components/builder/QuizEditor';
 import { MultiplatformGuide } from './components/guide/MultiplatformGuide';
 import { useLanguage } from './context/LanguageContext';
 import { gameSync, ServerInfo } from './services/gameSync';
+import { checkpointProblems, quizCheckpoints } from './services/videoQuiz';
 
 export default function App({ classroomOnly = false }: { classroomOnly?: boolean }) {
   const { t } = useLanguage();
@@ -59,6 +60,20 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
 
   // Selected quiz for playing / hosting / editing
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz>(DEFAULT_QUIZZES[0]);
+
+  const [recoveredSession, setRecoveredSession] = useState<GameSession>();
+  const recoveryAllowed = !classroomOnly && !new URLSearchParams(window.location.search).has('pin') && new URLSearchParams(window.location.search).get('role') !== 'player';
+  const [checkingRecovery, setCheckingRecovery] = useState(recoveryAllowed);
+  const [recoveryProblem, setRecoveryProblem] = useState<{ status: string; message?: string }>();
+  const recoverHost = async () => {
+    setCheckingRecovery(true);
+    const result = await gameSync.recoverPresenter();
+    if (result.status === 'recovered') {
+      setSelectedQuiz(result.quiz); setRecoveredSession(result.session); setView('host'); setRecoveryProblem(undefined);
+    } else if (result.status !== 'none') setRecoveryProblem(result);
+    setCheckingRecovery(false);
+  };
+  useEffect(() => { if (recoveryAllowed) void recoverHost(); }, []);
 
   // Player state for joining with PIN
   const [playerPin, setPlayerPin] = useState<string>('');
@@ -101,6 +116,10 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
 
   // Launch Host Presenter screen
   const handleStartHost = (quiz: Quiz) => {
+    if (quiz.videoConfig && (!quizCheckpoints(quiz).length || checkpointProblems(quiz).length)) {
+      setStorageError('Apri l’editor e associa almeno una domanda al video, correggendo eventuali checkpoint non validi.'); return;
+    }
+    setRecoveredSession(undefined); setRecoveryProblem(undefined);
     setSelectedQuiz(quiz);
     setView('host');
   };
@@ -122,7 +141,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
       id: `quiz-${Date.now()}`,
       title: withVideo ? 'Nuovo quiz video' : 'Nuovo Quiz Senza Titolo',
       description: withVideo ? 'Quiz con video e domande ai checkpoint' : 'Quiz interattivo multiplayer',
-      videoConfig: withVideo ? { videoUrl: '', videoTitle: '', videoType: 'html5', pauseMode: 'defined', checkpoints: [] } : undefined,
+      videoConfig: withVideo ? { videoUrl: '', videoTitle: '', videoType: 'html5', pauseMode: 'defined', checkpointMode: 'explicit', checkpoints: [] } : undefined,
       category: 'Generale',
       coverImage: 'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?w=800&auto=format&fit=crop&q=80',
       author: 'Maurizio Napolitano',
@@ -188,6 +207,8 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
     setView('dashboard');
   };
 
+  if (checkingRecovery) return <div role="status" className="min-h-screen bg-white text-petrolio p-8">Recupero della sessione del presentatore…</div>;
+
   if (!libraryReady) return <div role="status" className="min-h-screen bg-white text-petrolio p-8">Caricamento quiz…</div>;
 
   if (view === 'classroom') return selectedQuiz.videoConfig
@@ -198,7 +219,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
   if (view === 'host') {
     return (
       <div className="h-screen w-screen bg-white flex flex-col">
-        <HostScreen quiz={selectedQuiz} onExit={() => setView('dashboard')} />
+        <HostScreen quiz={selectedQuiz} recoveredSession={recoveredSession} onExit={() => setView('dashboard')} />
       </div>
     );
   }
@@ -236,7 +257,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
 
   // DEFAULT VIEW: MAIN DASHBOARD & QUIZ HUB
   return (
-    <div className="min-h-screen bg-qurioso-canvas text-ink flex flex-col select-none">
+    <div data-qurioso-dashboard className="min-h-screen bg-qurioso-canvas text-ink flex flex-col select-none">
       <Header
         classroomOnly={classroomOnly}
         onOpenGuide={() => setShowGuide(true)}
@@ -252,6 +273,13 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
       {/* Main Content */}
       <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-8 space-y-8">
         <a href="./" className="inline-block text-sm font-bold text-petrolio underline">← Torna alla pagina iniziale</a>
+        {recoveryProblem && <div role="alert" className="rounded-xl border border-line bg-white p-4 text-petrolio">
+          <p>{recoveryProblem.message}</p>
+          {['unavailable', 'context_missing'].includes(recoveryProblem.status) && <div className="flex gap-3 mt-3">
+            <button className="btn-mandarino rounded-xl px-4 py-2" onClick={() => void recoverHost()}>Riprova recupero</button>
+            <button className="underline" onClick={async () => { await gameSync.endRecoverableSession(); setRecoveryProblem(undefined); }}>Termina sessione e cancella credenziale</button>
+          </div>}
+        </div>}
         {storageError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{storageError}</p>}
         {/* Hero Banner with Petrolio & Mandarino Brand Identity */}
         <div className="relative rounded-3xl bg-white border-2 border-line p-6 md:p-10 shadow-lg overflow-hidden">
@@ -441,7 +469,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
                       {!classroomOnly && <>
                       {/* Primary Play Button */}
                       <button
-                        disabled={!serverInfo}
+                        disabled={!serverInfo || (isVideoQuiz && !quizCheckpoints(quiz).length)}
                         title={!serverInfo ? 'Per usare Quiz in Rete avvia Qurioso sul computer del docente.' : 'I partecipanti devono essere sulla stessa rete locale.'}
                         onClick={() => handleStartHost(quiz)}
                         className="w-full py-2.5 px-3 rounded-xl btn-petrolio font-bold text-xs shadow-md transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
@@ -450,7 +478,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
                         <span>{isVideoQuiz ? 'Quiz video in rete' : 'Quiz classico in rete'}</span>
                       </button>
 
-                      <p className="text-xs text-muted">{serverInfo ? 'Ogni partecipante risponde dal proprio dispositivo sulla stessa rete.' : 'Quiz in Rete richiede Qurioso avviato sul computer del docente.'}</p>
+                      <p className="text-xs text-muted">{isVideoQuiz && !quizCheckpoints(quiz).length ? 'Apri Modifica e associa almeno una domanda al video per avviare il quiz in rete.' : serverInfo ? 'Ogni partecipante risponde dal proprio dispositivo sulla stessa rete.' : 'Quiz in Rete richiede Qurioso avviato sul computer del docente.'}</p>
                       </>}
                       <button type="button" onClick={() => { setSelectedQuiz(quiz); setView('classroom'); }} className="w-full py-3 px-3 rounded-xl btn-mandarino font-bold text-sm cursor-pointer">Attività in classe{isVideoQuiz ? ' con video' : ''}</button>
                       <p className="text-xs text-muted">Un solo dispositivo, risposta collettiva. Funziona via web senza installazioni.</p>

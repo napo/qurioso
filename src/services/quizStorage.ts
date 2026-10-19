@@ -50,7 +50,7 @@ export async function storeQuizzes(quizzes: Quiz[]): Promise<void> {
 /** Store the original video once, without base64 overhead in every quiz save. */
 export async function storeVideo(file: Blob): Promise<string> {
   if (typeof indexedDB === 'undefined') throw new Error('L’archivio video non è disponibile in questo browser.');
-  const id = crypto.randomUUID();
+  const id = crypto.randomUUID?.() || Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
   const database = await openLibrary();
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction('videos', 'readwrite');
@@ -72,4 +72,73 @@ export async function loadVideo(id: string): Promise<Blob> {
   });
   if (!file) throw new Error('Video locale non trovato. Riapri l’editor e seleziona di nuovo il file.');
   return file;
+}
+
+export interface VideoAssetInfo { id: string; size: number; mime: string; name?: string }
+export async function videoAssetInfo(id: string): Promise<VideoAssetInfo> {
+  const file = await loadVideo(id);
+  return { id, size: file.size, mime: file.type, name: 'name' in file ? String(file.name) : undefined };
+}
+
+export function formatAssetSize(bytes: number): string {
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = bytes, index = 0;
+  while (value >= 1000 && index < units.length - 1) { value /= 1000; index++; }
+  return `${new Intl.NumberFormat('it-IT', { maximumFractionDigits: index ? 1 : 0 }).format(value)} ${units[index]}`;
+}
+
+/** Audit only: never delete assets that an open editor or a running session may need. */
+export async function inspectVideoAssets(): Promise<(VideoAssetInfo & { referenced: boolean })[]> {
+  const database = await openLibrary();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(['library', 'videos'], 'readonly');
+    const records = tx.objectStore('library').getAll(), assets: VideoAssetInfo[] = [];
+    const cursor = tx.objectStore('videos').openCursor();
+    cursor.onsuccess = () => {
+      const entry = cursor.result;
+      if (!entry) return;
+      const blob = entry.value as Blob;
+      assets.push({ id: String(entry.key), size: blob.size, mime: blob.type, name: 'name' in blob ? String(blob.name) : undefined }); entry.continue();
+    };
+    tx.oncomplete = () => {
+      database.close();
+      const used = new Set<string>();
+      for (const record of records.result) {
+        const quizzes = Array.isArray(record) ? record : [record?.quiz || record];
+        for (const quiz of quizzes) if (quiz?.videoConfig?.videoAssetId) used.add(quiz.videoConfig.videoAssetId);
+      }
+      resolve(assets.map(asset => ({ ...asset, referenced: used.has(asset.id) })));
+    };
+    tx.onabort = () => { database.close(); reject(new Error('Impossibile verificare l’archivio video.')); };
+  });
+}
+
+export interface EditorDraft { quiz: Quiz; updatedAt: number }
+let draftQueue: Promise<unknown> = Promise.resolve();
+/** Serialized so a late autosave cannot resurrect a draft after explicit save/discard. */
+export function editorDraft(action: 'read' | 'write' | 'delete', quiz?: Quiz): Promise<EditorDraft | undefined> {
+  const operation = draftQueue.catch(() => {}).then(async () => {
+    const database = await openLibrary();
+    return new Promise<EditorDraft | undefined>((resolve, reject) => {
+      const tx = database.transaction('library', action === 'read' ? 'readonly' : 'readwrite');
+      const store = tx.objectStore('library'), key = 'editor:draft';
+      const request = action === 'read' ? store.get(key) : action === 'delete' ? store.delete(key) : store.put({ quiz, updatedAt: Date.now() }, key);
+      tx.oncomplete = () => { database.close(); resolve(action === 'read' ? request.result : undefined); };
+      tx.onabort = () => { database.close(); reject(new Error('Bozza non salvata. Mantieni aperta la pagina oppure esporta il quiz.')); };
+    });
+  });
+  draftQueue = operation;
+  return operation;
+}
+
+/** Private runtime quiz copy, separate from the saved library and never a session-state fallback. */
+export async function presenterQuiz(pin: string, action: 'read' | 'write' | 'delete', quiz?: Quiz): Promise<Quiz | undefined> {
+  const database = await openLibrary();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction('library', action === 'read' ? 'readonly' : 'readwrite');
+    const store = transaction.objectStore('library'), key = `presenter:${pin}`;
+    const request = action === 'read' ? store.get(key) : action === 'delete' ? store.delete(key) : store.put(quiz, key);
+    transaction.oncomplete = () => { database.close(); resolve(action === 'read' ? request.result : undefined); };
+    transaction.onabort = () => { database.close(); reject(new Error('Archivio di recupero del presentatore non disponibile.')); };
+  });
 }

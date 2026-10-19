@@ -106,7 +106,7 @@ export function session(value: unknown): GameSession {
   check(s.status !== 'question' || (result.currentQuestion && result.questionStartTime > 0));
   if (s.videoState !== undefined) {
     const v = object(s.videoState);
-    result.videoState = { currentTime: number(v.currentTime, 86400), isPlaying: bool(v.isPlaying), activeCheckpointIndex: integer(v.activeCheckpointIndex, 10000) };
+    result.videoState = { currentTime: number(v.currentTime, 86400), isPlaying: bool(v.isPlaying), activeCheckpointIndex: integer(v.activeCheckpointIndex, 10000), ...(v.ended !== undefined ? { ended: bool(v.ended) } : {}) };
   }
   return result;
 }

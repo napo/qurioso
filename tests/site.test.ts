@@ -33,6 +33,7 @@ test('classroom runs without a server; landing switches, remembers and passes al
   const entry = [...document.querySelectorAll('a')].find(a => a.textContent?.includes('Apri Attività in classe'));
   assert.equal(entry?.getAttribute('href'), '?app=classroom&lang=it');
   assert.ok(document.querySelector('#quiz-in-rete'));
+  assert.equal([...document.querySelectorAll('a')].find(a => a.textContent === 'Partecipa con PIN')?.getAttribute('href'), '?role=player&lang=it');
   assert.match(document.body.textContent!, /Tutti sulla stessa LAN/);
   assert.equal(document.body.textContent?.match(/Build non ancora disponibile/g)?.length, 3);
   const chooseLanguage = async (label: string) => {

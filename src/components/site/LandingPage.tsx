@@ -7,7 +7,7 @@ import { QuriosoLogo } from '../common/QuriosoLogo';
 import { formatDownloadSize, loadDesktopDownloads, type DesktopDownload } from '../../services/downloads';
 
 export function LandingPage() {
-  const { language } = useLanguage();
+  const { language, t: appText } = useLanguage();
   const t = landingTranslations[language];
   const classroomUrl = `?app=classroom&lang=${language}`;
   useEffect(() => {
@@ -31,7 +31,7 @@ export function LandingPage() {
     <a href="#contenuto" className="sr-only focus:not-sr-only focus:block focus:p-3">{t.skip}</a>
     <header className="max-w-6xl mx-auto px-5 md:px-8 py-6 flex flex-wrap items-center justify-between gap-5">
       <a href="./" aria-label={t.home}><QuriosoLogo size="md" /></a>
-      <nav aria-label={t.nav} className="flex flex-wrap items-center gap-5 text-sm font-bold text-petrolio"><a href={classroomUrl} className="hover:underline">{t.classroom}</a><a href="#quiz-in-rete" className="hover:underline">{t.network}</a><LanguageSelector /></nav>
+      <nav aria-label={t.nav} className="flex flex-wrap items-center gap-5 text-sm font-bold text-petrolio"><a href={`?role=player&lang=${language}`} className="btn-mandarino rounded-xl px-4 py-3">{appText.joinWithPin}</a><a href={classroomUrl} className="hover:underline">{t.classroom}</a><a href="#quiz-in-rete" className="hover:underline">{t.network}</a><LanguageSelector /></nav>
     </header>
     <main id="contenuto">
       <section className="max-w-6xl mx-auto px-5 md:px-8 pt-12 md:pt-20 pb-16 md:pb-24 grid lg:grid-cols-[1.15fr_1fr] gap-12 items-center">

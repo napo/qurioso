@@ -7,34 +7,38 @@ import { VideoSurface } from './VideoSurface';
 import { useStoredVideoSource } from './useStoredVideoSource';
 import { VideoSourcePicker } from '../common/VideoSourcePicker';
 
-export interface HostVideoControls { resume: () => Promise<void> }
+export interface HostVideoControls { resume: () => Promise<void>; pause: () => void }
 interface Props {
   quiz: Quiz;
   status: GameSession['status'];
   openedQuestions: number;
-  onCheckpoint: (index: number, currentTime: number) => Promise<boolean>;
+  initialPlayback?: GameSession['videoState'];
+  onSourceChange?: (selection: VideoSelection) => Promise<void>;
+  onCheckpoint: (index: number, currentTime: number, ended: boolean) => Promise<boolean>;
   onFinish: () => Promise<boolean>;
   onReady: (ready: boolean) => void;
-  onPlayback: (currentTime: number, playing: boolean) => void;
+  onPlayback: (currentTime: number, playing: boolean, ended?: boolean, force?: boolean) => void;
 }
 
 /** Playback only: all question opening, timing, answers and scoring stay in the LAN session. */
 export const HostVideoPlayer = forwardRef<HostVideoControls, Props>(function HostVideoPlayer(
-  { quiz, status, openedQuestions, onCheckpoint, onFinish, onReady, onPlayback }, ref) {
+  { quiz, status, openedQuestions, initialPlayback, onSourceChange, onCheckpoint, onFinish, onReady, onPlayback }, ref) {
   const media = useRef<HTMLVideoElement>(null);
   const [selection, setSelection] = useState<VideoSelection | undefined>(quiz.videoConfig);
   const [url, setUrl] = useState(quiz.videoConfig?.videoAssetId ? '' : resolveVideoSource(quiz.videoConfig?.videoUrl));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [time, setTime] = useState(0);
+  const [time, setTime] = useState(initialPlayback?.currentTime || 0);
   const [playing, setPlaying] = useState(false);
   const [changingSource, setChangingSource] = useState(false);
   const checkpoints = useRef(quizCheckpoints(quiz));
   const completed = useRef(new Set<number>());
   const opening = useRef(false);
   const resumeRequested = useRef(false);
-  const ended = useRef(false);
+  const ended = useRef(initialPlayback?.ended || false);
+  const awaitingResume = useRef(Boolean(initialPlayback));
+  const restorePosition = useRef(initialPlayback?.currentTime);
   const latest = useRef({ status, onCheckpoint, onFinish, onPlayback });
   latest.current = { status, onCheckpoint, onFinish, onPlayback };
   useEffect(() => {
@@ -44,7 +48,7 @@ export const HostVideoPlayer = forwardRef<HostVideoControls, Props>(function Hos
   useEffect(() => { onReady(Boolean(url && duration > 0 && !busy && !error)); }, [url, duration, busy, error, onReady]);
   useEffect(() => {
     if (status !== 'video') { media.current?.pause(); setPlaying(false); }
-    if (status === 'lobby') { completed.current.clear(); ended.current = false; if (media.current) media.current.currentTime = 0; }
+    if (status === 'lobby') { setTime(0); restorePosition.current = undefined; completed.current.clear(); ended.current = false; if (media.current) media.current.currentTime = 0; }
   }, [status]);
   useEffect(() => {
     if (!url || duration > 0) return;
@@ -63,7 +67,7 @@ export const HostVideoPlayer = forwardRef<HostVideoControls, Props>(function Hos
     pause();
     setError('');
     try {
-      const accepted = index >= 0 ? await latest.current.onCheckpoint(index, player.currentTime) : await latest.current.onFinish();
+      const accepted = index >= 0 ? await latest.current.onCheckpoint(index, player.currentTime, ended.current) : await latest.current.onFinish();
       if (accepted && index >= 0) completed.current.add(index);
       if (!accepted) setError('Sessione non sincronizzata. Controlla la connessione e riprova senza avanzare il video.');
     } finally { opening.current = false; }
@@ -73,21 +77,30 @@ export const HostVideoPlayer = forwardRef<HostVideoControls, Props>(function Hos
     resumeRequested.current = true;
     if (latest.current.status !== 'video') return;
     resumeRequested.current = false;
+    awaitingResume.current = false;
     if (await processPosition()) return;
     try { await media.current?.play(); }
     catch { setError('Impossibile riprodurre il video. Riprova o scegli un’altra sorgente.'); }
   };
-  useImperativeHandle(ref, () => ({ resume }));
+  useImperativeHandle(ref, () => ({ resume, pause }));
   useEffect(() => { if (status === 'video' && resumeRequested.current) void resume(); }, [status]);
   const update = () => {
     if (!media.current) return;
     setTime(media.current.currentTime);
+    if (awaitingResume.current) return;
+    latest.current.onPlayback(media.current.currentTime, playing, ended.current);
     if (latest.current.status === 'video') void processPosition();
     else pause();
   };
   const metadata = () => {
     const value = media.current?.duration;
-    if (value && Number.isFinite(value)) { setDuration(value); setError(''); }
+    if (value && Number.isFinite(value)) {
+      setDuration(value); setError('');
+      if (restorePosition.current !== undefined && media.current) {
+        media.current.currentTime = Math.min(restorePosition.current, value);
+        setTime(media.current.currentTime); media.current.pause(); restorePosition.current = undefined;
+      }
+    }
   };
   return <section className="w-full max-w-5xl mb-6 rounded-2xl border border-line bg-white p-4" aria-label="Video del presentatore">
     <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -98,11 +111,11 @@ export const HostVideoPlayer = forwardRef<HostVideoControls, Props>(function Hos
       {url && <VideoSurface key={url} ref={media} src={url} controls={false} playsInline preload="metadata" className="w-full h-full"
         onLoadedMetadata={metadata} onDurationChange={metadata} onTimeUpdate={update}
         onPlay={() => {
-          if (latest.current.status !== 'video' || opening.current) { pause(); return; }
-          ended.current = false; setPlaying(true); latest.current.onPlayback(media.current?.currentTime || 0, true);
+          if (latest.current.status !== 'video' || opening.current || awaitingResume.current) { pause(); return; }
+          ended.current = false; setPlaying(true); latest.current.onPlayback(media.current?.currentTime || 0, true, false, true);
         }}
-        onPause={() => { setPlaying(false); latest.current.onPlayback(media.current?.currentTime || 0, false); }}
-        onEnded={() => { ended.current = true; setPlaying(false); void processPosition(); }}
+        onPause={() => { setPlaying(false); latest.current.onPlayback(media.current?.currentTime || 0, false, ended.current, true); }}
+        onEnded={() => { ended.current = true; setPlaying(false); latest.current.onPlayback(media.current?.currentTime || 0, false, true, true); if (!awaitingResume.current) void processPosition(); }}
         onError={() => { pause(); setError('Impossibile caricare il video. Verifica connessione e formato oppure scegli una nuova sorgente.'); }} />}
     </div>
     <div className="flex items-center gap-3 mt-3">
@@ -114,7 +127,7 @@ export const HostVideoPlayer = forwardRef<HostVideoControls, Props>(function Hos
         disabled={status !== 'video' || !duration} className="flex-1 accent-petrolio" onChange={event => {
           if (!media.current || opening.current) return;
           const target = Number(event.target.value);
-          ended.current = target >= duration; media.current.currentTime = target; setTime(target); void processPosition();
+          ended.current = target >= duration; awaitingResume.current = false; media.current.currentTime = target; setTime(target); latest.current.onPlayback(target, false, ended.current, true); void processPosition();
         }} />
       <span className="text-sm text-muted">{Math.floor(time)} / {Math.floor(duration)} s</span>
     </div>
@@ -126,7 +139,7 @@ export const HostVideoPlayer = forwardRef<HostVideoControls, Props>(function Hos
     {(status === 'lobby' || error || changingSource) && <button className="text-sm text-petrolio underline mt-3" onClick={() => setChangingSource(!changingSource)}>Scegli un altro video</button>}
     {changingSource && <VideoSourcePicker value={selection} onBusyChange={setBusy} onChange={value => {
       // Changing the source never resets checkpoint history or the LAN session.
-      pause(); ended.current = false; setSelection(value); setUrl(value.videoAssetId ? '' : resolveVideoSource(value.videoUrl)); setDuration(0); setTime(0); setError(''); setChangingSource(false);
+      pause(); ended.current = false; restorePosition.current = undefined; void onSourceChange?.(value); setSelection(value); setUrl(value.videoAssetId ? '' : resolveVideoSource(value.videoUrl)); setDuration(0); setTime(0); setError(''); setChangingSource(false);
     }} />}
   </section>;
 });
