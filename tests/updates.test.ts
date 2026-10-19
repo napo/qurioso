@@ -129,11 +129,13 @@ test('no native checks in development; updater preferences survive a new launch'
   controller.stop();
 });
 
-test('automatic startup check honors preferences and cancellation never leaves a partial installer', async t => {
+test('automatic startup check honors preferences and cancellation never leaves a partial installer', { timeout: 10000 }, async t => {
   const dir = await mkdtemp(path.join(tmpdir(), 'qurioso-updater-cancel-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   t.mock.timers.enable({ apis: ['setTimeout'] });
   let requests = 0, downloadStarted = false, dialogs = 0;
+  let signalDownloadReady!: () => void;
+  const downloadReady = new Promise<void>(resolve => { signalDownloadReady = resolve; });
   const controller = await createUpdateController({
     app: { isPackaged: true, getPath: () => dir, getVersion: () => '1.0.0' },
     window: { isDestroyed: () => false, setProgressBar: () => {} }, shell: {}, platform: 'win32', arch: 'x64',
@@ -142,10 +144,12 @@ test('automatic startup check honors preferences and cancellation never leaves a
       requests++;
       if (url.includes('api.github.com')) return Response.json(release);
       downloadStarted = true;
-      return new Response(new ReadableStream({ start(stream) {
+      const response = new Response(new ReadableStream({ start(stream) {
         stream.enqueue(bytes.subarray(0, 3));
         options.signal.addEventListener('abort', () => stream.error(new DOMException('Cancelled', 'AbortError')), { once: true });
       } }));
+      signalDownloadReady();
+      return response;
     },
   });
   controller.start(); t.mock.timers.tick(1999); assert.equal(requests, 0);
@@ -153,7 +157,7 @@ test('automatic startup check honors preferences and cancellation never leaves a
   await controller.menuItems[1].click({ checked: false });
   t.mock.timers.tick(1); assert.equal(requests, 0);
   const running = controller.check(true);
-  for (let i = 0; i < 100 && !downloadStarted; i++) await new Promise<void>(resolve => setImmediate(resolve));
+  await downloadReady;
   assert.ok(downloadStarted);
   await controller.check(true); assert.equal(requests, 2, 'concurrent checks must not duplicate downloads');
   controller.menuItems.find((item: any) => item.id === 'qurioso-cancel-update').click();
