@@ -116,6 +116,11 @@ jobs:
           TARGET_ARCH: ${{ matrix.arch }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npm run desktop:build -- --"$TARGET_PLATFORM" --"$TARGET_ARCH"
+      - name: Configure Electron sandbox for Linux verification
+        if: matrix.platform == 'linux'
+        run: |
+          sudo chown root:root release-desktop/linux-unpacked/chrome-sandbox
+          sudo chmod 4755 release-desktop/linux-unpacked/chrome-sandbox
       - name: Verify packaged desktop app and persistent storage
         if: matrix.platform == 'linux'
         run: node scripts/test-desktop.mjs release-desktop/linux-unpacked/qurioso
