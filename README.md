@@ -20,7 +20,7 @@ Open Qurioso in your browser, display the questions and select the answer agreed
 
 Run Qurioso on the teacher’s computer. Students join from their browsers using a QR code and PIN. **All devices must be on the same local network (LAN or Wi-Fi).**
 
-Desktop builds include the local server and do not require Node.js: Windows `.exe`, macOS `.dmg` (Intel and Apple Silicon), Linux `.AppImage` and `.deb`. They will appear in [Releases](https://github.com/napo/qurioso/releases) when a version tag with the desktop workflow is published. The existing `v1.0.0-beta.1` release contains web and Android files only.
+Desktop builds include the local server and do not require Node.js: Windows `.exe`, macOS `.dmg` (Intel and Apple Silicon), Linux `.AppImage`, `.deb` and `.rpm`. Download the available installers from [Releases](https://github.com/napo/qurioso/releases) or the [website](https://napo.github.io/qurioso/#quiz-in-rete). Beta releases are labeled “In beta”.
 
 ## What you can do
 

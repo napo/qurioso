@@ -109,6 +109,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Install RPM packaging tools
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes rpm
       - name: Build desktop packages
         shell: bash
         env:
@@ -116,6 +121,12 @@ jobs:
           TARGET_ARCH: ${{ matrix.arch }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npm run desktop:build -- --"$TARGET_PLATFORM" --"$TARGET_ARCH"
+      - name: Verify RPM package
+        if: matrix.platform == 'linux'
+        run: |
+          rpm --query --package --info release-desktop/*.rpm
+          rpm --query --package --list release-desktop/*.rpm | grep -F '/resources/server.mjs'
+          rpm --query --package --list release-desktop/*.rpm | grep -F '/resources/dist/index.html'
       - name: Configure Electron sandbox for Linux verification
         if: matrix.platform == 'linux'
         run: |
@@ -132,6 +143,7 @@ jobs:
           path: |
             release-desktop/*.AppImage
             release-desktop/*.deb
+            release-desktop/*.rpm
             release-desktop/*.exe
             release-desktop/*.dmg
 
@@ -180,7 +192,7 @@ jobs:
 
           - **Windows**: per-user NSIS installer (.exe), x64.
           - **macOS**: DMG for Intel (x64) and Apple Silicon (arm64).
-          - **Linux**: AppImage and Debian package (.deb), x64.
+          - **Linux**: AppImage, Debian package (.deb) and RPM package (.rpm), x64.
 
           Desktop packages include Electron and the local quiz server: no separate Node.js installation is needed. Start the app, choose a quiz and connect all participant devices to the same LAN. Closing Qurioso stops the server.
 

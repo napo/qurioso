@@ -19,6 +19,7 @@ linux:
   target:
     - AppImage
     - deb
+    - rpm
   category: Education
   icon: public/icon-512.png
   synopsis: Classroom activities and local network quizzes

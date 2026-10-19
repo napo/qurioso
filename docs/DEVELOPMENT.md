@@ -62,7 +62,7 @@ The landing page offers two entry points:
 
 The [Pages workflow](../.github/workflows/pages.yml) runs checks, builds `dist` and deploys it on pushes to `main`, or when started manually. In **Settings → Pages → Build and deployment**, select **GitHub Actions** as the source. Relative asset paths support deployment under `/qurioso/`.
 
-Download links prefer a stable GitHub Release containing desktop installers. If none is available, the latest available prerelease with desktop installers is offered and explicitly labeled as a preview build. Only published Windows (`.exe`, `.msi`), macOS (`.dmg`, `.pkg`) and Linux (`.AppImage`, `.deb`, `.rpm`) installers are displayed. Source archives and CI artifacts are not presented as installers. When an installer is missing, the page says so.
+Download links prefer a stable GitHub Release containing desktop installers. If none is available, the latest available prerelease with desktop installers is offered and explicitly labeled “In beta”. Only published Windows (`.exe`, `.msi`), macOS (`.dmg`, `.pkg`) and Linux (`.AppImage`, `.deb`, `.rpm`) installers are displayed. Source archives and CI artifacts are not presented as installers. When an installer is missing, the page says so.
 
 The separate [multiplatform workflow](../.github/workflows/build-multiplatform.yml) contains desktop, web and experimental Android build jobs. The Android wrapper does not include the Node.js multiplayer backend. The Electron desktop configuration includes that server and does not require users to install Node.js.
 
@@ -128,7 +128,7 @@ npm run desktop:build
 
 `desktop:dev` builds and opens the desktop app. `desktop:build` creates installers for the current operating system in `release-desktop/`. To create an unpacked application for testing, use `npm run desktop:pack`.
 
-The desktop workflow produces Windows x64 NSIS `.exe` installers, macOS Intel and Apple Silicon `.dmg` images, and Linux x64 `.AppImage` and `.deb` packages. A `v*` tag publishes these files alongside the web ZIP and Android APK. Use a new version tag, such as `v1.0.0-beta.2`, after committing these changes; existing tags keep their original builds.
+The desktop workflow produces Windows x64 NSIS `.exe` installers, macOS Intel and Apple Silicon `.dmg` images, and Linux x64 `.AppImage`, `.deb` and `.rpm` packages. The Linux runner installs the RPM packaging tools before building. A `v*` tag publishes these files alongside the web ZIP and Android APK. Use a new version tag after committing changes; existing tags keep their original builds.
 
 Electron launches the bundled production server in a utility process, listening on an available LAN port. Closing the application stops the server. The renderer has Node integration disabled, context isolation enabled and sandboxing enabled. External links open in the system browser.
 
