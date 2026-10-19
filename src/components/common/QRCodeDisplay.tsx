@@ -31,7 +31,8 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
   }, []);
 
   // A phone cannot reach the presenter's localhost; prefer the LAN URL locally.
-  const baseUrl = getJoinBaseUrl(window.location.origin, serverInfo, selectedHostType);
+  const desktop = Boolean(window.quriosoDesktop);
+  const baseUrl = getJoinBaseUrl(window.location.origin, serverInfo, desktop ? 'lan' : selectedHostType);
 
   const joinUrl = `${baseUrl}/?pin=${pin}&role=player`;
 
@@ -76,7 +77,7 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
       {/* Network target selector if LAN IP is detected */}
       {serverInfo?.localIps && serverInfo.localIps.length > 0 && (
         <div className="flex items-center gap-1.5 p-1 bg-surface-soft rounded-xl mb-3 text-xs w-full max-w-[240px]">
-          <button
+          {!desktop && <button
             onClick={() => setSelectedHostType('origin')}
             className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-lg font-bold transition cursor-pointer ${
               selectedHostType === 'origin'
@@ -87,7 +88,7 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
           >
             <Globe className="w-3 h-3" />
             <span>Web / Cloud</span>
-          </button>
+          </button>}
           <button
             onClick={() => setSelectedHostType('lan')}
             className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-lg font-bold transition cursor-pointer ${
@@ -103,12 +104,13 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
         </div>
       )}
 
+      {desktop && serverInfo && !serverInfo.localIps.length && <p role="status" className="text-sm text-petrolio">Collega il computer a una rete LAN o Wi-Fi per far partecipare gli studenti.</p>}
       {/* QR Canvas */}
       <div className="relative p-1 bg-white rounded-xl shadow-inner border border-line">
-        <canvas ref={canvasRef} hidden={selectedHostType === 'lan' && !serverInfo} className="rounded-lg max-w-full h-auto block" />
+        <canvas ref={canvasRef} hidden={(desktop && !serverInfo?.localIps.length) || selectedHostType === 'lan' && !serverInfo} className="rounded-lg max-w-full h-auto block" />
       </div>
 
-      {showDetails && (
+      {showDetails && (!desktop || Boolean(serverInfo?.localIps.length)) && (
         <div className="mt-3 w-full flex flex-col items-center text-center">
           <div className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-petrolio font-black">
             <Smartphone className="w-3.5 h-3.5 text-accent-ink" />

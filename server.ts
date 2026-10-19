@@ -339,7 +339,7 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.resolve(__dirname, 'dist');
+    const distPath = process.env.QURIOSO_DIST_PATH || path.resolve(__dirname, 'dist');
     app.use(express.static(distPath));
     app.get('*', (_req, res) => {
       res.sendFile(path.resolve(distPath, 'index.html'));
@@ -352,6 +352,8 @@ async function startServer() {
   });
   server.listen(requestedPort, '0.0.0.0', () => {
     listeningPort = (server.address() as import('net').AddressInfo).port;
+    const parentPort = (process as NodeJS.Process & { parentPort?: { postMessage: (message: unknown) => void } }).parentPort;
+    parentPort?.postMessage({ type: 'ready', port: listeningPort });
     console.log(`Qurioso: http://localhost:${listeningPort}`);
     for (const networks of Object.values(os.networkInterfaces())) {
       for (const net of networks || []) {

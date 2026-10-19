@@ -1,4 +1,4 @@
-name: Web and Android Builds
+name: Desktop, Web and Android Builds
 
 on:
   push:
@@ -83,10 +83,57 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
+  build-desktop:
+    name: Desktop ${{ matrix.platform }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+          - os: windows-latest
+            platform: win
+            arch: x64
+          - os: macos-latest
+            platform: mac
+            arch: x64
+          - os: macos-latest
+            platform: mac
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build desktop packages
+        shell: bash
+        env:
+          TARGET_PLATFORM: ${{ matrix.platform }}
+          TARGET_ARCH: ${{ matrix.arch }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run desktop:build -- --"$TARGET_PLATFORM" --"$TARGET_ARCH"
+      - name: Verify packaged desktop app and persistent storage
+        if: matrix.platform == 'linux'
+        run: node scripts/test-desktop.mjs release-desktop/linux-unpacked/qurioso
+      - name: Upload desktop installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: qurioso-desktop-${{ matrix.platform }}-${{ matrix.arch }}
+          if-no-files-found: error
+          path: |
+            release-desktop/*.AppImage
+            release-desktop/*.deb
+            release-desktop/*.exe
+            release-desktop/*.dmg
+
   publish-release:
     name: Publish release downloads
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-web-and-pwa, build-android-apk]
+    needs: [build-web-and-pwa, build-android-apk, build-desktop]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -102,6 +149,13 @@ jobs:
         with:
           name: qurioso-android-debug.apk
           path: release/android
+
+      - name: Download desktop installers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qurioso-desktop-*
+          merge-multiple: true
+          path: release/desktop
 
       - name: Prepare release files
         env:
@@ -119,7 +173,13 @@ jobs:
           - **Web ZIP**: static website files. This archive does not include the multiplayer server.
           - **Android debug APK**: experimental, automatically debug-signed build for testing. It does not include the Node.js multiplayer server.
 
-          Windows, macOS and Linux desktop installers are not available in this release. Network quizzes currently require the local Node.js server, with all devices on the same LAN.
+          - **Windows**: per-user NSIS installer (.exe), x64.
+          - **macOS**: DMG for Intel (x64) and Apple Silicon (arm64).
+          - **Linux**: AppImage and Debian package (.deb), x64.
+
+          Desktop packages include Electron and the local quiz server: no separate Node.js installation is needed. Start the app, choose a quiz and connect all participant devices to the same LAN. Closing Qurioso stops the server.
+
+          These first desktop packages are unsigned; macOS packages are not notarized.
           NOTES
 
       - name: Publish GitHub Release
@@ -138,4 +198,5 @@ jobs:
             --notes-file release/notes.md \
             "${release_options[@]}" \
             "release/qurioso-web-${RELEASE_TAG}.zip" \
-            "release/qurioso-android-debug-${RELEASE_TAG}.apk"
+            "release/qurioso-android-debug-${RELEASE_TAG}.apk" \
+            release/desktop/*

@@ -20,3 +20,21 @@ test('missing releases are represented as unavailable downloads', async t => {
   globalThis.fetch = async () => new Response('{}', { status: 403 });
   await assert.rejects(loadDesktopDownloads(), /Download non disponibili/);
 });
+
+
+test('desktop downloads prefer stable installers and label a prerelease fallback', async t => {
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  const assets = [{ name: 'Qurioso.exe', browser_download_url: 'https://github.com/napo/qurioso/releases/download/v1.0.0-beta.2/Qurioso.exe' }];
+  globalThis.fetch = async url => String(url).endsWith('/latest')
+    ? new Response('{}', { status: 404 })
+    : Response.json([{ draft: true, assets }, { prerelease: true, assets }]);
+  const preview = await loadDesktopDownloads();
+  assert.equal(preview.length, 1);
+  assert.equal(preview[0].prerelease, true);
+  let requests = 0;
+  globalThis.fetch = async () => { requests++; return Response.json({ assets }); };
+  const stable = await loadDesktopDownloads();
+  assert.equal(requests, 1);
+  assert.equal(stable[0].prerelease, undefined);
+});

@@ -52,6 +52,8 @@ test('participants get real option IDs, all six answers and no solution key', ()
 test('LAN QR links preserve the actual dynamically assigned port', () => {
   const info = { port: 52317, localIps: ['192.168.1.79'] };
   assert.ok(isLoopbackOrigin('http://localhost:52317'));
+  assert.ok(isLoopbackOrigin('http://qurioso.localhost'));
+  assert.equal(getJoinBaseUrl('http://qurioso.localhost', info, 'lan'), 'http://192.168.1.79:52317');
   assert.equal(getJoinBaseUrl('http://localhost:52317', info, 'lan'), 'http://192.168.1.79:52317');
   assert.equal(getJoinBaseUrl('https://quiz.example.org', info, 'origin'), 'https://quiz.example.org');
 });

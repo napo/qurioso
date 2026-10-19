@@ -64,7 +64,9 @@ class GameSyncManager {
 
     try {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      const desktopPort = window.quriosoDesktop?.serverPort;
+      const host = desktopPort ? `127.0.0.1:${desktopPort}` : window.location.host;
+      const wsUrl = `${protocol}//${host}/ws`;
       this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {

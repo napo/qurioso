@@ -1,0 +1,40 @@
+appId: org.qurioso.app
+productName: Qurioso
+asar: true
+npmRebuild: false
+artifactName: Qurioso-${version}-${os}-${arch}.${ext}
+directories:
+  output: release-desktop
+files:
+  - desktop/*.cjs
+  - package.json
+  - LICENSE
+  - '!node_modules/**/*'
+extraResources:
+  - from: dist
+    to: dist
+  - from: build/desktop/server.mjs
+    to: server.mjs
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Education
+  icon: public/icon-512.png
+  synopsis: Classroom activities and local network quizzes
+  desktop:
+    entry:
+      StartupWMClass: Qurioso
+win:
+  target: nsis
+  icon: public/icon-512.png
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+mac:
+  target: dmg
+  category: public.app-category.education
+  icon: public/icon-512.png
+  identity: null
