@@ -28,8 +28,14 @@ test('real host and player components exchange correct answers across rounds wit
   const originalFetch = globalThis.fetch;
   const dom = new JSDOM('<div id="app"></div>', { url: base });
   const sockets: WebSocket[] = [];
+  let blockHost = false;
+  let hostAuthorization: string | null = null;
   class ClientSocket extends WebSocket {
     constructor(url: string) { super(url); sockets.push(this); }
+    emit(event: string | symbol, ...args: any[]): boolean {
+      if (event === 'message' && blockHost) return false;
+      return super.emit(event, ...args);
+    }
   }
   let rejectAnswer = false;
   const globals: Record<string, unknown> = {
@@ -37,6 +43,9 @@ test('real host and player components exchange correct answers across rounds wit
     localStorage: dom.window.localStorage, HTMLElement: dom.window.HTMLElement,
     WebSocket: ClientSocket, IS_REACT_ACT_ENVIRONMENT: true,
     fetch: (url: string | URL, init?: RequestInit) => {
+      const authorization = new Headers(init?.headers).get('Authorization');
+      if (String(url).endsWith('/api/session/create')) hostAuthorization = authorization;
+      if (blockHost && authorization && authorization === hostAuthorization) return Promise.resolve(new Response('{}', { status: 503 }));
       if (rejectAnswer && String(url).endsWith('/answer')) return Promise.resolve(new Response('{}', { status: 503 }));
       return originalFetch(new URL(String(url), base), init);
     },
@@ -58,10 +67,41 @@ test('real host and player components exchange correct answers across rounds wit
   let root = createRoot(document.getElementById('app')!);
   t.after(async () => { await act(async () => root.unmount()); });
   const quiz = DEFAULT_QUIZZES[0];
-  const post = async (url: string, body: unknown) => fetch(base + url, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-  });
-  const getSession = async (pin: string): Promise<GameSession | undefined> => (await (await fetch(base + '/api/session/' + pin)).json()).session;
+  const hosts = new Map<string, string>();
+  const participantTokens = new Map<string, string>();
+  const post = async (url: string, body: any) => {
+    let credential: string | undefined;
+    if (url === '/api/session/create') {
+      const pin = body.session.pin;
+      credential = hosts.get(pin);
+      if (!credential) {
+        const minted = await fetch(base + '/api/presenter-token', { method: 'POST' });
+        credential = (await minted.json()).hostToken;
+        hosts.set(pin, credential!);
+      } else {
+        const response = await fetch(base + '/api/session/' + pin, { headers: { Authorization: `Bearer ${credential}` } });
+        body = { ...body, revision: (await response.json()).revision };
+      }
+    } else {
+      const pin = url.split('/')[3];
+      credential = participantTokens.get(`${pin}:${body.playerId || body.player?.id}`);
+      if (url.endsWith('/answer') && !body.roundId) {
+        const state = await (await fetch(base + '/api/session/' + pin)).json();
+        body = { ...body, roundId: state.session?.roundId };
+      }
+    }
+    const response = await fetch(base + url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...(credential ? { Authorization: `Bearer ${credential}` } : {}) },
+      body: JSON.stringify(body),
+    });
+    if (response.ok && url.endsWith('/join')) {
+      participantTokens.set(`${url.split('/')[3]}:${body.player.id}`, (await response.clone().json()).playerToken);
+    }
+    return response;
+  };
+  const getSession = async (pin: string): Promise<GameSession | undefined> => (await (await fetch(base + '/api/session/' + pin, {
+    headers: hosts.has(pin) ? { Authorization: `Bearer ${hosts.get(pin)}` } : {},
+  })).json()).session;
   const waitFor = async (condition: () => unknown | Promise<unknown>, label: string) => {
     const end = Date.now() + 6000;
     while (Date.now() < end) {
@@ -82,7 +122,7 @@ test('real host and player components exchange correct answers across rounds wit
   assert.equal(info.port, Number(new URL(base).port));
   assert.notEqual(info.port, 0);
   await act(async () => root.render(React.createElement(LanguageProvider, null,
-    React.createElement(HostScreen, { quiz, onExit() {} }))));
+    React.createElement(HostScreen, { quiz: { ...quiz, videoConfig: undefined }, onExit() {} }))));
   const pin = [...document.querySelectorAll('span')].find(el => /^\d{6}$/.test(el.textContent || ''))!.textContent!;
   await waitFor(async () => !!await getSession(pin), 'host creates a room');
   await act(async () => {
@@ -114,6 +154,24 @@ test('real host and player components exchange correct answers across rounds wit
   await waitFor(async () => (await getSession(pin))?.players.remote.correctAnswersCount === 2, 'second round scored with current state');
   assert.equal(gameSync.isServerConnected(), false, 'HTTP fallback scores before the WebSocket reconnects');
   assert.equal((await post(`/api/session/${pin}/answer`, answer)).status, 400);
+  await click('Classifica Parziale');
+  await click('Prossima Domanda');
+  await waitFor(async () => (await getSession(pin))?.currentQuestionIndex === 2, 'third question before a full host outage');
+  blockHost = true;
+  const thirdQuestion = quiz.questions[2];
+  await act(async () => assert.equal((await post(`/api/session/${pin}/answer`, {
+    playerId: 'remote', questionId: thirdQuestion.id, optionId: thirdQuestion.options.find(o => o.isCorrect)!.id, timeTakenMs: 0,
+  })).status, 200));
+  await click('Chiudi tempo e mostra risposte');
+  await act(async () => { await delay(350); blockHost = false; });
+  await waitFor(async () => (await getSession(pin))?.players.remote.correctAnswersCount === 3, 'an accepted answer is graded after reconnect even when results were shown locally');
+  const recovered = (await getSession(pin))!;
+  assert.equal(Object.keys(recovered.players).length, 1);
+  assert.equal((await (await fetch(base + '/api/health')).json()).activeSessions, 1);
+  assert.equal(recovered.status, 'question_results');
+  await click('Classifica Parziale');
+  await click('Classifica Finale');
+  await waitFor(async () => (await getSession(pin))?.status === 'finished', 'host continues the same game after reconnect');
   await act(async () => root.unmount());
 
   // Mount the actual phone component against the same real HTTP server.

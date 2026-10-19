@@ -447,7 +447,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
                         className="w-full py-2.5 px-3 rounded-xl btn-petrolio font-bold text-xs shadow-md transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                       >
                         <Play className="w-3.5 h-3.5 fill-current text-white" />
-                        <span>Quiz in Rete</span>
+                        <span>{isVideoQuiz ? 'Quiz video in rete' : 'Quiz classico in rete'}</span>
                       </button>
 
                       <p className="text-xs text-muted">{serverInfo ? 'Ogni partecipante risponde dal proprio dispositivo sulla stessa rete.' : 'Quiz in Rete richiede Qurioso avviato sul computer del docente.'}</p>

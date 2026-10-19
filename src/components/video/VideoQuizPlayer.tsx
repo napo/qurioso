@@ -22,7 +22,7 @@ import { sounds } from '../../services/soundEffects';
 import { OPTION_COLORS, SHAPE_ICONS } from '../../utils/quizStyles';
 import { resolveVideoSource, videoProvider } from '../../utils/videoSource';
 import { VideoSourcePicker } from '../common/VideoSourcePicker';
-import { loadVideo as loadStoredVideo } from '../../services/quizStorage';
+import { useStoredVideoSource } from './useStoredVideoSource';
 import { quizCheckpoints, nextCheckpoint, type VideoSelection } from '../../services/videoQuiz';
 import { VideoSurface } from './VideoSurface';
 import confetti from 'canvas-confetti';
@@ -109,20 +109,7 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
     setShowConfigModal(false);
   };
 
-  useEffect(() => {
-    const id = videoSelection?.videoAssetId;
-    if (!id) return;
-    let cancelled = false;
-    let objectUrl: string | undefined;
-    setSourceBusy(true);
-    loadStoredVideo(id).then(file => {
-      if (cancelled) return;
-      objectUrl = URL.createObjectURL(file);
-      setVideoUrl(objectUrl);
-    }).catch(error => { if (!cancelled) setVideoError(error.message); })
-      .finally(() => { if (!cancelled) setSourceBusy(false); });
-    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [videoSelection?.videoAssetId]);
+  useStoredVideoSource(videoSelection?.videoAssetId, setVideoUrl, setVideoError, setSourceBusy);
 
   const reportPlaybackError = () => {
     setIsPlaying(false);

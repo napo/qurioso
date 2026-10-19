@@ -87,11 +87,13 @@ export interface Player {
 }
 
 export interface GameSession {
+  /** Ephemeral server round identity; never part of a saved Quiz. */
+  roundId?: string;
   pin: string;
   quizId: string;
   quizTitle: string;
   mode: 'standard' | 'video';
-  status: 'lobby' | 'countdown' | 'question' | 'question_results' | 'leaderboard' | 'finished';
+  status: 'lobby' | 'countdown' | 'video' | 'question' | 'question_results' | 'leaderboard' | 'finished';
   currentQuestionIndex: number;
   currentQuestion?: {
     id: string;
@@ -109,6 +111,9 @@ export interface GameSession {
     timeTakenMs: number;
   }>;
   totalQuestions: number;
+  /** Server-owned progress, used to recover a checkpoint after a lost acknowledgement. */
+  videoQuestionsOpened?: number;
+  questionResult?: { correctOptionIds: string[]; explanation?: string };
   videoState?: {
     currentTime: number;
     isPlaying: boolean;

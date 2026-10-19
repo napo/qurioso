@@ -1,20 +1,47 @@
 exports.run = async (window, port) => {
   const result = await window.webContents.executeJavaScript(`(async () => {
-    const waitFor = async condition => {
+    const waitFor = async (condition, label) => {
       for (let n = 0; n < 100; n++) { if (await condition()) return; await new Promise(resolve => setTimeout(resolve, 50)); }
-      throw new Error('Desktop interface did not become ready');
+      throw new Error('Desktop interface did not become ready: ' + label + ' | ' + document.body.textContent.slice(0, 1800));
     };
-    await waitFor(() => [...document.querySelectorAll('button')].some(button => button.textContent === 'Quiz in Rete' && !button.disabled));
-    [...document.querySelectorAll('button')].find(button => button.textContent === 'Quiz in Rete').click();
-    await waitFor(async () => (await (await fetch('/api/health')).json()).activeSessions === 1);
+    await waitFor(() => [...document.querySelectorAll('button')].some(button => button.textContent === 'Quiz classico in rete' && !button.disabled), 'network quiz entry');
+    [...document.querySelectorAll('button')].find(button => button.textContent === 'Quiz classico in rete').click();
+    await waitFor(async () => (await (await fetch('/api/health')).json()).activeSessions === 1, 'authenticated host creates room');
     const health = await (await fetch('/api/health')).json();
     const info = await (await fetch('/api/server-info')).json();
+    const pin = [...document.querySelectorAll('span')].find(el => /^\\d{6}$/.test(el.textContent || '')).textContent;
+    const player = { id: 'desktop-smoke-player', nickname: 'Smoke', avatar: '🦊', score: 0, streak: 0 };
+    const joined = await fetch('/api/session/' + pin + '/join', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ player }),
+    });
+    if (!joined.ok) throw new Error('Desktop player could not join');
+    const { playerToken } = await joined.json();
+    const denied = await fetch('/api/session/' + pin, { method: 'DELETE', headers: { Authorization: 'Bearer ' + playerToken } });
+    if (denied.status !== 403) throw new Error('Player was allowed to delete the desktop session');
     const ws = new WebSocket('ws://127.0.0.1:' + window.quriosoDesktop.serverPort + '/ws');
+    let received;
     await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('WebSocket timeout')), 5000);
-      ws.onopen = () => { clearTimeout(timer); ws.close(); resolve(); };
+      const timer = setTimeout(() => reject(new Error('Authenticated WebSocket timeout')), 5000);
+      ws.onopen = () => ws.send(JSON.stringify({ type: 'REGISTER', pin, role: 'player', playerId: player.id, token: playerToken }));
+      ws.onmessage = event => {
+        const message = JSON.parse(event.data);
+        if (message.type === 'ERROR') { clearTimeout(timer); reject(new Error(message.error)); }
+        if (message.type === 'SESSION_STATE_UPDATE') { received = message.session; clearTimeout(timer); resolve(); }
+      };
       ws.onerror = () => { clearTimeout(timer); reject(new Error('WebSocket failed')); };
     });
+    await waitFor(() => [...document.querySelectorAll('button')].some(button => button.textContent.includes('Inizia il Quiz') && !button.disabled), 'host receives participant join');
+    [...document.querySelectorAll('button')].find(button => button.textContent.includes('Inizia il Quiz')).click();
+    await waitFor(() => received?.status === 'question', 'participant receives question');
+    if (received.currentQuestion.options.some(option => 'isCorrect' in option)) throw new Error('Desktop exposed the solution key');
+    const answered = await fetch('/api/session/' + pin + '/answer', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + playerToken },
+      body: JSON.stringify({ playerId: player.id, roundId: received.roundId, questionId: received.currentQuestion.id, optionId: received.currentQuestion.options[0].id, timeTakenMs: 1000 }),
+    });
+    if (!answered.ok) throw new Error('Desktop rejected an authenticated answer');
+    await waitFor(() => received?.status === 'question_results', 'participant receives result');
+    if (!received.players[player.id].lastAnswer || !Object.keys(received.answersForCurrentQuestion).length) throw new Error('Desktop result did not arrive');
+    ws.close();
     const database = await new Promise((resolve, reject) => {
       const request = indexedDB.open('qurioso-desktop-smoke', 1);
       request.onupgradeneeded = () => request.result.createObjectStore('test');

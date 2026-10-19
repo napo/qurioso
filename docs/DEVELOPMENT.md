@@ -37,7 +37,7 @@ NODE_ENV=production npm start
 
 `npm run preview` serves the frontend only. Network quizzes require `npm start` or `npm run dev`.
 
-Multiplayer sessions are held in server memory and disappear when the server restarts. The current server does not authenticate presenter and player roles; it is intended for trusted local networks. Public Internet multiplayer hosting requires additional access controls and request validation.
+Multiplayer sessions are held in server memory and disappear when the server restarts. See [LAN multiplayer protocol and security](LAN_SECURITY.md) for authentication, participant-state filtering, limits and remaining risks. These protections do not turn the local HTTP server into a public Internet service.
 
 ## Browser storage and portability
 

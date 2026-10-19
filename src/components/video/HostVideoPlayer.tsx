@@ -1,0 +1,132 @@
+import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { Play, Pause } from 'lucide-react';
+import type { GameSession, Quiz } from '../../types/quiz';
+import { nextCheckpoint, quizCheckpoints, type VideoSelection } from '../../services/videoQuiz';
+import { resolveVideoSource } from '../../utils/videoSource';
+import { VideoSurface } from './VideoSurface';
+import { useStoredVideoSource } from './useStoredVideoSource';
+import { VideoSourcePicker } from '../common/VideoSourcePicker';
+
+export interface HostVideoControls { resume: () => Promise<void> }
+interface Props {
+  quiz: Quiz;
+  status: GameSession['status'];
+  openedQuestions: number;
+  onCheckpoint: (index: number, currentTime: number) => Promise<boolean>;
+  onFinish: () => Promise<boolean>;
+  onReady: (ready: boolean) => void;
+  onPlayback: (currentTime: number, playing: boolean) => void;
+}
+
+/** Playback only: all question opening, timing, answers and scoring stay in the LAN session. */
+export const HostVideoPlayer = forwardRef<HostVideoControls, Props>(function HostVideoPlayer(
+  { quiz, status, openedQuestions, onCheckpoint, onFinish, onReady, onPlayback }, ref) {
+  const media = useRef<HTMLVideoElement>(null);
+  const [selection, setSelection] = useState<VideoSelection | undefined>(quiz.videoConfig);
+  const [url, setUrl] = useState(quiz.videoConfig?.videoAssetId ? '' : resolveVideoSource(quiz.videoConfig?.videoUrl));
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [time, setTime] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [changingSource, setChangingSource] = useState(false);
+  const checkpoints = useRef(quizCheckpoints(quiz));
+  const completed = useRef(new Set<number>());
+  const opening = useRef(false);
+  const resumeRequested = useRef(false);
+  const ended = useRef(false);
+  const latest = useRef({ status, onCheckpoint, onFinish, onPlayback });
+  latest.current = { status, onCheckpoint, onFinish, onPlayback };
+  useEffect(() => {
+    completed.current = new Set(Array.from({ length: openedQuestions }, (_, index) => index));
+  }, [openedQuestions]);
+  useStoredVideoSource(selection?.videoAssetId, setUrl, setError, setBusy);
+  useEffect(() => { onReady(Boolean(url && duration > 0 && !busy && !error)); }, [url, duration, busy, error, onReady]);
+  useEffect(() => {
+    if (status !== 'video') { media.current?.pause(); setPlaying(false); }
+    if (status === 'lobby') { completed.current.clear(); ended.current = false; if (media.current) media.current.currentTime = 0; }
+  }, [status]);
+  useEffect(() => {
+    if (!url || duration > 0) return;
+    const timer = setTimeout(() => setError('Caricamento non riuscito. Verifica il video o scegli una nuova sorgente.'), 20000);
+    return () => clearTimeout(timer);
+  }, [url, duration]);
+  const pause = () => { media.current?.pause(); setPlaying(false); };
+  const processPosition = async (): Promise<boolean> => {
+    const player = media.current;
+    if (!player || latest.current.status !== 'video' || opening.current) return true;
+    const index = ended.current
+      ? checkpoints.current.findIndex((_, index) => !completed.current.has(index))
+      : nextCheckpoint(checkpoints.current, completed.current, player.currentTime);
+    if (index < 0 && !ended.current) return false;
+    opening.current = true; // Lock before pause/timeupdate can dispatch another event.
+    pause();
+    setError('');
+    try {
+      const accepted = index >= 0 ? await latest.current.onCheckpoint(index, player.currentTime) : await latest.current.onFinish();
+      if (accepted && index >= 0) completed.current.add(index);
+      if (!accepted) setError('Sessione non sincronizzata. Controlla la connessione e riprova senza avanzare il video.');
+    } finally { opening.current = false; }
+    return true;
+  };
+  const resume = async () => {
+    resumeRequested.current = true;
+    if (latest.current.status !== 'video') return;
+    resumeRequested.current = false;
+    if (await processPosition()) return;
+    try { await media.current?.play(); }
+    catch { setError('Impossibile riprodurre il video. Riprova o scegli un’altra sorgente.'); }
+  };
+  useImperativeHandle(ref, () => ({ resume }));
+  useEffect(() => { if (status === 'video' && resumeRequested.current) void resume(); }, [status]);
+  const update = () => {
+    if (!media.current) return;
+    setTime(media.current.currentTime);
+    if (latest.current.status === 'video') void processPosition();
+    else pause();
+  };
+  const metadata = () => {
+    const value = media.current?.duration;
+    if (value && Number.isFinite(value)) { setDuration(value); setError(''); }
+  };
+  return <section className="w-full max-w-5xl mb-6 rounded-2xl border border-line bg-white p-4" aria-label="Video del presentatore">
+    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+      <span className="font-bold text-petrolio">Quiz video in rete · Video solo sullo schermo del docente</span>
+      <span role="status" className="text-sm text-muted">{status === 'video' ? (playing ? 'Video in riproduzione' : 'Video in pausa') : status === 'lobby' ? 'Configurazione video' : 'Video in pausa · domanda e risultati'}</span>
+    </div>
+    <div className={`aspect-video bg-black rounded-xl overflow-hidden ${status !== 'video' && status !== 'lobby' ? 'max-h-56' : ''}`}>
+      {url && <VideoSurface key={url} ref={media} src={url} controls={false} playsInline preload="metadata" className="w-full h-full"
+        onLoadedMetadata={metadata} onDurationChange={metadata} onTimeUpdate={update}
+        onPlay={() => {
+          if (latest.current.status !== 'video' || opening.current) { pause(); return; }
+          ended.current = false; setPlaying(true); latest.current.onPlayback(media.current?.currentTime || 0, true);
+        }}
+        onPause={() => { setPlaying(false); latest.current.onPlayback(media.current?.currentTime || 0, false); }}
+        onEnded={() => { ended.current = true; setPlaying(false); void processPosition(); }}
+        onError={() => { pause(); setError('Impossibile caricare il video. Verifica connessione e formato oppure scegli una nuova sorgente.'); }} />}
+    </div>
+    <div className="flex items-center gap-3 mt-3">
+      <button aria-label={playing ? 'Pausa video' : 'Riproduci video'} disabled={status !== 'video' || busy || !duration}
+        className="btn-mandarino rounded-xl p-3 disabled:opacity-50" onClick={() => playing ? pause() : void resume()}>
+        {playing ? <Pause size={20} /> : <Play size={20} />}
+      </button>
+      <input type="range" aria-label="Posizione del video" min={0} max={duration || 1} step="0.1" value={Math.min(time, duration)}
+        disabled={status !== 'video' || !duration} className="flex-1 accent-petrolio" onChange={event => {
+          if (!media.current || opening.current) return;
+          const target = Number(event.target.value);
+          ended.current = target >= duration; media.current.currentTime = target; setTime(target); void processPosition();
+        }} />
+      <span className="text-sm text-muted">{Math.floor(time)} / {Math.floor(duration)} s</span>
+    </div>
+    {status === 'lobby' && <p className="text-sm text-muted mt-2">{checkpoints.current.length} domande ai checkpoint salvati. Il video si avvia dopo l’ingresso dei partecipanti. I salti avanti aprono tutte le domande attraversate, in ordine; quelle oltre la durata vengono svolte alla fine.</p>}
+    {busy && <p role="status">Caricamento video locale…</p>}
+    {error && <div role="alert" className="text-rose-700 mt-3">{error} <button className="font-bold underline" onClick={() => {
+      setError(''); if (duration && latest.current.status === 'video') void resume(); else media.current?.load?.();
+    }}>Riprova</button></div>}
+    {(status === 'lobby' || error || changingSource) && <button className="text-sm text-petrolio underline mt-3" onClick={() => setChangingSource(!changingSource)}>Scegli un altro video</button>}
+    {changingSource && <VideoSourcePicker value={selection} onBusyChange={setBusy} onChange={value => {
+      // Changing the source never resets checkpoint history or the LAN session.
+      pause(); ended.current = false; setSelection(value); setUrl(value.videoAssetId ? '' : resolveVideoSource(value.videoUrl)); setDuration(0); setTime(0); setError(''); setChangingSource(false);
+    }} />}
+  </section>;
+});

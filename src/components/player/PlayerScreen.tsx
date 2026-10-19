@@ -43,7 +43,8 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [answerError, setAnswerError] = useState('');
   const submittingRef = useRef(false);
-  const activeRoundRef = useRef(0);
+  const activeRoundRef = useRef('');
+  const ownAnswerRef = useRef<{ roundId?: string; optionId: string } | undefined>(undefined);
   const [answerSubmittedAt, setAnswerSubmittedAt] = useState<number | null>(null);
 
   // Subscribe to room updates
@@ -62,22 +63,29 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
     const unsubscribe = gameSync.subscribe((msg) => {
       if (msg.type === 'SESSION_STATE_UPDATE' && msg.session.pin === pin) {
-        activeRoundRef.current = msg.session.questionStartTime;
+        activeRoundRef.current = msg.session.roundId || String(msg.session.questionStartTime);
+        ownAnswerRef.current = msg.ownAnswer ? { roundId: msg.session.roundId, optionId: msg.ownAnswer.optionId } : undefined;
         setSession(msg.session);
+        if (msg.ownAnswer && msg.ownAnswer.questionId === msg.session.currentQuestion?.id) {
+          setSelectedOptionId(msg.ownAnswer.optionId);
+          setAnswerSubmittedAt(Date.now());
+        }
       }
     });
 
     return () => {
       unsubscribe();
+      gameSync.unregister(pin);
     };
   }, [isJoined, pin, playerId]);
 
   // When session question changes, reset selected option
   useEffect(() => {
-    setSelectedOptionId(null);
-    setAnswerSubmittedAt(null);
+    const restored = ownAnswerRef.current?.roundId === session?.roundId ? ownAnswerRef.current : undefined;
+    setSelectedOptionId(restored?.optionId || null);
+    setAnswerSubmittedAt(restored ? Date.now() : null);
     setAnswerError('');
-  }, [session?.questionStartTime]);
+  }, [session?.roundId, session?.questionStartTime]);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,8 +110,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
       connected: true,
     };
 
-    // Register with server & send join
-    gameSync.register(formattedPin, 'player', playerId);
+    // Join first: only the returned player credential can authenticate a connection.
     const joined = await gameSync.joinSessionOnServer(formattedPin, newPlayer);
 
     setIsJoining(false);
@@ -113,7 +120,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
     }
     const joinedSession = await gameSync.fetchSessionFromServer(formattedPin);
     if (joinedSession) {
-      activeRoundRef.current = joinedSession.questionStartTime;
+      activeRoundRef.current = joinedSession.roundId || String(joinedSession.questionStartTime);
       setSession(joinedSession);
     }
     setIsJoined(true);
@@ -127,12 +134,13 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
   const handleSelectOption = async (optionId: string) => {
     if (selectedOptionId !== null || submittingRef.current || !session?.currentQuestion) return;
-    const round = session.questionStartTime;
-    const timeTakenMs = Math.max(0, Date.now() - round);
+    const round = session.roundId || String(session.questionStartTime);
+    // Retained for protocol diagnostics only; the server measures the scoring time itself.
+    const timeTakenMs = Math.max(0, Date.now() - session.questionStartTime);
     submittingRef.current = true;
     setIsSubmitting(true);
     setAnswerError('');
-    const received = await gameSync.submitAnswerOnServer(pin, playerId, optionId, timeTakenMs, session.currentQuestion.id);
+    const received = await gameSync.submitAnswerOnServer(pin, playerId, optionId, timeTakenMs, session.currentQuestion.id, session.roundId);
     submittingRef.current = false;
     setIsSubmitting(false);
     if (activeRoundRef.current !== round) return;
@@ -323,6 +331,15 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
     );
   }
 
+  if (session?.status === 'video') {
+    return <div className="min-h-screen bg-qurioso-canvas text-ink flex flex-col items-center justify-center p-6 text-center">
+      <span className="text-4xl mb-4">🎬</span>
+      <h2 className="text-2xl font-black text-petrolio">Guarda il video sullo schermo del docente</h2>
+      <p role="status" className="mt-4 text-muted">La prossima domanda apparirà qui. Non chiudere questa pagina.</p>
+      <p className="mt-6 font-bold">{nickname} · {myPlayer?.score ?? 0} pt</p>
+    </div>;
+  }
+
   // 4. ACTIVE QUESTION VIEW (4 Touch Buttons)
   if (isQuestionActive) {
     return (
@@ -425,6 +442,11 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
           <h2 className="text-3xl font-black text-ink mb-2">
             {isCorrect ? 'Risposta Esatta!' : 'Ops, Non Esatta!'}
           </h2>
+
+          {session?.questionResult && <div className="max-w-sm text-sm text-petrolio mt-3" role="status">
+            <p>Risposta corretta: {session.currentQuestion?.options.filter(o => session.questionResult!.correctOptionIds.includes(o.id)).map(o => o.text).join(', ')}</p>
+            {session.questionResult.explanation && <p className="mt-2">{session.questionResult.explanation}</p>}
+          </div>}
 
           {isCorrect && myPlayer?.streak && myPlayer.streak > 1 ? (
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-mandarino/20 border border-mandarino/40 text-accent-ink text-xs font-bold mb-4">

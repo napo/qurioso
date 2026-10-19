@@ -10,7 +10,7 @@ export const VideoSurface = forwardRef<HTMLVideoElement, React.VideoHTMLAttribut
     const provider = videoProvider(props.src);
     if (provider === 'html5') return <video {...props} ref={ref} />;
     const shared = {
-      src: props.src, muted: props.muted, ref: (node: HTMLVideoElement | null) => { if (typeof ref === 'function') ref(node); else if (ref) ref.current = node; }, controls: true, playsInline: true,
+      src: props.src, muted: props.muted, ref: (node: HTMLVideoElement | null) => { if (typeof ref === 'function') ref(node); else if (ref) ref.current = node; }, controls: props.controls ?? true, playsInline: true,
       preload: 'metadata' as const, className: props.className,
       style: { width: '100%', height: '100%', ...props.style },
       onError: props.onError, onPlay: props.onPlay, onPause: props.onPause,

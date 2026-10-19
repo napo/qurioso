@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Users,
   Play,
@@ -29,6 +29,8 @@ import { OPTION_COLORS, SHAPE_ICONS, COLOR_KEYS, SHAPE_KEYS } from '../../utils/
 import { QRCodeDisplay } from '../common/QRCodeDisplay';
 import { FinalPodium } from '../leaderboard/FinalPodium';
 import { applyPlayerAnswer, publicQuestion } from '../../services/sessionState';
+import { HostVideoPlayer, type HostVideoControls } from '../video/HostVideoPlayer';
+import { quizCheckpoints } from '../../services/videoQuiz';
 import { ImageCredit } from '../common/ImageCredit';
 import { useLanguage } from '../../context/LanguageContext';
 import { QuriosoIcon, BRAND_COLORS } from '../common/QuriosoLogo';
@@ -38,7 +40,15 @@ interface HostScreenProps {
   onExit: () => void;
 }
 
-export const HostScreen: React.FC<HostScreenProps> = ({ quiz, onExit }) => {
+export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit }) => {
+  const isVideo = Boolean(sourceQuiz.videoConfig);
+  // Runtime ordering only: saved quizzes and their question arrays are never changed.
+  const quiz = useMemo(() => isVideo ? { ...sourceQuiz, questions: quizCheckpoints(sourceQuiz).map(cp => sourceQuiz.questions.find(q => q.id === cp.questionId)!) } : sourceQuiz, [sourceQuiz, isVideo]);
+  const videoControls = useRef<HostVideoControls>(null);
+  const [videoReady, setVideoReady] = useState(false);
+  const [syncError, setSyncError] = useState('');
+  const [videoQuestionsOpened, setVideoQuestionsOpened] = useState(0);
+  const writeVersion = useRef(0);
   const { t } = useLanguage();
   // Session initialization
   const [pin] = useState<string>(() => gameSync.generatePin());
@@ -58,20 +68,34 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz, onExit }) => {
 
   // Event callbacks always read the current snapshot, independent of React renders.
   const sessionRef = useRef<GameSession>({
-    pin, quizId: quiz.id, quizTitle: quiz.title, mode: 'standard', status: 'lobby',
+    pin, quizId: quiz.id, quizTitle: quiz.title, mode: isVideo ? 'video' : 'standard', status: 'lobby',
     currentQuestionIndex: 0, questionStartTime: 0, timeRemaining: 20,
     players: {}, answersForCurrentQuestion: {}, totalQuestions,
   });
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const broadcastCurrentSession = (updatedPartial: Partial<GameSession> = {}) => {
-    const next = { ...sessionRef.current, ...updatedPartial };
+  const advancingRef = useRef(false);
+  const broadcastCurrentSession = async (updatedPartial: Partial<GameSession> = {}) => {
+    const version = ++writeVersion.current;
+    const previous = sessionRef.current;
+    const next = { ...previous, ...updatedPartial };
     sessionRef.current = next;
     setStatus(next.status);
     setPlayers(next.players);
     setCurrentQuestionIndex(next.currentQuestionIndex);
     setQuestionStartTime(next.questionStartTime);
     setCurrentAnswers(next.answersForCurrentQuestion);
-    gameSync.createSessionOnServer(next);
+    const accepted = await gameSync.createSessionOnServer(next, isVideo ? quiz : undefined);
+    if (!accepted && isVideo) {
+      const remote = await gameSync.fetchSessionFromServer(pin, true);
+      if (version === writeVersion.current) {
+        const recovered = remote || previous;
+        sessionRef.current = recovered; setStatus(recovered.status); setPlayers(recovered.players);
+        setCurrentQuestionIndex(recovered.currentQuestionIndex); setQuestionStartTime(recovered.questionStartTime);
+        setCurrentAnswers(recovered.answersForCurrentQuestion);
+      }
+      setSyncError('Sessione non sincronizzata. Controlla la connessione e riprova.');
+    } else if (accepted) setSyncError('');
+    return accepted;
   };
 
   // Fetch server info
@@ -95,7 +119,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz, onExit }) => {
         }
       }
       if (msg.type === 'PLAYER_ANSWER' && msg.pin === pin) {
-        handlePlayerAnswerReceived(msg.playerId, msg.optionId, msg.timeTakenMs, msg.questionId);
+        if (!isVideo) handlePlayerAnswerReceived(msg.playerId, msg.optionId, msg.timeTakenMs, msg.questionId, msg.questionStartTime, msg.roundId);
       }
       // Polling recovers joins/answers when the presenter's WebSocket is unavailable.
       if (msg.type === 'SESSION_STATE_UPDATE' && msg.session.pin === pin) {
@@ -104,10 +128,18 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz, onExit }) => {
         if (Object.keys(missing).length) {
           broadcastCurrentSession({ players: { ...sessionRef.current.players, ...missing } });
         }
+        if (isVideo) {
+          setVideoQuestionsOpened(remote.videoQuestionsOpened || 0);
+          if (remote.questionStartTime === sessionRef.current.questionStartTime && remote.currentQuestionIndex === sessionRef.current.currentQuestionIndex) {
+            sessionRef.current = { ...sessionRef.current, roundId: remote.roundId, players: remote.players, answersForCurrentQuestion: remote.answersForCurrentQuestion };
+            setPlayers(remote.players); setCurrentAnswers(remote.answersForCurrentQuestion);
+          }
+          return;
+        }
         if (remote.questionStartTime === sessionRef.current.questionStartTime) {
           for (const [id, answer] of Object.entries(remote.answersForCurrentQuestion)) {
             if (answer.isCorrect === undefined) {
-              handlePlayerAnswerReceived(id, answer.optionId, answer.timeTakenMs, answer.questionId);
+              handlePlayerAnswerReceived(id, answer.optionId, answer.timeTakenMs, answer.questionId, remote.questionStartTime, remote.roundId);
             }
           }
         }
@@ -125,15 +157,19 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz, onExit }) => {
     };
   }, [pin]);
 
-  const handlePlayerAnswerReceived = (playerId: string, optionId: string, timeTakenMs: number, questionId?: string) => {
+  const handlePlayerAnswerReceived = (playerId: string, optionId: string, timeTakenMs: number, questionId?: string, acceptedRound?: number, roundId?: string) => {
     const current = sessionRef.current;
-    const next = applyPlayerAnswer(current, quiz, {
+    if ((acceptedRound !== undefined && acceptedRound !== current.questionStartTime) ||
+        (roundId !== undefined && roundId !== gameSync.getRoundId(pin))) return;
+    // A server-accepted answer can arrive while the presenter was offline or already showing results.
+    const scoring = acceptedRound !== undefined && current.status !== 'question' ? { ...current, status: 'question' as const } : current;
+    const next = applyPlayerAnswer(scoring, quiz, {
       playerId, optionId, timeTakenMs,
       questionId: questionId || quiz.questions[current.currentQuestionIndex]?.id,
     });
-    if (next === current) return;
+    if (next === scoring) return;
     sounds.playSelect();
-    broadcastCurrentSession(next);
+    broadcastCurrentSession({ ...next, status: current.status });
   };
 
   // Launch Countdown
@@ -151,16 +187,17 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz, onExit }) => {
         sounds.playCountdown();
       } else {
         clearInterval(interval);
-        handleStartQuestion(0);
+        if (isVideo) void broadcastCurrentSession({ status: 'video' }).then(ok => { if (ok) void videoControls.current?.resume(); });
+        else handleStartQuestion(0);
       }
     }, 1000);
     countdownRef.current = interval;
   };
 
   // Start question
-  const handleStartQuestion = (qIndex: number) => {
+  const handleStartQuestion = (qIndex: number, videoTime?: number) => {
     const targetQ = quiz.questions[qIndex];
-    if (!targetQ) return;
+    if (!targetQ) return Promise.resolve(false);
 
     setCurrentQuestionIndex(qIndex);
     setStatus('question');
@@ -171,8 +208,9 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz, onExit }) => {
 
     sounds.playSelect();
 
-    broadcastCurrentSession({
+    return broadcastCurrentSession({
       status: 'question',
+      ...(isVideo ? { videoState: { currentTime: videoTime ?? sessionRef.current.videoState?.currentTime ?? 0, isPlaying: false, activeCheckpointIndex: qIndex } } : {}),
       currentQuestionIndex: qIndex,
       currentQuestion: publicQuestion(quiz, qIndex),
       questionStartTime: now,
@@ -186,7 +224,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz, onExit }) => {
     if (status !== 'question' || !currentQuestion) return;
 
     const timer = setInterval(() => {
-      const remaining = Math.max(0, currentQuestion.timeLimit - Math.floor((Date.now() - sessionRef.current.questionStartTime) / 1000));
+      const remaining = gameSync.remainingQuestionSeconds(pin, sessionRef.current.questionStartTime, currentQuestion.timeLimit);
       setTimeRemaining(remaining);
       if (remaining === 0) {
         clearInterval(timer);
@@ -214,18 +252,29 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz, onExit }) => {
   };
 
   // Next question or finish
-  const handleNextStep = () => {
-    if (currentQuestionIndex + 1 < totalQuestions) {
-      handleStartQuestion(currentQuestionIndex + 1);
-    } else {
-      handleFinishQuiz();
-    }
+  const settleCurrentRound = async () => {
+    if (!await gameSync.flushSession()) return false;
+    const remote = await gameSync.fetchSessionFromServer(pin, true);
+    if (!remote || remote.questionStartTime !== sessionRef.current.questionStartTime) return false;
+    // Polling above dispatches all accepted, not-yet-graded answers before the next question can start.
+    return gameSync.flushSession();
+  };
+  const handleNextStep = async () => {
+    if (advancingRef.current) return;
+    advancingRef.current = true;
+    try {
+      if (!await settleCurrentRound()) return;
+      if (isVideo) {
+        if (await broadcastCurrentSession({ status: 'video' })) await videoControls.current?.resume();
+      } else if (currentQuestionIndex + 1 < totalQuestions) await handleStartQuestion(currentQuestionIndex + 1);
+      else await handleFinishQuiz();
+    } finally { advancingRef.current = false; }
   };
 
   // Finish quiz
   const handleFinishQuiz = () => {
     setStatus('finished');
-    broadcastCurrentSession({ status: 'finished' });
+    return broadcastCurrentSession({ status: 'finished' });
   };
 
   // Add sample bot players for fast live testing
@@ -259,7 +308,8 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz, onExit }) => {
       const delay = Math.floor(1500 + Math.random() * ((currentQuestion.timeLimit - 2) * 1000));
       const t = setTimeout(() => {
         const { optionId, timeTakenMs } = generateBotAnswer(currentQuestion, bot);
-        handlePlayerAnswerReceived(bot.id, optionId, timeTakenMs);
+        if (isVideo) void gameSync.submitBotAnswer(pin, bot.id, currentQuestion.id, optionId);
+        else handlePlayerAnswerReceived(bot.id, optionId, timeTakenMs);
       }, delay);
       timeouts.push(t);
     });
@@ -299,7 +349,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz, onExit }) => {
                 {quiz.title}
               </span>
               <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-surface-soft text-petrolio border border-line">
-                {status === 'lobby' ? 'Lobby' : `${currentQuestionIndex + 1} / ${totalQuestions}`}
+                {status === 'lobby' ? (isVideo ? 'Quiz video in rete · Lobby' : 'Quiz classico in rete · Lobby') : `${status === 'video' ? 'Video · ' : ''}${currentQuestionIndex + 1} / ${totalQuestions}`}
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs text-muted">
@@ -350,6 +400,16 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz, onExit }) => {
 
       {/* Main Stage View */}
       <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden">
+        {syncError && <p role="alert" className="text-rose-700 mb-4">{syncError}</p>}
+        {isVideo && <div className={status === 'finished' ? 'hidden' : 'w-full flex justify-center'}>
+          <HostVideoPlayer ref={videoControls} quiz={quiz} status={status} openedQuestions={videoQuestionsOpened} onReady={setVideoReady}
+            onCheckpoint={handleStartQuestion} onFinish={async () => { if (!await settleCurrentRound()) return false; return handleFinishQuiz(); }}
+            onPlayback={(currentTime, isPlaying) => {
+              const previous = sessionRef.current.videoState;
+              if (previous?.isPlaying === isPlaying || sessionRef.current.status !== 'video') return;
+              void broadcastCurrentSession({ videoState: { currentTime, isPlaying, activeCheckpointIndex: sessionRef.current.currentQuestionIndex } });
+            }} />
+        </div>}
         {/* LOBBY VIEW */}
         {status === 'lobby' && (
           <div className="w-full max-w-6xl flex flex-col items-center">
@@ -394,13 +454,13 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz, onExit }) => {
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <button
                     onClick={handleStartCountdown}
-                    disabled={playerCount === 0}
+                    disabled={playerCount === 0 || (isVideo && !videoReady)}
                     className={`btn-mandarino px-8 py-3.5 rounded-2xl font-black text-base flex items-center gap-2.5 shadow-md transition cursor-pointer ${
-                      playerCount === 0 ? 'opacity-50 cursor-not-allowed saturate-50' : 'hover:scale-105 active:scale-95'
+                      (playerCount === 0 || (isVideo && !videoReady)) ? 'opacity-50 cursor-not-allowed saturate-50' : 'hover:scale-105 active:scale-95'
                     }`}
                   >
                     <Play className="w-5 h-5 fill-current" />
-                    <span>Inizia il Quiz!</span>
+                    <span>{isVideo ? 'Inizia il quiz video!' : 'Inizia il Quiz!'}</span>
                   </button>
 
                   <button
@@ -611,6 +671,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz, onExit }) => {
                 })}
               </div>
 
+              {quiz.settings.showExplanation && currentQuestion.explanation && <p className="mt-4 text-petrolio">{currentQuestion.explanation}</p>}
               {/* Next Action Button */}
               <div className="mt-8 flex justify-end">
                 <button
@@ -647,7 +708,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz, onExit }) => {
                   className="btn-mandarino px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg transition cursor-pointer"
                 >
                   <span>
-                    {currentQuestionIndex + 1 < totalQuestions ? 'Prossima Domanda' : 'Classifica Finale'}
+                    {isVideo ? 'Riprendi video' : currentQuestionIndex + 1 < totalQuestions ? 'Prossima Domanda' : 'Classifica Finale'}
                   </span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
