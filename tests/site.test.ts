@@ -20,7 +20,7 @@ test('classroom runs without a server; landing switches, remembers and passes al
   t.after(async () => { await act(async () => root.unmount()); dom.window.close(); for (const [key, descriptor] of saved) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
   await act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(App, { classroomOnly: true }))));
   for (let n = 0; n < 40 && document.body.textContent?.includes('Caricamento quiz'); n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 15)); });
-  assert.match(document.body.textContent!, /Una domanda, tutta la classe/);
+  assert.match(document.body.textContent!, /Lezioni e quiz per la tua classe/);
   assert.match(document.body.textContent!, /Tipi di vulcani con geopop/);
   const volcanoCredit = document.querySelector('a[href="https://commons.wikimedia.org/wiki/File:Fimmvorduhals_2010_03_27_dawn.jpg"]');
   assert.ok(volcanoCredit, 'the included volcano quiz displays its Commons credit');
@@ -37,6 +37,7 @@ test('classroom runs without a server; landing switches, remembers and passes al
   const entry = [...document.querySelectorAll('a')].find(a => a.textContent?.includes('Apri Attività in classe'));
   assert.equal(entry?.getAttribute('href'), '?app=classroom&lang=it');
   assert.ok(document.querySelector('#quiz-in-rete'));
+  assert.equal([...document.querySelectorAll('a')].find(a => a.textContent === 'Guida')?.getAttribute('href'), '?app=guide&lang=it');
   assert.equal([...document.querySelectorAll('a')].find(a => a.textContent === 'Partecipa con PIN')?.getAttribute('href'), '?role=player&lang=it');
   assert.match(document.body.textContent!, /Tutti sulla stessa LAN/);
   assert.equal(document.body.textContent?.match(/Build non ancora disponibile/g)?.length, 3);
@@ -48,6 +49,7 @@ test('classroom runs without a server; landing switches, remembers and passes al
     await act(async () => option.click());
   };
   await chooseLanguage('English');
+  assert.equal([...document.querySelectorAll('a')].find(a => a.textContent === 'Guide')?.getAttribute('href'), '?app=guide&lang=en');
   assert.equal(document.documentElement.lang, 'en');
   assert.equal(localStorage.getItem('qurioso_language'), 'en');
   assert.equal(new URL(window.location.href).searchParams.get('lang'), 'en');
@@ -60,6 +62,7 @@ test('classroom runs without a server; landing switches, remembers and passes al
   assert.ok(document.querySelector('a[href="?app=classroom&lang=en"]'));
   assert.equal(document.body.textContent?.includes('Attività in classe'), false);
   await chooseLanguage('Deutsch');
+  assert.equal([...document.querySelectorAll('a')].find(a => a.textContent === 'Anleitung')?.getAttribute('href'), '?app=guide&lang=de');
   assert.equal(document.documentElement.lang, 'de');
   assert.equal(localStorage.getItem('qurioso_language'), 'de');
   assert.match(document.body.textContent!, /Alle im selben lokalen Netzwerk/);

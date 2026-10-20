@@ -15,7 +15,7 @@ exports.run = async window => {
   await window.loadURL('http://qurioso.localhost/?app=classroom&lang=it');
   const csv = '\uFEFFdomanda,risposta_A,risposta_B,corretta,tipo\r\n"Domanda CSV, con virgola\nsu due righe",Uno,Due,A,multiple_choice\r\nRisposta errata,Uno,Due,D,multiple_choice\r\n"Domanda CSV, con virgola\nsu due righe",Uno,Due,A,multiple_choice\r\n';
   const before = await execute(`
-    await wait(()=>button('Importa domande'),'dashboard');const before=JSON.stringify(await library());button('Importa domande').click();
+    await wait(()=>document.querySelector('button[aria-label="Impostazioni"]'),'dashboard');document.querySelector('button[aria-label="Impostazioni"]').click();await wait(()=>button('Importa domande'),'settings');const before=JSON.stringify(await library());button('Importa domande').click();
     await wait(()=>document.querySelector('.question-import-dialog'),'dialog');upload(${JSON.stringify(csv)},'native-import.csv');
     await wait(()=>document.querySelector('select[aria-label="Separatore"]')?.value===','&&button('Anteprima')&&!button('Anteprima').disabled,'CSV mapping');layout();
     set(document.querySelector('input[aria-label="Titolo del quiz"]'),'Collaudo import domande');await new Promise(resolve=>setTimeout(resolve,0));button('Anteprima').click();

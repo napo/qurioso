@@ -1,4 +1,5 @@
-const { app, BrowserWindow, dialog, net, session, shell, utilityProcess, Menu } = require('electron');
+const { app, BrowserWindow, dialog, net, session, shell, utilityProcess, Menu, ipcMain } = require('electron');
+const { randomBytes } = require('node:crypto');
 const path = require('node:path');
 const fs = require('node:fs');
 const ORIGIN = 'http://qurioso.localhost';
@@ -8,6 +9,8 @@ let backend;
 let quitting = false;
 let backendPort;
 let updater;
+let sharing;
+const sharingToken = randomBytes(32).toString('hex');
 
 app.setName('Qurioso');
 if (smoke && process.env.QURIOSO_TEST_USER_DATA) app.setPath('userData', process.env.QURIOSO_TEST_USER_DATA);
@@ -23,6 +26,7 @@ function fail(error) {
   console.error('Qurioso desktop:', error);
   quitting = true;
   backend?.kill();
+  sharing?.shutdown();
   if (!smoke) dialog.showErrorBox('Qurioso', `Impossibile avviare Qurioso.\n${error.message || error}`);
   app.exit(1);
 }
@@ -33,7 +37,7 @@ async function start() {
   fs.mkdirSync(app.getPath('userData'), { recursive: true });
   backend = utilityProcess.fork(serverFile, [], {
     cwd: app.getPath('userData'),
-    env: { ...process.env, NODE_ENV: 'production', PORT: '0', QURIOSO_DIST_PATH: path.join(root, 'dist') },
+    env: { ...process.env, NODE_ENV: 'production', PORT: '0', QURIOSO_DIST_PATH: path.join(root, 'dist'), QURIOSO_PUBLIC_TUNNEL_TOKEN: sharingToken },
     stdio: 'pipe',
     serviceName: 'Qurioso local quiz server',
   });
@@ -86,6 +90,29 @@ async function start() {
   });
   window.once('ready-to-show', () => { if (!smoke) window.show(); });
   window.on('closed', () => { window = null; });
+  let configuration = Promise.resolve();
+  sharing = require('./internetSharing.cjs').createInternetSharing({
+    directory: path.join(app.getPath('userData'), 'components'), port: backendPort,
+    hostHeader: `qurioso-public-${sharingToken}.localhost`,
+    configure: share => {
+      const next = configuration.catch(() => {}).then(async () => {
+        const response = await fetch(`http://127.0.0.1:${backendPort}/api/desktop/internet-sharing`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sharingToken}` },
+          body: JSON.stringify({ share }), signal: AbortSignal.timeout(5000),
+        });
+        if (!response.ok) throw new Error('Local sharing configuration failed');
+      });
+      configuration = next; return next;
+    },
+    onChange: state => { if (window && !window.isDestroyed()) window.webContents.send('qurioso:sharing:changed', state); },
+  });
+  const trustedSharingCaller = event => event.sender === window?.webContents && event.senderFrame === event.sender.mainFrame && new URL(event.senderFrame.url).origin === ORIGIN;
+  for (const action of ['status', 'start', 'stop']) ipcMain.handle(`qurioso:sharing:${action}`, (event, pin) => {
+    if (!trustedSharingCaller(event)) throw new Error('Native sharing unavailable');
+    return action === 'status' ? sharing.snapshot() : action === 'start' ? sharing.start(typeof pin === 'string' ? pin : '') : sharing.stop();
+  });
+  window.webContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => { if (isMainFrame && !isInPlace && sharing.snapshot().phase !== 'idle') void sharing.stop(); });
+  window.webContents.on('render-process-gone', () => sharing.shutdown());
   updater = await require('./updateController.cjs').createUpdateController({ app, dialog, shell, window, automatic: app.isPackaged && !smoke,
     canOpenInstaller: async () => {
       if (!window || window.isDestroyed()) return false;
@@ -105,7 +132,8 @@ async function start() {
     ] },
     { role: 'editMenu' }, { role: 'viewMenu' },
   ]));
-  await window.loadURL(`${ORIGIN}/?app=network`);
+  // Smoke fixtures use Italian labels independently of the operating system locale.
+  await window.loadURL(`${ORIGIN}/?app=network${smoke ? '&lang=it' : ''}`);
   updater.start();
   if (smoke) {
     const result = await require('./smoke.cjs').run(window, backendPort);
@@ -115,5 +143,5 @@ async function start() {
 }
 
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => { quitting = true; updater?.stop(); window?.destroy(); backend?.kill(); });
-app.on('will-quit', () => { backend?.kill(); });
+app.on('before-quit', () => { quitting = true; sharing?.shutdown(); updater?.stop(); window?.destroy(); backend?.kill(); });
+app.on('will-quit', () => { sharing?.shutdown(); backend?.kill(); });

@@ -18,6 +18,9 @@ import { gameSync, type PlayerRecovery } from '../../services/gameSync';
 import { sounds } from '../../services/soundEffects';
 import { OPTION_COLORS, SHAPE_ICONS, COLOR_KEYS, SHAPE_KEYS } from '../../utils/quizStyles';
 import { useLanguage } from '../../context/LanguageContext';
+import { gameExperienceTranslations } from '../../i18n/gameExperience';
+import { PlayerFinalResult } from './PlayerFinalResult';
+import { finalResult, readFinalResult, saveFinalResult, clearFinalResult, type FinalResult } from '../../services/finalResult';
 import { QuriosoIcon, BRAND_COLORS } from '../common/QuriosoLogo';
 
 const AVATAR_OPTIONS = ['🦁', '🦊', '⚡', '🚀', '🌟', '🎨', '🐺', '🎮', '🦄', '🐼', '🍕', '🎯'];
@@ -29,7 +32,16 @@ interface PlayerScreenProps {
 }
 
 export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onExit }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const gameText = gameExperienceTranslations[language];
+  const [completed, setCompleted] = useState<FinalResult | null>(() => readFinalResult(initialPin));
+  const completedRef = useRef(completed);
+  completedRef.current = completed;
+  const complete = (value: GameSession, id: string) => {
+    if (completedRef.current || !value.players[id]) return;
+    const result = finalResult(value, id); saveFinalResult(result); completedRef.current = result; setCompleted(result);
+    void gameSync.leavePlayer(value.pin, id);
+  };
   const [pin, setPin] = useState<string>(initialPin);
   const [nickname, setNickname] = useState<string>('');
   const [avatar, setAvatar] = useState<string>('🦊');
@@ -62,6 +74,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
   const applyRecovery = (result: PlayerRecovery) => {
     if (result.status === 'recovered') {
       const { session: restored, player, ownAnswer } = result;
+      if (restored.status === 'finished') { complete(restored, player.id); return; }
       setPin(restored.pin); setPlayerId(player.id); setNickname(player.nickname); setAvatar(player.avatar);
       activeRoundRef.current = restored.roundId || String(restored.questionStartTime);
       ownAnswerRef.current = ownAnswer ? { roundId: restored.roundId, optionId: ownAnswer.optionId } : undefined;
@@ -74,7 +87,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
     applyRecovery(await gameSync.recoverPlayer(initialPin || undefined));
     setRecovering(false);
   };
-  useEffect(() => { void recover(); return () => gameSync.cancelPlayerRecovery(); }, []);
+  useEffect(() => { if (!completedRef.current) void recover(); else setRecovering(false); return () => gameSync.cancelPlayerRecovery(); }, []);
 
   const leave = async (goHome = false) => {
     if (leaving) return;
@@ -91,17 +104,19 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
   // Subscribe to room updates
   useEffect(() => {
-    if (!isJoined || !pin) return;
+    if (!isJoined || !pin || completed) return;
 
     // Register on the server
     gameSync.register(pin, 'player', playerId);
 
     const unsubscribe = gameSync.subscribe((msg) => {
+      if (completedRef.current) return;
       if (msg.type === 'PLAYER_SESSION_ENDED' && msg.pin === pin) {
         setIsJoined(false); setSession(null); setRecoveryProblem(msg.message); setCanRetry(false);
         return;
       }
       if (msg.type === 'SESSION_STATE_UPDATE' && msg.session.pin === pin) {
+        if (msg.session.status === 'finished') { complete(msg.session, playerId); return; }
         activeRoundRef.current = msg.session.roundId || String(msg.session.questionStartTime);
         ownAnswerRef.current = msg.ownAnswer ? { roundId: msg.session.roundId, optionId: msg.ownAnswer.optionId } : undefined;
         setSession(msg.session);
@@ -119,7 +134,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
       unsubscribe();
       gameSync.unregister(pin);
     };
-  }, [isJoined, pin, playerId]);
+  }, [isJoined, pin, playerId, completed]);
 
   // When session question changes, reset selected option
   useEffect(() => {
@@ -209,6 +224,8 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
   const isLeaderboard = session?.status === 'leaderboard';
   const isFinished = session?.status === 'finished';
 
+  if (completed) return <PlayerFinalResult result={completed} onClose={() => { clearFinalResult(completed.pin); void gameSync.leavePlayer(completed.pin, completed.playerId); }} />;
+
   if (recovering || recoveryProblem || leaving) return <main className="min-h-screen bg-qurioso-canvas p-6 flex flex-col items-center justify-center gap-4 text-center text-petrolio">
     <QuriosoIcon size={44} />
     <p role="status">{leaving ? 'Uscita dalla partita in corso…' : recovering ? 'Recupero della partecipazione in corso…' : recoveryProblem}</p>
@@ -224,7 +241,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
   // 1. JOIN FORM VIEW
   if (!isJoined) {
     return (
-      <div className="min-h-screen bg-qurioso-canvas text-ink flex flex-col justify-between p-4 md:p-6 select-none">
+      <div className="player-question-screen min-h-screen bg-qurioso-canvas text-ink flex flex-col justify-between p-4 md:p-6 select-none">
         {/* Top Header */}
         <div className="flex items-center justify-between py-2">
           <div className="flex items-center gap-2">
@@ -406,12 +423,12 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
   // 4. ACTIVE QUESTION VIEW (4 Touch Buttons)
   if (isQuestionActive) {
     return (
-      <div className="min-h-screen bg-qurioso-canvas text-ink flex flex-col justify-between p-4 md:p-6 select-none">
+      <div className="player-question-screen min-h-screen bg-qurioso-canvas text-ink flex flex-col justify-between p-4 md:p-6 select-none">
         {/* Top status */}
         <div className="flex items-center justify-between pb-3 border-b border-line">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">{avatar}</span>
-            <span className="font-bold text-sm text-ink">{nickname}</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-2xl shrink-0">{avatar}</span>
+            <span className="font-bold text-sm text-ink truncate max-w-[35vw]">{nickname}</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -426,26 +443,27 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
         {/* Center state: Prompt or Waiting confirmation */}
         {selectedOptionId !== null ? (
-          <div className="my-auto flex flex-col items-center justify-center text-center p-6 bg-white border-2 border-line rounded-3xl shadow-lg">
+          <div className="player-answer-confirmation my-auto flex flex-col items-center justify-center text-center p-6 bg-white border-2 border-line rounded-3xl shadow-lg">
             <div className="w-16 h-16 rounded-2xl bg-petrolio border-2 border-mandarino flex items-center justify-center mb-4 shadow-lg animate-pulse">
               <CheckCircle className="w-8 h-8 text-white" />
             </div>
             <h3 className="text-2xl font-black text-ink mb-2">Risposta Inviata!</h3>
-            <p className="text-xs text-muted max-w-xs">
+            <p className="player-confirmation-detail text-xs text-muted max-w-xs">
               Hai risposto con successo. Attendi che scada il tempo sullo schermo principale per scoprire se è corretta!
             </p>
           </div>
         ) : (
-          <div className="my-auto flex flex-col gap-3 py-2 w-full max-w-md mx-auto">
-            <div className="text-center mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-accent-ink">
+          <div className="player-question-choices my-auto flex flex-col gap-3 py-2 w-full max-w-md mx-auto">
+            <div className="player-question-prompt text-center mb-2">
+              <p className="player-look-at-teacher hidden text-sm font-bold text-petrolio">{gameText.lookAtTeacher}</p>
+              <span className="player-question-text block text-sm font-bold [overflow-wrap:anywhere] text-accent-ink">
                 {session.currentQuestion?.text || 'Scegli la risposta:'}
               </span>
             </div>
 
             {answerError && <p role="alert" className="text-sm text-rose-700">{answerError}</p>}
             {isSubmitting && <p role="status" className="text-sm text-petrolio">Invio della risposta…</p>}
-            <div className="grid grid-cols-2 gap-3 w-full">
+            <div data-answer-count={session.currentQuestion?.options.length} className="player-answer-grid grid grid-cols-2 gap-3 w-full">
               {session.currentQuestion?.options.map((option, idx) => {
                 const colorStyle = OPTION_COLORS[option.color];
                 const shapeSymbol = SHAPE_ICONS[option.shape];
@@ -453,14 +471,16 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
                 return (
                   <button
                     key={option.id}
+                    aria-label={`${gameText.answer} ${String.fromCharCode(65 + idx)}: ${option.text}`}
                     disabled={isSubmitting}
                     onClick={() => handleSelectOption(option.id)}
-                    className={`h-36 sm:h-44 rounded-2xl border-2 flex flex-col items-center justify-center gap-3 transition-transform active:scale-95 shadow-md cursor-pointer ${colorStyle.bg} ${colorStyle.border}`}
+                    className={`player-answer min-w-0 min-h-36 sm:min-h-44 h-auto p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-3 transition-transform active:scale-95 shadow-md cursor-pointer ${colorStyle.bg} ${colorStyle.border}`}
                   >
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner text-3xl font-black ${colorStyle.badge}`}>
+                    <div aria-hidden="true" className={`player-answer-symbol w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center shadow-inner text-3xl font-black ${colorStyle.badge}`}>
                       {shapeSymbol}
                     </div>
-                    <span className="font-mono font-black text-sm uppercase tracking-wider text-ink">
+                    <span aria-hidden="true" className="player-answer-letter hidden font-black text-xl">{String.fromCharCode(65 + idx)}</span>
+                    <span className="player-answer-text w-full min-w-0 whitespace-normal [overflow-wrap:anywhere] font-bold text-sm leading-snug text-ink">
                       {option.text}
                     </span>
                   </button>
@@ -471,8 +491,8 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
         )}
 
         {/* Bottom bar */}
-        <div className="pt-2 text-center text-[11px] text-muted">
-          Qurioso Live Multi-device
+        <div className="player-question-footer pt-2 text-center text-[11px] text-muted">
+          <span>Qurioso Live Multi-device</span>
           {leaveControl}
         </div>
       </div>
@@ -532,31 +552,6 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
     );
   }
 
-  // 6. FINISHED VIEW
-  return (
-    <div className="min-h-screen bg-qurioso-canvas text-ink flex flex-col items-center justify-center p-6 text-center select-none">
-      <div className="w-24 h-24 rounded-3xl bg-surface-soft border-2 border-mandarino flex items-center justify-center text-5xl mb-4 shadow-lg">
-        🏆
-      </div>
-      <h2 className="text-3xl font-black text-ink mb-2">Quiz Completato!</h2>
-      <p className="text-sm text-muted mb-6">Grazie per aver partecipato!</p>
-
-      <div className="bg-white border-2 border-line p-6 rounded-2xl w-full max-w-xs mb-6">
-        <div className="text-xs uppercase text-muted font-bold">Punteggio Finale</div>
-        <div className="text-4xl font-mono font-black text-accent-ink mt-1">
-          {myPlayer?.score ?? 0} pt
-        </div>
-      </div>
-
-      {onExit && (
-        <button
-          onClick={() => void leave(true)}
-          className="btn-mandarino px-8 py-3 rounded-2xl font-bold text-sm cursor-pointer shadow-lg"
-        >
-          Torna alla Home
-        </button>
-      )}
-      {!onExit && leaveControl}
-    </div>
-  );
+  if (isFinished && session) return <PlayerFinalResult result={finalResult(session, playerId)} onClose={() => { clearFinalResult(pin); void gameSync.leavePlayer(pin, playerId); }} />;
+  return <main role="status" className="min-h-screen p-6 text-center text-petrolio">Qurioso</main>;
 };

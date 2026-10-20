@@ -205,7 +205,7 @@ jobs:
           cp release/android/app-debug.apk "release/qurioso-android-debug-${RELEASE_TAG}.apk"
           cat > release/notes.md <<'NOTES'
           ## Classroom activities
-          Open https://napo.github.io/qurioso/?app=classroom to use Qurioso without installing anything.
+          Open https://qurioso.it/?app=classroom to use Qurioso without installing anything.
 
           ## Downloads
           - **Web ZIP**: static website files. This archive does not include the multiplayer server.
@@ -215,7 +215,7 @@ jobs:
           - **macOS**: DMG for Intel (x64) and Apple Silicon (arm64).
           - **Linux**: AppImage, Debian package (.deb) and RPM package (.rpm), x64.
 
-          Desktop packages include Electron and the local quiz server: no separate Node.js installation is needed. Start the app, choose a quiz and connect all participant devices to the same LAN. Closing Qurioso stops the server.
+          Desktop packages include Electron and the local quiz server: no separate Node.js installation is needed. Start the app and choose a classroom lesson or a quiz on participants’ devices. Network participants use the same LAN, or the optional experimental Cloudflare tunnel for Internet access. The app explains component downloads and traffic before activation. Closing Qurioso stops sharing and the local server.
 
           These first desktop packages are unsigned; macOS packages are not notarized.
           NOTES

@@ -2,14 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { ArrowUpRight, Monitor, Network, Download, Check, ChevronRight } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { landingTranslations } from '../../i18n/landing';
+import { guideNavigation } from '../../i18n/guideNavigation';
 import { LanguageSelector } from '../common/LanguageSelector';
 import { AppVersion } from '../common/AppVersion';
 import { QuriosoLogo } from '../common/QuriosoLogo';
+import { settingsTranslations } from '../../i18n/settings';
+import { isPublicWebsite } from '../../services/appEnvironment';
+import { gameSync } from '../../services/gameSync';
 import { formatDownloadSize, loadDesktopDownloads, type DesktopDownload } from '../../services/downloads';
 
 export function LandingPage() {
   const { language, t: appText } = useLanguage();
   const t = landingTranslations[language];
+  const [localServer, setLocalServer] = useState(Boolean(window.quriosoDesktop));
+  useEffect(() => {
+    if (isPublicWebsite() || window.quriosoDesktop) return;
+    let alive = true;
+    void gameSync.getServerInfo().then(info => { if (alive) setLocalServer(Boolean(info)); });
+    return () => { alive = false; };
+  }, []);
+  const networkUrl = localServer ? `?app=network&lang=${language}` : '#quiz-in-rete';
   const classroomUrl = `?app=classroom&lang=${language}`;
   useEffect(() => {
     document.title = t.pageTitle;
@@ -41,7 +53,7 @@ export function LandingPage() {
     <a href="#contenuto" className="sr-only focus:not-sr-only focus:block focus:p-3">{t.skip}</a>
     <header className="max-w-6xl mx-auto px-5 md:px-8 py-6 flex flex-wrap items-center justify-between gap-5">
       <a href="./" aria-label={t.home}><QuriosoLogo size="md" /></a>
-      <nav aria-label={t.nav} className="flex flex-wrap items-center gap-5 text-sm font-bold text-petrolio"><a href={`?role=player&lang=${language}`} className="btn-mandarino rounded-xl px-4 py-3">{appText.joinWithPin}</a><a href={classroomUrl} className="hover:underline">{t.classroom}</a><a href="#quiz-in-rete" className="hover:underline">{t.network}</a><LanguageSelector /></nav>
+      <nav aria-label={t.nav} className="flex flex-wrap items-center gap-5 text-sm font-bold text-petrolio"><a href={`?role=player&lang=${language}`} className="btn-mandarino rounded-xl px-4 py-3">{appText.joinWithPin}</a><a href={classroomUrl} className="hover:underline">{t.classroom}</a><a href={networkUrl} className="hover:underline">{t.network}</a><a href={`?app=guide&lang=${language}`} className="hover:underline">{guideNavigation[language].nav}</a><LanguageSelector /></nav>
     </header>
     <main id="contenuto">
       <section className="max-w-6xl mx-auto px-5 md:px-8 pt-12 md:pt-20 pb-16 md:pb-24 grid lg:grid-cols-[1.15fr_1fr] gap-12 items-center">
@@ -51,7 +63,7 @@ export function LandingPage() {
           <p className="mt-6 text-lg text-muted max-w-xl leading-relaxed">{t.intro}</p>
           <div className="mt-8 flex flex-wrap gap-3">
             <a href={classroomUrl} className="btn-petrolio rounded-xl px-5 py-4 font-bold inline-flex items-center gap-3">{t.openClassroom} <ArrowUpRight size={19} /></a>
-            <a href="#quiz-in-rete" className="rounded-xl border border-line px-5 py-4 font-bold text-petrolio inline-flex items-center gap-3">{t.discoverNetwork} <ChevronRight size={18} /></a>
+            <a href={networkUrl} className="rounded-xl border border-line px-5 py-4 font-bold text-petrolio inline-flex items-center gap-3">{t.discoverNetwork} <ChevronRight size={18} /></a>
           </div>
           <p className="mt-4 text-sm text-muted">{t.noInstall}</p>
         </div>
@@ -67,7 +79,7 @@ export function LandingPage() {
       <section className="border-y border-line bg-surface-soft">
         <div className="max-w-6xl mx-auto px-5 md:px-8 py-12 grid md:grid-cols-2 gap-10 md:gap-16">
           <div><Monitor className="text-petrolio mb-4" size={28} /><h2 className="text-2xl font-bold text-petrolio">{t.classroom}</h2><p className="text-muted mt-3 leading-relaxed">{t.classroomDescription}</p><p className="text-muted mt-3 leading-relaxed">{t.classroomDetails}</p><a href={classroomUrl} className="inline-flex items-center gap-2 text-petrolio font-bold mt-5 underline underline-offset-4">{t.startActivity} <ArrowUpRight size={17} /></a></div>
-          <div><Network className="text-petrolio mb-4" size={28} /><h2 className="text-2xl font-bold text-petrolio">{t.network}</h2><p className="text-muted mt-3 leading-relaxed">{t.networkDescription}</p><p className="text-muted mt-3 leading-relaxed">{t.networkDetails}</p><a href="#quiz-in-rete" className="inline-flex items-center gap-2 text-petrolio font-bold mt-5 underline underline-offset-4">{t.downloadsInstructions} <Download size={17} /></a></div>
+          <div><Network className="text-petrolio mb-4" size={28} /><h2 className="text-2xl font-bold text-petrolio">{t.network}</h2><p className="text-muted mt-3 leading-relaxed">{t.networkDescription}</p><p className="text-muted mt-3 leading-relaxed">{t.networkDetails}</p><a href={networkUrl} className="inline-flex items-center gap-2 text-petrolio font-bold mt-5 underline underline-offset-4">{localServer ? settingsTranslations[language].openLocalNetwork : t.downloadsInstructions} <Download size={17} /></a></div>
         </div>
       </section>
       <section className="max-w-6xl mx-auto px-5 md:px-8 py-16">

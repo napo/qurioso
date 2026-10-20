@@ -198,12 +198,12 @@ test('editor cancellation preserves unsaved text; confirmed append is saved only
   const saved=(await loadQuizzes())![0];assert.equal(saved.questions.length,initial.questions.length+1);assert.equal(saved.questions[0].text,'Modifica locale da conservare');assert.equal(saved.questions.at(-1)!.text,'Domanda importata');assert.equal(env.requests(),0);
 });
 
-test('dashboard destination selection opens the existing quiz in the editor without overwriting the library', async t => {
+test('settings destination selection opens the existing quiz in the editor without overwriting the library', async t => {
   const env=browser(t),{createRoot}=await import('react-dom/client'),{LanguageProvider}=await import('../src/context/LanguageContext'),{default:App}=await import('../src/App');
   const initial=classic();await storeQuizzes([initial]);const before=JSON.stringify(await loadQuizzes());
   const root=createRoot(document.getElementById('app')!);env.cleanup(async()=>{await act(async()=>root.unmount());});
   await act(async()=>root.render(React.createElement(LanguageProvider,null,React.createElement(App,{classroomOnly:true}))));
-  await env.wait(()=>document.querySelector('[data-qurioso-dashboard]'));await env.click('Importa domande');await env.input(document.querySelector('select[aria-label="Destinazione"]')!,'existing');
+  await env.wait(()=>document.querySelector('[data-qurioso-dashboard]'));await act(async()=>document.querySelector<HTMLButtonElement>('button[aria-label="Impostazioni"]')!.click());await env.wait(()=>document.querySelector('[data-qurioso-settings]'));await env.click('Importa domande');await env.input(document.querySelector('select[aria-label="Destinazione"]')!,'existing');
   await env.upload(new File([JSON.stringify([question()])],'domande.json'));await env.click('Conferma e apri editor');
   await env.wait(()=>document.querySelector('.quiz-editor'));assert.match(document.body.textContent!,/4 domande create/);assert.equal(JSON.stringify(await loadQuizzes()),before);
   assert.equal(env.requests(),0);

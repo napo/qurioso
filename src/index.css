@@ -88,6 +88,40 @@
 .host-join-modal .join-instructions { padding-right: 1.5rem; }
 .host-video > section { margin-bottom: 0; padding: .75rem; }
 .host-video .aspect-video { max-height: 55dvh; }
+/* During playback the media fills the stage. Keep the whole game fullscreen so
+   checkpoint questions remain visible without leaving and re-entering fullscreen. */
+.host-screen[data-mode="video"][data-phase="video"] .host-video { flex: 1 1 0; min-height: 0; align-self: stretch; }
+.host-screen[data-mode="video"][data-phase="video"] .host-video > section { max-width: none; min-height: 0; display: flex; flex-direction: column; }
+.host-screen[data-mode="video"][data-phase="video"] .host-video .aspect-video { flex: 1 1 0; min-height: 0; max-height: none; aspect-ratio: auto; }
+.host-screen[data-mode="video"][data-phase="video"] .host-video :is(video, youtube-video, vimeo-video) { object-fit: contain; }
+.host-screen:fullscreen[data-mode="video"][data-phase="video"] .host-header { display: none; }
+.host-screen:fullscreen { width: 100%; height: 100dvh; }
+.player-answer-grid { grid-auto-rows: 1fr; }
+.player-answer { overflow-wrap: anywhere; }
+@media (max-width: 767px), (max-height: 500px) {
+  .player-question-screen { height: 100dvh; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: .5rem; padding: .5rem; }
+  .player-question-screen > div:first-child { padding-bottom: .4rem; gap: .25rem; }
+  .player-question-choices { height: 100%; min-height: 0; margin-top: 0; margin-bottom: 0; gap: .4rem; padding: 0; max-width: 40rem; }
+  .player-question-prompt { margin-bottom: 0; flex-shrink: 0; }
+  .player-answer-text, .player-question-footer > span, .player-confirmation-detail { display: none; }
+  .player-question-text { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .player-look-at-teacher, .player-answer-letter { display: block; }
+  .player-look-at-teacher { font-size: .75rem; line-height: 1.1rem; }
+  .player-answer-grid { flex: 1; min-height: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(44px, 1fr); gap: .4rem; }
+  .player-answer-grid:is([data-answer-count="9"], [data-answer-count="10"], [data-answer-count="11"], [data-answer-count="12"]) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .player-answer { min-height: 44px; padding: .3rem; flex-direction: row; gap: .5rem; }
+  .player-answer-symbol { width: 1.75rem; height: 1.75rem; font-size: 1.25rem; border-radius: .4rem; }
+  .player-question-footer { padding-top: 0; }
+  .player-question-footer > div { padding: 0; }
+  .player-question-footer button { min-height: 44px; padding: .4rem 1rem; }
+  .player-answer-confirmation { padding: .75rem; }
+  .player-answer-confirmation > div { height: 3rem; width: 3rem; margin-bottom: .5rem; }
+  .player-answer-confirmation h3 { font-size: 1.25rem; margin-bottom: 0; }
+}
+@media (max-height: 500px) and (min-width: 500px) {
+  .player-answer-grid:not([data-answer-count="2"]):not([data-answer-count="3"]):not([data-answer-count="4"]) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .player-question-prompt p { font-size: .75rem; }
+}
 /* Keep the media mounted, preserving provider state while questions are open. */
 .host-screen:is([data-phase="question"], [data-phase="question_results"], [data-phase="leaderboard"], [data-phase="countdown"]) .host-video { display: none; }
 

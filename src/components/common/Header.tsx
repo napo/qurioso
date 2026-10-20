@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  Github,
+  Settings,
+  BookOpen,
   Volume2,
   VolumeX,
   Smartphone,
   Plus,
-  Radio,
-  Server
 } from 'lucide-react';
 import { AppVersion } from './AppVersion';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -14,53 +13,51 @@ import { LanguageSelector } from './LanguageSelector';
 import { QuriosoLogo } from './QuriosoLogo';
 import { sounds } from '../../services/soundEffects';
 import { useLanguage } from '../../context/LanguageContext';
-import { gameSync, ServerInfo } from '../../services/gameSync';
+import { settingsTranslations } from '../../i18n/settings';
+import { workspaceTranslations } from '../../i18n/workspace';
+import { guideNavigation } from '../../i18n/guideNavigation';
+import type { ServerInfo } from '../../services/gameSync';
 
 interface HeaderProps {
   classroomOnly?: boolean;
-  onOpenGuide: () => void;
+  serverInfo?: ServerInfo | null;
+  onOpenSettings: () => void;
   onJoinClick: () => void;
   onCreateQuiz: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   classroomOnly = false,
-  onOpenGuide,
+  serverInfo,
+  onOpenSettings,
   onJoinClick,
   onCreateQuiz,
 }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const labels = settingsTranslations[language];
+  const workspace = workspaceTranslations[language];
   const [isMuted, setIsMuted] = useState(sounds.getMuted());
-  const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
-
-  useEffect(() => {
-    if (classroomOnly) return;
-    gameSync.getServerInfo().then((info) => {
-      if (info) setServerInfo(info);
-    });
-  }, [classroomOnly]);
-
   const handleToggleSound = () => {
     const muted = sounds.toggleMute();
     setIsMuted(muted);
   };
 
   return (
-    <header className="w-full bg-white backdrop-blur-md border-b border-line sticky top-0 z-30 px-4 md:px-8 py-3.5 flex items-center justify-between">
+    <header className="w-full bg-white backdrop-blur-md border-b border-line sticky top-0 z-30 px-4 md:px-8 py-3.5 flex flex-wrap gap-3 items-center justify-between">
       {/* Brand with iconic Q in petrolio & mandarino */}
       <div className="flex items-center gap-3">
         <div>
           <div className="flex items-center gap-2.5">
             <h1><QuriosoLogo size="md" /></h1>
-            {!classroomOnly && <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-soft border border-line text-[10px] font-bold text-petrolio" title="Indirizzo HTTP e WebSocket della sessione corrente">
+            {!classroomOnly && serverInfo && <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-soft border border-line text-[10px] font-bold text-petrolio" title={labels.serverAddressTitle}>
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="hidden sm:inline">Porta {serverInfo?.port || '…'} Live</span>
+              <span className="hidden sm:inline">{labels.serverPort} {serverInfo?.port || '…'} Live</span>
               <span className="sm:hidden">:{serverInfo?.port || '…'}</span>
             </div>}
           </div>
           <div className="flex flex-wrap items-center gap-x-2">
             <AppVersion />
-            <p className="text-[11px] text-muted hidden sm:block">{t.appTagline}</p>
+            <p className="text-[11px] text-muted hidden sm:block">{window.quriosoDesktop ? workspace.desktop : serverInfo ? workspace.local : workspace.web}</p>
           </div>
         </div>
       </div>
@@ -70,11 +67,12 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Language Selector */}
         <LanguageSelector />
 
-        {/* PWA Install Button */}
-        {!classroomOnly && <PWAInstallButton />}
+        <a href={`?app=guide&lang=${language}`} aria-label={guideNavigation[language].nav} title={guideNavigation[language].title} className="flex items-center gap-1.5 rounded-xl border border-line p-2 text-petrolio font-bold text-xs"><BookOpen size={18} /><span className="hidden lg:inline">{guideNavigation[language].nav}</span></a>
+
+        {!classroomOnly && !window.quriosoDesktop && <PWAInstallButton />}
 
         {/* Join as Player Quick Button */}
-        {!classroomOnly && <button
+        {!classroomOnly && serverInfo && <button
           onClick={onJoinClick}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-soft hover:bg-surface-hover text-xs font-semibold text-muted border border-line transition active:scale-95 cursor-pointer"
           title={t.joinWithPin}
@@ -102,14 +100,14 @@ export const Header: React.FC<HeaderProps> = ({
           {isMuted ? <VolumeX className="w-4 h-4 text-rose-700" /> : <Volume2 className="w-4 h-4 text-emerald-700" />}
         </button>
 
-        {/* Build and Multiplatform Guide */}
+        {/* Application settings */}
         <button
-          onClick={onOpenGuide}
+          onClick={onOpenSettings}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-soft hover:bg-surface-hover text-xs font-semibold text-muted border border-line transition cursor-pointer"
-          title={t.buildAndGitHub}
+          title={labels.settings} aria-label={labels.settings}
         >
-          <Github className="w-4 h-4" />
-          <span className="hidden lg:inline">{t.buildAndGitHub}</span>
+          <Settings className="w-4 h-4" />
+          <span className="hidden lg:inline">{labels.settings}</span>
         </button>
       </div>
     </header>

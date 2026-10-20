@@ -2,6 +2,10 @@
 
 [← Project overview](../README.md)
 
+## Repository language
+
+Write repository documentation, commit messages, issues, pull request descriptions and release notes in English. Keep application interface text localized in all supported languages: Italian, English and German.
+
 ## Development
 
 Built with **React 19, TypeScript, Vite, Tailwind CSS, Express and WebSocket**. Requires **Node.js 22.12 or later**.
@@ -138,6 +142,15 @@ npm run desktop:build
 ```
 
 `desktop:dev` builds and opens the desktop app. `desktop:build` creates installers for the current operating system in `release-desktop/`. To create an unpacked application for testing, use `npm run desktop:pack`.
+
+On Linux, `desktop:pack` prepares the user-owned `chrome-sandbox` helper with mode `0755`, allowing Chromium to use user-namespace sandboxing. A user-owned helper with mode `4755` can abort before the application starts with “The SUID sandbox helper binary was found, but is not configured correctly”. For an older unpacked build, run `node scripts/prepare-desktop-directory.mjs`, then launch it normally. This does not disable the renderer sandbox or change system settings. Installed packages keep installer-managed permissions. Systems that block user namespaces may require an installed package and an application-specific system policy; this local preparation is not a universal Linux compatibility guarantee.
+
+The local launch command is:
+
+```bash
+env -u ELECTRON_RUN_AS_NODE ./release-desktop/linux-unpacked/qurioso
+```
+
 
 The desktop workflow produces Windows x64 NSIS `.exe` installers, macOS Intel and Apple Silicon `.dmg` images, and Linux x64 `.AppImage`, `.deb` and `.rpm` packages. The Linux runner installs the RPM packaging tools before building. A `v*` tag publishes these files alongside the web ZIP and Android APK. Use a new version tag after committing changes; existing tags keep their original builds.
 

@@ -117,12 +117,23 @@ exports.run = async (host, port) => {
     await check('classic-leaderboard', ['.host-header', '.host-leaderboard-heading', '.host-ranking']);
     await execute(host, `button('Classifica Finale').click(); await wait(() => phase() === 'finished', 'classic final'); [...document.querySelectorAll('header button')].find(b => b.textContent.trim() === 'Esci').click(); await wait(() => button('Quiz video in rete'), 'library after exit'); button('Quiz video in rete').click(); await wait(() => phase() === 'lobby' && document.querySelector('video')?.duration > 0, 'local video metadata');`);
     await check('video-lobby', ['.host-header', '.join-address', '[data-testid="join-pin"]', '.host-lobby-banner button', '.host-lobby-qr canvas', '.host-video']);
-    await execute(host, `button('+ Aggiungi Bot di Test').click(); await wait(() => !button('Inizia il quiz video!').disabled, 'video ready'); button('Inizia il quiz video!').click(); await wait(() => phase() === 'question', 'video checkpoint');`);
+    await execute(host, `button('+ Aggiungi Bot di Test').click(); await wait(() => !button('Inizia il quiz video!').disabled, 'video ready'); button('Inizia il quiz video!').click(); await wait(() => phase() === 'question', 'video checkpoint');
+      if(!document.fullscreenElement)throw new Error('Video competition did not request fullscreen from the start click');
+      await document.exitFullscreen();await wait(()=>!document.fullscreenElement,'leaving fullscreen');`);
     await check('video-question', ['.host-header', '.host-question-heading', '.host-question-image', '.host-option', '.host-actions button']);
     await execute(host, `button('Chiudi tempo e mostra risposte').click(); await wait(() => phase() === 'question_results', 'video results');`);
     await check('video-results', ['.host-header', '.host-results h2', '.host-results .host-actions button']);
     await execute(host, `button('Classifica Parziale').click(); await wait(() => phase() === 'leaderboard', 'video leaderboard');`);
     await check('video-leaderboard', ['.host-header', '.host-leaderboard-heading', '.host-ranking']);
+    await execute(host, `button('Riprendi video').click();await wait(()=>phase()==='video','video playback');
+      document.querySelector('.host-video button[aria-label="Video a schermo intero"]').click();await wait(()=>Boolean(document.fullscreenElement),'video fullscreen');
+      await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+      const media=document.querySelector('.host-video .aspect-video').getBoundingClientRect();
+      if(media.height<innerHeight*.7||media.width<innerWidth*.8)throw new Error('Fullscreen video is still constrained to a small frame');
+    `);
+    if(process.env.QURIOSO_VIDEO_FULLSCREEN_SCREENSHOT)await fs.writeFile(process.env.QURIOSO_VIDEO_FULLSCREEN_SCREENSHOT,(await host.webContents.capturePage()).toPNG());
+    host.webContents.sendInputEvent({type:'keyDown',keyCode:'Escape'});host.webContents.sendInputEvent({type:'keyUp',keyCode:'Escape'});
+    await execute(host, `await wait(()=>!document.fullscreenElement,'Escape exits fullscreen');`);
     await execute(host, `[...document.querySelectorAll('header button')].find(b => b.textContent.trim() === 'Esci').click(); await wait(() => button('Quiz classico in rete'), 'final exit');`);
     console.log('Presenter smoke passed: base URL + PIN and direct QR URL in isolated LAN renderers, clipboard, PIN/session consistency, mobile participant, layouts at 100%: ' + layoutChecks.join(', '));
   } finally { for (const player of participants) if (!player.isDestroyed()) player.destroy(); }

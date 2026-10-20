@@ -12,7 +12,7 @@ exports.run = async window => {
   `;
   const execute=code=>window.webContents.executeJavaScript(`(async()=>{${prefix}${code}})()`,true);
   await execute(`
-    await wait(()=>button('Esporta backup'),'dashboard');window.__backupOriginal=JSON.stringify(await library());
+    await wait(()=>document.querySelector('button[aria-label="Impostazioni"]'),'dashboard');document.querySelector('button[aria-label="Impostazioni"]').click();await wait(()=>button('Esporta backup'),'settings');window.__backupOriginal=JSON.stringify(await library());
     window.showSaveFilePicker=async()=>({createWritable:async()=>{const chunks=[];return new WritableStream({write(chunk){chunks.push(chunk);},close(){window.__backupZip=new Blob(chunks,{type:'application/zip'});}});}});
     button('Esporta backup').click();await wait(()=>button('Crea backup ZIP')&&!button('Crea backup ZIP').disabled,'analysis');layout();
     if(!document.body.textContent.includes('Dimensione stimata dei contenuti'))throw new Error('Missing size inventory');

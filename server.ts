@@ -7,6 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import os from 'os';
 import { performance } from 'node:perf_hooks';
+import { createPublicAccess } from './server/internetSharing';
 import { remainingMs, receivedTimeMs, type RoundClock } from './server/roundClock';
 import type { GameSession, Player, Quiz } from './src/types/quiz';
 import { applyPlayerAnswer, publicQuestion } from './src/services/sessionState';
@@ -17,6 +18,8 @@ import { MAX_MESSAGE_BYTES, MAX_PLAYERS, ProtocolError, check, object, id, pin a
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
+const publicAccess = createPublicAccess(process.env.QURIOSO_PUBLIC_TUNNEL_TOKEN);
+const publicSockets = new Set<WebSocket>();
 const requestedPort = Number(process.env.PORT ?? 0);
 if (!Number.isInteger(requestedPort) || requestedPort < 0 || requestedPort > 65535) {
   throw new Error('PORT must be an integer between 0 and 65535');
@@ -75,7 +78,10 @@ function requirePlayer(room: Room, playerId: string, credential: unknown) {
 function reader(room: Room, req: express.Request): { host: boolean; playerId?: string } {
   if (!req.headers.authorization) return { host: false };
   const credential = bearer(req);
-  if (matches(credential, room.hostToken)) return { host: true };
+  if (matches(credential, room.hostToken)) {
+    if (publicAccess.isPublic(req)) throw new ProtocolError(403, 'Public access is for participants only');
+    return { host: true };
+  }
   for (const [playerId, expected] of room.playerTokens) if (matches(credential, expected)) { requirePlayer(room, playerId, credential); return { host: false, playerId }; }
   throw new ProtocolError(403, 'Invalid authorization');
 }
@@ -123,6 +129,10 @@ function attachWsUpgrade(httpServer: http.Server) {
     try {
       const url = new URL(request.url || '', `http://${request.headers.host || 'localhost'}`);
       if (url.pathname !== '/ws') return; // Vite owns its HMR upgrade path.
+      if (publicAccess.isPublic(request)) {
+        if (!publicAccess.originAllowed(request)) { socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); return; }
+        wss.handleUpgrade(request, socket, head, ws => wss.emit('connection', ws, request)); return;
+      }
       if (!allowedOrigin(request.headers.origin, request.headers.host, request.socket.remoteAddress)) {
         socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
         return;
@@ -136,6 +146,14 @@ app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); nex
 // Electron forwards assets as well as APIs from its stable origin to the loopback server.
 // Give its module/script responses the same narrowly scoped CORS headers as its API responses.
 app.use((req, res, next) => {
+  if (publicAccess.isPublic(req)) {
+    if (!publicAccess.originAllowed(req) || !publicAccess.routeAllowed(req.method, new URL(req.url, 'http://localhost').pathname)) {
+      res.status(403).json({ error: 'Internet sharing permits participants in the shared session only' }); return;
+    }
+    // The public entry always opens participant mode; the local teacher library stays local.
+    if (req.path === '/' && req.query.role !== 'player') { res.redirect(`/?role=player&pin=${publicAccess.snapshot()!.pin}`); return; }
+    next(); return;
+  }
   if (!allowedOrigin(req.headers.origin, req.headers.host, req.socket.remoteAddress)) {
     res.status(403).json({ error: 'Origin not allowed' }); return;
   }
@@ -149,6 +167,17 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json({ limit: MAX_MESSAGE_BYTES, strict: true }));
+
+// Only the native app knows this credential. Never accepted through the public tunnel.
+app.post('/api/desktop/internet-sharing', (req, res) => {
+  if (!publicAccess.controlAllowed(req)) { res.status(403).json({ error: 'Native authorization required' }); return; }
+  try {
+    if (req.body?.share !== null) roomFor(validatePin(req.body?.share?.pin));
+    publicAccess.configure(req.body?.share);
+    for (const ws of publicSockets) ws.close(1008, 'Internet sharing changed');
+    res.json({ success: true });
+  } catch { res.status(400).json({ error: 'Invalid share or session' }); }
+});
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', app: 'Qurioso', port: listeningPort, uptime: process.uptime(), activeSessions: sessions.size });
@@ -333,7 +362,7 @@ app.post('/api/session/:pin/join', (req, res) => {
 app.get('/api/session/:pin/player/:playerId', (req, res) => {
   const room = roomFor(req.params.pin), playerId = id(req.params.playerId);
   requirePlayer(room, playerId, bearer(req));
-  if (room.session.status === 'finished') throw new ProtocolError(410, 'Session finished');
+  // A returning participant may read their final result, without rejoining the game.
   res.json({ success: true, playerExpiresAt: room.playerExpiries.get(playerId), ...envelope(room, false, playerId) });
 });
 app.post('/api/session/:pin/player/:playerId/leave', (req, res) => {
@@ -406,7 +435,9 @@ app.use('/api', (err: any, _req: express.Request, res: express.Response, _next: 
   res.status(status).json({ error: err instanceof ProtocolError ? err.message : status === 413 ? 'Message too large' : status === 400 ? 'Invalid JSON' : 'Internal server error' });
 });
 
-wss.on('connection', (ws: WebSocket) => {
+wss.on('connection', (ws: WebSocket, request: http.IncomingMessage) => {
+  const publicShare = publicAccess.isPublic(request) ? publicAccess.snapshot() : null;
+  if (publicShare) { publicSockets.add(ws); ws.once('close', () => publicSockets.delete(ws)); }
   let client: ConnectedClient | undefined;
   let credential: string | undefined;
   const deadline = setTimeout(() => ws.close(1008, 'Registration required'), 10000);
@@ -414,6 +445,7 @@ wss.on('connection', (ws: WebSocket) => {
   ws.on('error', () => {}); // Includes maxPayload violations; ws closes with 1009.
   ws.on('message', (message, isBinary) => {
     try {
+      if (publicShare && publicAccess.snapshot() !== publicShare) { ws.close(1008, 'Internet sharing stopped'); return; }
       if (isBinary) throw new ProtocolError(400, 'Text messages required');
       let parsed: unknown;
       try { parsed = JSON.parse(message.toString()); } catch { throw new ProtocolError(400, 'Invalid JSON'); }
@@ -421,6 +453,7 @@ wss.on('connection', (ws: WebSocket) => {
       check(typeof data.type === 'string' && data.type.length <= 64, 'Invalid message type');
       if (data.type === 'REGISTER') {
         const pin = validatePin(data.pin), room = roomFor(pin);
+        if (publicShare && (pin !== publicShare.pin || data.role !== 'player')) throw new ProtocolError(403, 'Public access is for participants in the shared session only');
         const supplied = token(data.token);
         // Derive privileges from the credential. A declared role cannot elevate a player.
         let role: 'host' | 'player';

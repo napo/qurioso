@@ -369,6 +369,13 @@ export class GameSyncManager {
       if (epoch !== this.playerRecoveryEpoch) return { status: 'none' };
       const player = data.session?.players?.[saved.playerId];
       if (!player || data.session.pin !== saved.pin) throw new Error('Invalid recovery response');
+      if (data.session.status === 'finished') {
+        // Read-only final result: revoke the credential and never reconnect a player socket.
+        const cleanup = this.leavePlayer(saved.pin), completedEpoch = this.playerRecoveryEpoch;
+        await cleanup;
+        if (completedEpoch !== this.playerRecoveryEpoch) return { status: 'none' };
+        return { status: 'recovered', session: data.session, player };
+      }
       const key = this.playerKey(saved.pin, saved.playerId);
       const verified = { ...saved, expiresAt: data.playerExpiresAt };
       this.playerTokens.set(key, saved.token); this.playerCredentials.set(key, verified); savePlayerCredential(verified);

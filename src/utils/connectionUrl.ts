@@ -1,3 +1,4 @@
+import type { InternetSharingState } from '../types/desktop';
 export interface ConnectionInfo { port: number | string; localIps: string[] }
 
 /** Public addresses only; presenter credentials must never be part of a join URL. */
@@ -16,4 +17,10 @@ export function getJoinBaseUrl(origin: string, info: ConnectionInfo | null, mode
     return `http://${info.localIps[0]}:${info.port}`;
   }
   return origin;
+}
+
+/** An active tunnel is the single advertised address, including for every QR. */
+export function getSessionJoinAddresses(origin: string, info: ConnectionInfo | null, sharing: InternetSharingState, pin: string): string[] {
+  if (sharing.phase === 'active' && sharing.pin === pin && sharing.url) return [sharing.url];
+  return getJoinAddresses(origin, info);
 }

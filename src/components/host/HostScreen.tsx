@@ -20,7 +20,8 @@ import {
   QrCode,
   Radio,
   Wifi,
-  Smartphone
+  Smartphone,
+  Globe
 } from 'lucide-react';
 import { Quiz, GameSession, Player, Question } from '../../types/quiz';
 import { gameSync, BOT_PLAYERS, generateBotAnswer, ServerInfo } from '../../services/gameSync';
@@ -28,7 +29,7 @@ import { sounds } from '../../services/soundEffects';
 import { OPTION_COLORS, SHAPE_ICONS, COLOR_KEYS, SHAPE_KEYS } from '../../utils/quizStyles';
 import { QRCodeDisplay } from '../common/QRCodeDisplay';
 import { JoinInstructions } from '../common/JoinInstructions';
-import { getJoinAddresses } from '../../utils/connectionUrl';
+import { getSessionJoinAddresses } from '../../utils/connectionUrl';
 import { FinalPodium } from '../leaderboard/FinalPodium';
 import { applyPlayerAnswer, publicQuestion } from '../../services/sessionState';
 import { HostVideoPlayer, type HostVideoControls } from '../video/HostVideoPlayer';
@@ -36,6 +37,11 @@ import { quizCheckpoints } from '../../services/videoQuiz';
 import { ImageCredit } from '../common/ImageCredit';
 import { useLanguage } from '../../context/LanguageContext';
 import { QuriosoIcon, BRAND_COLORS } from '../common/QuriosoLogo';
+import { useInternetSharing } from './useInternetSharing';
+import { InternetSharingPanel } from './InternetSharingPanel';
+import { gameExperienceTranslations } from '../../i18n/gameExperience';
+import { readInternetPreference } from '../../services/appEnvironment';
+import { sharingTranslations } from '../../i18n/internetSharing';
 
 interface HostScreenProps {
   quiz: Quiz;
@@ -56,7 +62,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
   const endingRef = useRef(false);
   const lastVideoPublish = useRef(0);
   const writeVersion = useRef(0);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   // Session initialization
   const [pin] = useState<string>(() => recoveredSession?.pin || gameSync.generatePin());
   const [status, setStatus] = useState<GameSession['status']>(recoveredSession?.status || 'lobby');
@@ -68,10 +74,25 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
   const [countdownNum, setCountdownNum] = useState<number>(3);
   const [showQRModal, setShowQRModal] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const screen = useRef<HTMLDivElement>(null);
+  const [fullscreenError, setFullscreenError] = useState(false);
+  useEffect(() => {
+    const element = screen.current;
+    const update = () => setIsFullscreen(document.fullscreenElement === element);
+    document.addEventListener('fullscreenchange', update);
+    return () => { document.removeEventListener('fullscreenchange', update); if (document.fullscreenElement === element) void document.exitFullscreen?.().catch(() => {}); };
+  }, []);
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
   const [selectedAddress, setSelectedAddress] = useState('');
-  const joinAddresses = getJoinAddresses(window.location.origin, serverInfo);
-  const joinAddress = joinAddresses.includes(selectedAddress) ? selectedAddress : joinAddresses[0] || '';
+  const sharing = useInternetSharing(pin);
+  const [showSharing, setShowSharing] = useState(() => !recoveredSession && readInternetPreference() === 'internet');
+  const sharingText = sharingTranslations[language];
+  const publicUrl = sharing.state.phase === 'active' && sharing.state.pin === pin ? sharing.state.url : undefined;
+  const joinAddresses = getSessionJoinAddresses(window.location.origin, serverInfo, sharing.state, pin);
+  const joinAddress = publicUrl || (joinAddresses.includes(selectedAddress) ? selectedAddress : joinAddresses[0] || '');
+  const sharingBusy = ['downloading', 'connecting', 'reconnecting', 'stopping'].includes(sharing.state.phase);
+  const sharingFailed = ['error', 'reconnecting'].includes(sharing.state.phase);
+  const accessHelp = publicUrl ? sharingText.publicHelp : sharingFailed ? sharingText.failedHelp : sharingBusy ? sharingText.pendingHelp : sharingText.lanHelp;
   const joinInstructions = <JoinInstructions pin={pin} addresses={joinAddresses} address={joinAddress} onAddressChange={setSelectedAddress} />;
 
   const currentQuestion: Question | undefined = quiz.questions[currentQuestionIndex];
@@ -191,6 +212,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
     endingRef.current = true;
     videoControls.current?.pause();
     setEnding(true);
+    await sharing.stop();
     await gameSync.removeSession(pin);
     onExit();
   };
@@ -198,6 +220,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
   // Launch Countdown
   const handleStartCountdown = () => {
     if (countdownRef.current) return;
+    if (isVideo && document.fullscreenElement !== screen.current) toggleFullscreen();
     sounds.playCountdown();
     setStatus('countdown');
     setCountdownNum(3);
@@ -344,13 +367,11 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
 
   // Fullscreen toggle
   const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen().catch(() => {});
-      setIsFullscreen(false);
-    }
+    setFullscreenError(false);
+    const request = document.fullscreenElement === screen.current
+      ? document.exitFullscreen?.() : screen.current?.requestFullscreen?.();
+    if (request) void request.catch(() => setFullscreenError(true));
+    else setFullscreenError(true);
   };
 
   const playerCount = Object.keys(players).length;
@@ -363,7 +384,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
   }, [status, playerCount, answersCount]);
 
   return (
-    <div className="host-screen bg-qurioso-canvas text-ink flex flex-col select-none" data-phase={status} data-mode={isVideo ? 'video' : 'standard'}>
+    <div ref={screen} className="host-screen bg-qurioso-canvas text-ink flex flex-col select-none" data-phase={status} data-mode={isVideo ? 'video' : 'standard'}>
       {/* Top Host Bar */}
       <header className="host-header px-4 py-2 bg-white backdrop-blur-md border-b border-line flex items-center justify-between z-20">
         <div className="flex items-center gap-3">
@@ -393,6 +414,11 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
 
         {/* PIN Banner & Action controls */}
         <div className="flex items-center gap-3">
+          {sharing.available && <button type="button" onClick={() => setShowSharing(true)} aria-label={sharingText.title}
+            title={sharingText.openPanel} data-sharing-phase={sharing.state.phase} aria-expanded={showSharing} className={`rounded-xl border-2 p-2 inline-flex items-center gap-1.5 ${publicUrl ? 'border-emerald-600 bg-emerald-600 text-white' : sharingFailed ? 'border-rose-300 bg-rose-50 text-rose-800' : sharingBusy ? 'border-amber-400 bg-amber-50 text-amber-900' : 'border-line bg-surface-soft text-petrolio'}`}>
+            <Globe className={`w-4 h-4 ${sharingBusy ? 'animate-pulse' : ''}`} /><span className="hidden lg:inline text-xs font-bold">{sharingText[sharing.state.phase]}{sharing.state.phase === 'downloading' && sharing.state.progress !== undefined ? ` · ${sharing.state.progress}%` : ''}</span>
+            <span className={`h-2 w-2 rounded-full ${sharing.state.phase === 'active' ? 'bg-white' : sharing.state.phase === 'error' ? 'bg-rose-600' : 'bg-gray-400'}`} aria-hidden="true" />
+          </button>}
           <div className="bg-surface-soft px-4 py-1.5 rounded-xl border-2 border-mandarino flex items-center gap-2.5 shadow-lg shadow-mandarino/10">
             <span className="text-[11px] font-bold uppercase text-muted tracking-wider">PIN:</span>
             <span className="font-mono font-black text-xl md:text-2xl text-ink tracking-widest">{pin}</span>
@@ -409,7 +435,8 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
           <button
             onClick={toggleFullscreen}
             className="p-2 rounded-xl bg-surface-soft hover:bg-surface-hover text-muted hover:text-ink border border-line transition cursor-pointer"
-            title={isFullscreen ? 'Esci da schermo intero' : 'Schermo intero'}
+            title={isFullscreen ? gameExperienceTranslations[language].exitFull : gameExperienceTranslations[language].full}
+            aria-label={isFullscreen ? gameExperienceTranslations[language].exitFull : gameExperienceTranslations[language].full}
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
@@ -428,9 +455,10 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
       <main className="host-stage flex-1 flex flex-col items-center p-3 relative">
         {recoveredSession && <p role="status" className="text-petrolio mb-4">Sessione recuperata · PIN {pin}. {isVideo ? 'Il video è in pausa: riprendi quando sei pronto.' : 'La partita continua dalla fase salvata sul server.'}</p>}
         {recoveryWarning && <p role="status" className="text-muted mb-4">{recoveryWarning}</p>}
+        {fullscreenError && <p role="status" className="text-petrolio">{gameExperienceTranslations[language].fullError}</p>}
         {syncError && <p role="alert" className="text-rose-700 mb-4">{syncError}</p>}
         {isVideo && <div className={status === 'finished' ? 'hidden' : 'host-video w-full flex justify-center'}>
-          <HostVideoPlayer ref={videoControls} quiz={quiz} status={status} openedQuestions={videoQuestionsOpened} initialPlayback={recoveredSession?.videoState} onReady={setVideoReady}
+          <HostVideoPlayer ref={videoControls} language={language} onToggleFullscreen={toggleFullscreen} isFullscreen={isFullscreen} quiz={quiz} status={status} openedQuestions={videoQuestionsOpened} initialPlayback={recoveredSession?.videoState} onReady={setVideoReady}
             onCheckpoint={handleStartQuestion} onFinish={async () => { if (!await settleCurrentRound()) return false; return handleFinishQuiz(); }}
             onSourceChange={async selection => {
               if (!await gameSync.savePresenterVideoSource(pin, selection)) setRecoveryWarning('La nuova sorgente non è stata salvata per il recupero. Dopo un refresh potrebbe essere necessario selezionarla di nuovo.');
@@ -450,6 +478,11 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
           <div className="w-full max-w-6xl flex flex-col items-center">
             <div className="host-lobby-banner w-full grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-4 items-center bg-white border-2 border-line rounded-2xl p-4 shadow-lg mb-3">
               <div className="min-w-0 space-y-3">
+                <div data-session-access={publicUrl ? 'public' : 'lan'} role="status" aria-live="polite" className={`rounded-xl border px-3 py-2 ${publicUrl ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : sharingFailed ? 'border-rose-300 bg-rose-50 text-rose-900' : 'border-line bg-surface-soft text-petrolio'}`}>
+                  <p className="font-black">{publicUrl ? sharingText.publicAccess : sharingText.lanAccess}</p>
+                  <p className="text-sm">{accessHelp}</p>
+                  {sharing.available && <button type="button" className="mt-1 underline font-bold text-sm" onClick={() => setShowSharing(true)}>{sharingText.openPanel}</button>}
+                </div>
                 {joinInstructions}
                 {/* Host Controls */}
                 <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -506,7 +539,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                   </div>
                   <p className="font-semibold text-ink">Nessun giocatore ancora connesso</p>
                   <p className="text-xs text-muted mt-1 max-w-sm">
-                    Apri l’indirizzo dal computer della LAN e partecipa con il PIN, oppure usa il QR da un dispositivo consentito.
+                    {accessHelp}
                   </p>
                 </div>
               ) : (
@@ -598,8 +631,8 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl font-black ${colorStyle.badge}`}>
                       {shapeSymbol}
                     </div>
-                    <span className="font-bold text-lg md:text-xl text-ink">
-                      {option.text}
+                    <span className="font-bold text-lg md:text-xl text-ink min-w-0">
+                      <span className="font-black">{String.fromCharCode(65 + idx)} · </span>{option.text}
                     </span>
                   </div>
                 );
@@ -775,6 +808,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
         )}
       </main>
 
+      {showSharing && sharing.available && <InternetSharingPanel state={sharing.state} onStart={() => void sharing.start()} onStop={() => void sharing.stop()} onClose={() => setShowSharing(false)} />}
       {/* Enlarged QR Code Modal */}
       {showQRModal && (
         <div className="fixed inset-0 bg-petrolio/15 backdrop-blur-md z-50 flex items-center justify-center p-4">

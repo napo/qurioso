@@ -6,9 +6,9 @@ import type { GameSession } from '../../src/types/quiz';
 import { DEFAULT_QUIZZES } from '../../src/data/defaultQuizzes';
 import { publicQuestion } from '../../src/services/sessionState';
 
-export async function startLanServer(t: TestContext, controlledClock = false) {
+export async function startLanServer(t: TestContext, controlledClock = false, extraEnv: Record<string, string> = {}) {
   const child = spawn(process.execPath, ['--import', 'tsx', controlledClock ? 'tests/helpers/clockServer.ts' : 'server.ts'], {
-    env: { ...process.env, NODE_ENV: 'production', PORT: '0' }, stdio: controlledClock ? ['ignore', 'pipe', 'pipe', 'ipc'] : ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, ...extraEnv, NODE_ENV: 'production', PORT: '0' }, stdio: controlledClock ? ['ignore', 'pipe', 'pipe', 'ipc'] : ['ignore', 'pipe', 'pipe'],
   });
   t.after(async () => { if (child.exitCode === null) { child.kill(); await once(child, 'exit'); } });
   let errors = '';

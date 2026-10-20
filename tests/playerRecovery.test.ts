@@ -86,7 +86,10 @@ for (const mode of ['standard', 'video'] as const) test(`${mode}: fresh student 
   if (mode === 'video') { await publish({ status: 'leaderboard' }); await publish({ status: 'video' }); }
   await publish({ status: 'finished' });
   client.dispose(); client = new GameSyncManager();
-  assert.equal((await client.recoverPlayer(pin)).status, 'ended');
+  const final = await client.recoverPlayer(pin);
+  assert.equal(final.status, 'recovered');
+  if (final.status !== 'recovered') throw new Error('Final result recovery failed');
+  assert.equal(final.session.status, 'finished'); assert.equal(final.player.score, score);
   assert.equal(readPlayerCredential(pin), null);
   assert.equal(env.joins(), 1);
 });

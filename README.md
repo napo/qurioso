@@ -48,6 +48,10 @@ The server chooses a free port at startup. To keep the same browser library acro
 ## More information
 
 - [Developer guide: builds, storage and GitHub Pages](docs/DEVELOPMENT.md)
+- [Share desktop quizzes over the Internet with Cloudflare](docs/INTERNET_SHARING.md)
+- [Website, local app and settings](docs/RUNTIME_MODES.md)
+- [Participant results, sharing and video presentation](docs/GAMEPLAY.md)
+- [In-app tutorial guide](docs/TUTORIAL_GUIDE.md)
 - [Included quizzes and image credits](docs/OFFICIAL_QUIZZES.md)
 - [Downloads](https://napo.github.io/qurioso/#quiz-in-rete)
 - [Social preview image](public/social-preview.png)
