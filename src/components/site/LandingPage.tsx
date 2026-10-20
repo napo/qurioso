@@ -3,6 +3,7 @@ import { ArrowUpRight, Monitor, Network, Download, Check, ChevronRight } from 'l
 import { useLanguage } from '../../context/LanguageContext';
 import { landingTranslations } from '../../i18n/landing';
 import { LanguageSelector } from '../common/LanguageSelector';
+import { AppVersion } from '../common/AppVersion';
 import { QuriosoLogo } from '../common/QuriosoLogo';
 import { formatDownloadSize, loadDesktopDownloads, type DesktopDownload } from '../../services/downloads';
 
@@ -101,6 +102,6 @@ export function LandingPage() {
         {[[t.internetQuestion, t.internetAnswer], [t.accountQuestion, t.accountAnswer], [t.storageQuestion, t.storageAnswer]].map(([question, answer]) => <details key={question} className="border-b border-line py-4"><summary className="cursor-pointer font-bold text-petrolio">{question}</summary><p className="mt-3 text-muted max-w-3xl leading-relaxed">{answer}</p></details>)}
       </section>
     </main>
-    <footer className="border-t border-line max-w-6xl mx-auto px-5 md:px-8 py-7 flex flex-wrap justify-between gap-4 text-sm text-muted"><span>Qurioso · Maurizio Napolitano</span><a href="https://github.com/napo/qurioso" className="text-petrolio underline">{t.openSource}</a></footer>
+    <footer className="border-t border-line max-w-6xl mx-auto px-5 md:px-8 py-7 flex flex-wrap justify-between gap-4 text-sm text-muted"><span className="inline-flex flex-wrap items-center gap-2">Qurioso <AppVersion /> · Maurizio Napolitano</span><a href="https://github.com/napo/qurioso" className="text-petrolio underline">{t.openSource}</a></footer>
   </div>;
 }

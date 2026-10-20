@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+.question-import-dialog { user-select: text; }
+.question-import-dialog fieldset { min-inline-size: 0; }
+.question-import-dialog label { min-width: 0; }
+.question-import-dialog th { max-width: 12rem; overflow-wrap: anywhere; }
+
 /* Original SVG palette. Use tints for surfaces and darker text on mandarino. */
 @theme {
   --color-petrolio: #075E63;
@@ -142,3 +147,18 @@
   .quiz-editor-video .editor-question-canvas { order: 1; overflow: visible; flex: none; }
   .quiz-editor-video .editor-question-list { order: 2; width: 100%; max-height: 18rem; flex-shrink: 0; }
 }
+
+/* Local library transfer: actions stay visible at 1366×768 and on small screens. */
+.backup-overlay { position:fixed; inset:0; z-index:100; background:#003e46aa; display:flex; align-items:center; justify-content:center; padding:16px; }
+.backup-dialog { background:white; color:var(--color-petrolio,#004b56); border-radius:20px; width:860px; max-width:100%; max-height:calc(100dvh - 32px); display:flex; flex-direction:column; overflow:hidden; box-shadow:0 12px 60px #0005; }
+.backup-dialog header, .backup-dialog footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; padding:12px 20px; flex-shrink:0; border-bottom:1px solid #dce5e6; }
+.backup-dialog h2 { font-size:1.25rem; font-weight:900; }
+.backup-dialog footer { border-top:1px solid #dce5e6; border-bottom:0; justify-content:flex-end; }
+.backup-dialog button { border-radius:10px; padding:8px 14px; font-weight:700; cursor:pointer; }
+.backup-dialog button:disabled { opacity:.45; cursor:default; }
+.backup-body { overflow:auto; min-height:0; padding:16px 20px; overflow-wrap:anywhere; }
+.backup-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 20px; }
+.backup-stats div { display:flex; justify-content:space-between; gap:12px; border-bottom:1px solid #e5eded; padding:4px 0; }
+.backup-stats dt { font-size:.875rem; }
+.backup-stats dd { font-weight:800; white-space:nowrap; }
+@media(max-width:600px) { .backup-stats { grid-template-columns:1fr; } .backup-overlay { padding:8px; } .backup-dialog { max-height:calc(100dvh - 16px); } }

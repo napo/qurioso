@@ -41,6 +41,12 @@ Multiplayer sessions are held in server memory and disappear when the server res
 
 ## Browser storage and portability
 
+The library and quiz editor provide **Import questions** for local CSV/JSON files,
+with column mapping, validation, duplicate review and an unsaved editor preview.
+See [QUESTION_IMPORT.md](QUESTION_IMPORT.md) for the reference CSV, JSON shapes,
+limits and video checkpoint behavior. **Import complete quiz** retains the existing
+whole-quiz JSON operation.
+
 Quizzes, embedded images and uploaded videos are stored locally in **IndexedDB**, with migration support for quizzes previously stored in `localStorage`. Uploaded videos are stored as blobs. Uploaded images can be up to 15 MB and are resized to a maximum of 1600 pixels on the longest side.
 
 For browser-based use, storage belongs to the full origin, **including the port**. Changing the port, browser or computer gives you a different quiz library; data at the previous origin is not automatically moved. Use a fixed port for a stable local library, or export and import quizzes as JSON.
@@ -149,3 +155,5 @@ node scripts/test-desktop.mjs release-desktop/linux-unpacked/qurioso
 The smoke check uses a temporary profile and does not alter the user’s quiz library. Linux CI runs it against the packaged application. Windows and macOS packages are built on native runners; their installers still need user acceptance testing on those platforms.
 
 The initial packages are unsigned, and macOS packages are not notarized. Installed desktop copies now check GitHub Releases at startup and offer a verified installer download; see [DESKTOP_UPDATES.md](DESKTOP_UPDATES.md). The branding uses the original Q icon from `public/icon-512.png`: Linux and the desktop window use the PNG, Windows and NSIS use `resources/icons/icon.ico`, and macOS uses `resources/icons/icon.icns`. Android launcher icons for all densities, including adaptive and round launchers, are in `resources/icons/android/`; `npm run android:icons` installs them after Capacitor sync, including in CI.
+
+Backup e ripristino della biblioteca: [LIBRARY_BACKUP.md](LIBRARY_BACKUP.md).

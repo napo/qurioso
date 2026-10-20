@@ -8,6 +8,7 @@ import {
   Radio,
   Server
 } from 'lucide-react';
+import { AppVersion } from './AppVersion';
 import { PWAInstallButton } from './PWAInstallButton';
 import { LanguageSelector } from './LanguageSelector';
 import { QuriosoLogo } from './QuriosoLogo';
@@ -57,9 +58,10 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="sm:hidden">:{serverInfo?.port || '…'}</span>
             </div>}
           </div>
-          <p className="text-[11px] text-muted hidden sm:block">
-            {t.appTagline}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-2">
+            <AppVersion />
+            <p className="text-[11px] text-muted hidden sm:block">{t.appTagline}</p>
+          </div>
         </div>
       </div>
 

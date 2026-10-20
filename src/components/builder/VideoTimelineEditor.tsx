@@ -71,7 +71,7 @@ export function VideoTimelineEditor({ quiz, selectedQuestionId, onChange, onSele
   return <section aria-label="Editor della timeline video" className="video-editor-workspace space-y-3">
     <details className="rounded-xl border border-line bg-white p-2" open={!config.videoUrl && !config.videoAssetId}>
       <summary className="cursor-pointer text-sm font-bold text-petrolio">Sorgente video · {config.videoTitle || 'scegli un video'}</summary>
-      <div className="mt-2"><VideoSourcePicker value={config} onBusyChange={onBusy} onChange={selection => onChange({ ...quiz, videoConfig: { ...config, ...selection } })} /></div>
+      <div className="mt-2"><VideoSourcePicker value={config} onBusyChange={onBusy} onChange={selection => onChange({ ...quiz, videoConfig: { ...config, ...selection, missingVideo: undefined } })} /></div>
     </details>
     <div className="editor-video-surface aspect-video rounded-xl overflow-hidden bg-black">
       {url ? <VideoSurface key={url} ref={media} src={url} controls playsInline preload="metadata" className="h-full w-full object-contain"

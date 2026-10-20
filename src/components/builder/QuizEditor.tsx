@@ -24,6 +24,8 @@ import { editorDraft, type EditorDraft } from '../../services/quizStorage';
 import { prepareVideoQuiz, exportVideoQuiz, quizCheckpoints, editableVideoQuiz, setQuestionCheckpoint } from '../../services/videoQuiz';
 import { ImagePicker } from '../common/ImagePicker';
 import { useLanguage } from '../../context/LanguageContext';
+import { QuestionImportDialog } from './QuestionImportDialog';
+import { importText } from '../../i18n/questionImport';
 
 interface QuizEditorProps {
   initialQuiz?: Quiz;
@@ -36,7 +38,9 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
   onSave,
   onCancel,
 }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const [importingQuestions, setImportingQuestions] = useState(false);
+  const quizImportInput = useRef<HTMLInputElement>(null);
   const [quiz, setQuiz] = useState<Quiz>(() => {
     if (initialQuiz) return editableVideoQuiz(JSON.parse(JSON.stringify(initialQuiz)));
     return {
@@ -345,6 +349,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
 
   return (
     <div className={`quiz-editor flex flex-col h-full w-full bg-white text-ink overflow-hidden ${quiz.videoConfig ? 'quiz-editor-video' : ''}`}>
+      {importingQuestions && <QuestionImportDialog initialQuiz={quiz} onCancel={() => setImportingQuestions(false)} onConfirm={next => { setQuiz(next); setActiveQuestionIndex(quiz.questions.length); setImportingQuestions(false); }} />}
       {/* Top Header */}
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white border-b border-line">
         <div className="flex items-center gap-3">
@@ -369,12 +374,13 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-soft hover:bg-surface-hover text-muted text-xs font-semibold rounded-xl border border-line transition cursor-pointer">
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" disabled={isSaving || videoBusy || timelinePending || !draftReady} onClick={() => setImportingQuestions(true)} className="btn-petrolio rounded-xl px-3 py-2 text-xs font-bold disabled:opacity-50">{importText(language, 'importQuestions')}</button>
+          <button type="button" disabled={isSaving || videoBusy || timelinePending || !draftReady} onClick={() => quizImportInput.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-soft hover:bg-surface-hover text-muted text-xs font-semibold rounded-xl border border-line transition cursor-pointer">
             <Upload className="w-3.5 h-3.5 text-petrolio" />
-            <span>{t.importJson}</span>
-            <input type="file" accept=".json" onChange={handleImportJSON} className="hidden" />
-          </label>
+            <span>{importText(language, 'fullQuiz')}</span>
+          </button>
+          <input ref={quizImportInput} type="file" accept=".json" onChange={handleImportJSON} className="hidden" aria-label={importText(language, 'fullQuiz')} />
 
           <button
             disabled={isSaving || videoBusy || timelinePending || !draftReady}

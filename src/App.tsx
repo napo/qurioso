@@ -1,3 +1,4 @@
+import { LibraryData } from './components/data/LibraryData';
 import { loadQuizzes, storeQuizzes } from './services/quizStorage';
 import { ImageCredit } from './components/common/ImageCredit';
 /**
@@ -41,9 +42,12 @@ import { MultiplatformGuide } from './components/guide/MultiplatformGuide';
 import { useLanguage } from './context/LanguageContext';
 import { gameSync, ServerInfo } from './services/gameSync';
 import { checkpointProblems, quizCheckpoints } from './services/videoQuiz';
+import { QuestionImportDialog } from './components/builder/QuestionImportDialog';
+import { importText } from './i18n/questionImport';
 
 export default function App({ classroomOnly = false }: { classroomOnly?: boolean }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const [importingQuestions, setImportingQuestions] = useState(false);
   // Navigation View State
   const [view, setView] = useState<'dashboard' | 'classroom' | 'host' | 'video_player' | 'player' | 'editor'>('dashboard');
 
@@ -52,7 +56,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
   const [storageError, setStorageError] = useState('');
   useEffect(() => {
     let mounted = true;
-    loadQuizzes().then(saved => { if (mounted && saved?.length) setQuizzes(saved); })
+    loadQuizzes().then(saved => { if (mounted && saved !== null) setQuizzes(saved); })
       .catch(error => { if (mounted) setStorageError(error.message); })
       .finally(() => { if (mounted) setLibraryReady(true); });
     return () => { mounted = false; };
@@ -258,6 +262,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
   // DEFAULT VIEW: MAIN DASHBOARD & QUIZ HUB
   return (
     <div data-qurioso-dashboard className="min-h-screen bg-qurioso-canvas text-ink flex flex-col select-none">
+      {importingQuestions && <QuestionImportDialog quizzes={quizzes} onCancel={() => setImportingQuestions(false)} onConfirm={quiz => { setSelectedQuiz(quiz); setImportingQuestions(false); setView('editor'); }} />}
       <Header
         classroomOnly={classroomOnly}
         onOpenGuide={() => setShowGuide(true)}
@@ -281,6 +286,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
           </div>}
         </div>}
         {storageError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{storageError}</p>}
+        <LibraryData quizzes={quizzes} onRestored={updated => { setQuizzes(updated); setStorageError(''); }} onEditor={handleEditQuiz} onQuestions={() => setImportingQuestions(true)} />
         {/* Hero Banner with Petrolio & Mandarino Brand Identity */}
         <div className="relative rounded-3xl bg-white border-2 border-line p-6 md:p-10 shadow-lg overflow-hidden">
           <div className="absolute top-0 right-0 -mr-16 -mt-16 w-96 h-96 rounded-full bg-petrolio/5 blur-3xl pointer-events-none" />
@@ -317,9 +323,10 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
                 <Video className="w-4 h-4" />
                 <span>Crea quiz video</span>
               </button>
+              <button type="button" onClick={() => setImportingQuestions(true)} className="btn-petrolio flex items-center gap-2 px-5 py-3.5 rounded-2xl font-bold text-sm">{importText(language, 'importQuestions')}</button>
 
               {!classroomOnly && <button
-                onClick={() => handleStartHost(quizzes[0])}
+                disabled={!quizzes.length} onClick={() => handleStartHost(quizzes[0])}
                 className="btn-petrolio flex items-center gap-2 px-5 py-3.5 rounded-2xl font-bold text-sm shadow-md transition active:scale-95 cursor-pointer"
               >
                 <Play className="w-4 h-4 text-accent-ink fill-mandarino" />
@@ -327,7 +334,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
               </button>}
 
               <button
-                onClick={() => handleStartVideoQuiz(quizzes[0])}
+                disabled={!quizzes.length} onClick={() => handleStartVideoQuiz(quizzes[0])}
                 className="flex items-center gap-2 px-4 py-3.5 rounded-2xl bg-surface-soft hover:bg-surface-hover text-muted hover:text-ink font-semibold text-sm border border-line transition cursor-pointer"
               >
                 <Video className="w-4 h-4 text-accent-ink" />

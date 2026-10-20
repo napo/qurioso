@@ -11,6 +11,7 @@ import {
   User
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
+import { AppVersion } from '../common/AppVersion';
 import { QuriosoIcon } from '../common/QuriosoLogo';
 
 interface MultiplatformGuideProps {
@@ -40,7 +41,7 @@ export const MultiplatformGuide: React.FC<MultiplatformGuideProps> = ({ onClose 
             <QuriosoIcon size={40} variant="rounded" />
             <div>
               <h2 className="text-lg font-bold text-ink flex items-center gap-2">
-                <span>{t.guideTitle}</span>
+                <span>{t.guideTitle}</span><AppVersion />
               </h2>
               <p className="text-xs text-muted">
                 {t.guideSubtitle}

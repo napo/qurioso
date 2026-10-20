@@ -120,7 +120,11 @@ Limiti attuali:
 - L'esportazione JSON singola esistente include ancora i file locali in Base64:
   può richiedere molta memoria. Non è il futuro formato di backup della biblioteca.
 
-## Proposta per il backup futuro — non implementato
+## Proposta originaria per il backup futuro
+
+Il backup della biblioteca è ora implementato: vedere [LIBRARY_BACKUP.md](LIBRARY_BACKUP.md)
+per formato effettivo, transazioni, percorso Dati e limiti. La proposta seguente
+resta come analisi storica del Prompt 9.
 
 Preferire ZIP con manifesto JSON versionato e file binari separati, ad esempio:
 

@@ -52,6 +52,8 @@ export interface VideoQuizConfig {
   videoType: 'html5' | 'sample' | 'youtube' | 'vimeo' | 'file';
   videoAssetId?: string;
   videoFileName?: string;
+  /** Portable descriptor for a local video excluded from a library backup. */
+  missingVideo?: { name?: string; size: number; sizeKnown?: boolean; mime: string };
   pauseMode: 'defined' | 'random';
   /** Explicit lists may omit unassigned questions; absent preserves legacy implicit checkpoints. */
   checkpointMode?: 'explicit';

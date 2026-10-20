@@ -1,0 +1,12 @@
+import { readFile, writeFile } from 'node:fs/promises';
+const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+const match = /^(\d+)\.(\d+)\.(\d+)(?:-[\w.-]+)?$/.exec(version);
+if (!match) throw new Error('Versione Android non valida.');
+const [major, minor, patch] = match.slice(1).map(Number);
+const code = major * 1000000 + minor * 1000 + patch;
+if (minor >= 1000 || patch >= 1000 || code < 1 || code > 2100000000) throw new Error('Versione fuori dai limiti Android.');
+const path = new URL('../android/app/build.gradle', import.meta.url);
+const source = await readFile(path, 'utf8');
+if (!/versionCode\s+\d+/.test(source) || !/versionName\s+"[^"]*"/.test(source)) throw new Error('Configurazione Android non riconosciuta.');
+await writeFile(path, source.replace(/versionCode\s+\d+/, `versionCode ${code}`).replace(/versionName\s+"[^"]*"/, `versionName "${version}"`));
+console.log(`Android version: ${version} (${code})`);

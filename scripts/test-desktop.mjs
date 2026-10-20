@@ -39,7 +39,7 @@ try {
   assert.equal(second.previous, 'saved');
   assert.notEqual(first.port, second.port);
   assert.equal(second.origin, first.origin);
-  console.log(`Desktop smoke passed: rendered app, local server, WebSocket, base URL + PIN and direct QR entry, 24 presenter layout checks at 100% (1280x720, 1366x768, 1920x1080), video editor/timeline at 1366x768, local WebM and draft recovery, mobile participant, student recovery after refresh/tab close in classic and video games, host session recovered after reload, explicit credential cleanup, updater menu/preferences/verified download, storage retained across ports ${first.port}/${second.port}, and server shutdown.`);
+  console.log(`Desktop smoke passed: rendered app, local server, WebSocket, base URL + PIN and direct QR entry, 24 presenter layout checks at 100% (1280x720, 1366x768, 1920x1080), video editor/timeline at 1366x768, local WebM and draft recovery, mobile participant, student recovery after refresh/tab close in classic and video games, host session recovered after reload, explicit credential cleanup, updater menu/preferences/verified download, CSV/JSON question import with preview/duplicates/new and video quizzes at 1366x768, library ZIP backup/preview/add/full restore at 1366x768 with double-confirm protection, storage retained across ports ${first.port}/${second.port}, and server shutdown.`);
 } finally {
   if (blocker?.listening) await new Promise(resolve => blocker.close(resolve));
   await rm(userData, { recursive: true, force: true });

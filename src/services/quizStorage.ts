@@ -1,6 +1,6 @@
 import type { Quiz } from '../types/quiz';
 
-function openLibrary(): Promise<IDBDatabase> {
+export function openLibrary(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('qurioso-library', 2);
     request.onupgradeneeded = () => {
@@ -81,7 +81,7 @@ export async function videoAssetInfo(id: string): Promise<VideoAssetInfo> {
 }
 
 export function formatAssetSize(bytes: number): string {
-  const units = ['B', 'KB', 'MB', 'GB'];
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   let value = bytes, index = 0;
   while (value >= 1000 && index < units.length - 1) { value /= 1000; index++; }
   return `${new Intl.NumberFormat('it-IT', { maximumFractionDigits: index ? 1 : 0 }).format(value)} ${units[index]}`;
@@ -140,5 +140,36 @@ export async function presenterQuiz(pin: string, action: 'read' | 'write' | 'del
     const request = action === 'read' ? store.get(key) : action === 'delete' ? store.delete(key) : store.put(quiz, key);
     transaction.oncomplete = () => { database.close(); resolve(action === 'read' ? request.result : undefined); };
     transaction.onabort = () => { database.close(); reject(new Error('Archivio di recupero del presentatore non disponibile.')); };
+  });
+}
+
+/** One transaction publishes a fully verified restore. Existing assets/drafts/runtime copies are retained.
+ * Compare inside the transaction, so another tab cannot silently lose a more recent library. */
+export async function commitLibraryRestore(expected: Quiz[] | null, quizzes: Quiz[], assets: Map<string, Blob>): Promise<void> {
+  if (typeof indexedDB === 'undefined') throw new Error('backupStorage');
+  const database = await openLibrary();
+  await new Promise<void>((resolve, reject) => {
+    const tx = database.transaction(['library', 'videos'], 'readwrite');
+    let conflict = false;
+    const request = tx.objectStore('library').get('quizzes');
+    request.onsuccess = () => {
+      if (JSON.stringify(request.result ?? null) !== JSON.stringify(expected)) { conflict = true; tx.abort(); return; }
+      tx.objectStore('library').put(quizzes, 'quizzes');
+      for (const [id, blob] of assets) tx.objectStore('videos').put(blob, id);
+    };
+    tx.oncomplete = () => { database.close(); resolve(); };
+    tx.onabort = () => { database.close(); reject(new Error(conflict ? 'backupChanged' : 'backupWrite')); };
+    tx.onerror = () => {};
+  });
+}
+
+/** Read-only comparison point for backup preview; never triggers legacy migration. */
+export async function readLibrarySnapshot(): Promise<Quiz[] | null> {
+  if (typeof indexedDB === 'undefined') throw new Error('backupStorage');
+  const db = await openLibrary();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('library', 'readonly'), request = tx.objectStore('library').get('quizzes');
+    tx.oncomplete = () => { db.close(); resolve(request.result ?? null); };
+    tx.onabort = () => { db.close(); reject(new Error('backupStorage')); };
   });
 }
