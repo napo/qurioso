@@ -1,5 +1,6 @@
 import { Quiz } from '../types/quiz';
 import { DEMO_VIDEO_URL } from '../utils/videoSource';
+import volcanoQuiz from '../../public/quizzes/tipi-di-vulcani.json';
 
 export const SAMPLE_VIDEOS = [
   {
@@ -213,5 +214,6 @@ export const DEFAULT_QUIZZES: Quiz[] = [
         ]
       }
     ]
-  }
+  },
+  volcanoQuiz as Quiz
 ];

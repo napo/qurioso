@@ -21,6 +21,10 @@ test('classroom runs without a server; landing switches, remembers and passes al
   await act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(App, { classroomOnly: true }))));
   for (let n = 0; n < 40 && document.body.textContent?.includes('Caricamento quiz'); n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 15)); });
   assert.match(document.body.textContent!, /Una domanda, tutta la classe/);
+  assert.match(document.body.textContent!, /Tipi di vulcani con geopop/);
+  const volcanoCredit = document.querySelector('a[href="https://commons.wikimedia.org/wiki/File:Fimmvorduhals_2010_03_27_dawn.jpg"]');
+  assert.ok(volcanoCredit, 'the included volcano quiz displays its Commons credit');
+  assert.match(volcanoCredit.parentElement!.textContent!, /Boaworm.*CC BY 3.0/);
   assert.equal(requests, 0);
   assert.equal([...document.querySelectorAll('button')].some(button => button.textContent === 'Quiz in Rete'), false);
   const start = [...document.querySelectorAll('button')].find(button => button.textContent === 'Attività in classe');
