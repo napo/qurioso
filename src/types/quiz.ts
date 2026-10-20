@@ -4,6 +4,8 @@ export interface ImageAttribution {
   license: string;
   sourceUrl: string;
   licenseUrl?: string;
+  attributionText?: string;
+  credit?: string;
 }
 
 export interface QuestionOption {

@@ -81,7 +81,7 @@ export function ImagePicker({ label, value, attribution, onChange }: ImagePicker
       {busy && !isSearching && <p role="status" className="text-xs text-petrolio">Preparazione immagine…</p>}
       {error && !isSearching && <p role="alert" className="text-xs text-rose-700">{error}</p>}
       {value && <div className="space-y-2">
-        {value.startsWith('data:') && <p className="text-[11px] font-semibold text-petrolio">Immagine inclusa nel quiz</p>}
+        {value.startsWith('data:') && <p className="text-[11px] font-semibold text-petrolio">Immagine salvata in locale e inclusa nel quiz</p>}
         {!previewError ? <img src={value} alt={`Anteprima ${label}`} onError={() => setPreviewError(true)} className="h-36 w-full object-contain rounded-xl bg-surface-soft" />
           : <p role="alert" className="text-xs text-rose-700">L’immagine non può essere visualizzata. Controlla il link o scegli un file.</p>}
         <ImageCredit attribution={attribution} />
@@ -100,7 +100,7 @@ export function ImagePicker({ label, value, attribution, onChange }: ImagePicker
             <h2 className="font-bold text-petrolio">Cerca immagini su Wikimedia Commons</h2>
             <button type="button" onClick={() => { request.current?.abort(); setBusy(false); setIsSearching(false); }} className="text-sm font-bold text-petrolio cursor-pointer">Chiudi</button>
           </div>
-          <p className="text-xs text-muted">Cerca, controlla autore e licenza, poi scegli un’immagine. Verrà inclusa nel quiz insieme ai crediti. La ricerca richiede Internet; prova anche parole in inglese.</p>
+          <p className="text-xs text-muted">Cerca, controlla autore e licenza, poi scegli un’immagine. Verrà scaricata e inclusa nel quiz per l’uso offline, insieme alla licenza e al testo dell’attribuzione. La ricerca richiede Internet; prova anche parole in inglese.</p>
           <div className="flex gap-2">
             <input type="search" autoFocus aria-label="Cerca immagini" value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); findImages(); } }} placeholder="Es. Marte, Colosseo, vulcano" className="min-w-0 flex-1 rounded-xl border border-line p-3 text-sm" />
             <button type="button" disabled={busy || !query.trim()} onClick={findImages} className="btn-petrolio rounded-xl px-4 text-sm font-bold cursor-pointer disabled:opacity-50">Cerca</button>

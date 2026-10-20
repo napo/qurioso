@@ -69,6 +69,8 @@ export function parseCommonsImages(data: any): CommonsImage[] {
     return [{ id: page.pageid, url, attribution: {
       title: String(page.title).replace(/^File:/, ''), creator, license, sourceUrl,
       licenseUrl: safeHttpUrl(metadata.LicenseUrl?.value || ''),
+      attributionText: plainText(metadata.Attribution?.value || '') || undefined,
+      credit: plainText(metadata.Credit?.value || '') || undefined,
     } }];
   });
 }
@@ -78,7 +80,7 @@ export async function searchCommons(query: string, signal: AbortSignal): Promise
     action: 'query', format: 'json', origin: '*', generator: 'search',
     gsrsearch: `${query.trim()} filetype:bitmap`, gsrnamespace: '6', gsrlimit: '12',
     prop: 'imageinfo', iiprop: 'url|extmetadata|mime', iiurlwidth: '1024',
-    iiextmetadatafilter: 'Artist|Credit|LicenseShortName|LicenseUrl|UsageTerms',
+    iiextmetadatafilter: 'Artist|Credit|Attribution|LicenseShortName|LicenseUrl|UsageTerms',
   });
   const response = await fetch(`https://commons.wikimedia.org/w/api.php?${params}`, { signal });
   if (!response.ok) throw new Error('Ricerca non disponibile. Controlla la connessione e riprova.');

@@ -176,7 +176,8 @@ function validateQuestion(raw: Record<string, any>, config: ImportConfig, canoni
   if (raw.mediaAttribution !== undefined) {
     const credits = raw.mediaAttribution;
     if (!object(credits) || !['title', 'creator', 'license', 'sourceUrl'].every(key => typeof credits[key] === 'string' && credits[key].trim()) || !httpUrl(credits.sourceUrl) || credits.licenseUrl !== undefined && (typeof credits.licenseUrl !== 'string' || !httpUrl(credits.licenseUrl))) fail('attribution');
-    question.mediaAttribution = Object.fromEntries(['title', 'creator', 'license', 'sourceUrl', 'licenseUrl'].filter(key => credits[key] !== undefined).map(key => [key, credits[key]])) as unknown as ImageAttribution;
+    if (['attributionText', 'credit'].some(key => credits[key] !== undefined && typeof credits[key] !== 'string')) fail('attribution');
+    question.mediaAttribution = Object.fromEntries(['title', 'creator', 'license', 'sourceUrl', 'licenseUrl', 'attributionText', 'credit'].filter(key => credits[key] !== undefined).map(key => [key, credits[key]])) as unknown as ImageAttribution;
   }
   return question;
 }

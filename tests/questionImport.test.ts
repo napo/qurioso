@@ -55,9 +55,10 @@ test('CSV template round trips all supported types and an explicit multiple-corr
 });
 
 test('JSON canonical questions preserve supported media/credits and never import source timestamps', () => {
-  const q = {...question(),videoTimestamp:45,mediaUrl:'https://example.org/image.png',mediaType:'image',explanation:'Spiegazione',mediaAttribution:{title:'Image',creator:'Creator',license:'CC BY',sourceUrl:'https://example.org/source'}};
+  const q = {...question(),videoTimestamp:45,mediaUrl:'https://example.org/image.png',mediaType:'image',explanation:'Spiegazione',mediaAttribution:{title:'Image',creator:'Creator',license:'CC BY',sourceUrl:'https://example.org/source',attributionText:'Photo by Creator',credit:'Archive'}};
   const rows = jsonRows([q]); assert.equal(rows[0].errors.length,0); assert.equal(rows[0].warnings[0].key,'externalAsset');
   assert.equal(rows[0].question!.videoTimestamp,undefined); assert.equal(rows[0].question!.mediaAttribution!.creator,'Creator');
+  assert.equal(rows[0].question!.mediaAttribution!.attributionText,'Photo by Creator'); assert.equal(rows[0].question!.mediaAttribution!.credit,'Archive');
 });
 
 test('JSON full-quiz extraction is distinct from complete import and preserves destination metadata/checkpoints', () => {

@@ -31,7 +31,7 @@ const optional = (v: any) => v === undefined ? undefined : text(v);
 const unique = (values: string[]) => { if (new Set(values).size !== values.length || values.some(v => !v)) fail(); };
 function credit(v: any): ImageAttribution | undefined {
   if (v === undefined) return;
-  object(v); return { title: text(v.title), creator: text(v.creator), license: text(v.license), sourceUrl: safeUrl(text(v.sourceUrl)), licenseUrl: v.licenseUrl === undefined ? undefined : safeUrl(text(v.licenseUrl)) };
+  object(v); return { title: text(v.title), creator: text(v.creator), license: text(v.license), sourceUrl: safeUrl(text(v.sourceUrl)), licenseUrl: v.licenseUrl === undefined ? undefined : safeUrl(text(v.licenseUrl)), attributionText: optional(v.attributionText), credit: optional(v.credit) };
 }
 function safeUrl(url: string): string {
   if (!url || /^https?:\/\//i.test(url) || /^data:(image|video)\//i.test(url) || /^qurioso-asset:[a-zA-Z0-9_-]+$/.test(url)) return url;

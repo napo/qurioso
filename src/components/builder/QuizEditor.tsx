@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import {
   Plus,
   Trash2,
@@ -39,6 +39,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
   onCancel,
 }) => {
   const { t, language } = useLanguage();
+  const titleId = useId();
   const [importingQuestions, setImportingQuestions] = useState(false);
   const quizImportInput = useRef<HTMLInputElement>(null);
   const [quiz, setQuiz] = useState<Quiz>(() => {
@@ -221,6 +222,13 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
     updateCurrentQuestion({ options: newOptions });
   };
 
+  const prepareQuiz = () => {
+    if (!quiz.title.trim()) throw new Error('Inserisci il titolo del quiz prima di salvare o provare.');
+    const invalidIndex = quiz.questions.findIndex(question => question.options.filter(option => option.isCorrect).length !== 1);
+    if (invalidIndex >= 0) throw new Error(`La domanda ${invalidIndex + 1} deve avere una sola risposta corretta. Seleziona quella esatta.`);
+    return prepareVideoQuiz({ ...quiz, title: quiz.title.trim() }, videoDuration);
+  };
+
   // Import JSON quiz
   const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -248,8 +256,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
     setSaveError('');
     setIsSaving(true);
     try {
-      prepareVideoQuiz(quiz, videoDuration);
-      const exportedQuiz = await exportVideoQuiz(quiz);
+      const exportedQuiz = await exportVideoQuiz(prepareQuiz());
       const objectUrl = URL.createObjectURL(new Blob([JSON.stringify(exportedQuiz, null, 2)], { type: 'application/json' }));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.href = objectUrl;
@@ -359,13 +366,14 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div>
+          <div className="min-w-0">
+            <label htmlFor={titleId} className="block px-1 text-xs font-bold text-petrolio">Titolo del quiz</label>
             <input
-              type="text"
+              id={titleId} type="text"
               value={quiz.title}
               onChange={(e) => setQuiz((prev) => ({ ...prev, title: e.target.value }))}
               placeholder={t.untitledQuiz}
-              className="text-base md:text-lg font-black bg-transparent border-b border-transparent hover:border-line focus:border-petrolio focus:outline-none px-1 text-ink"
+              className="w-full text-base md:text-lg font-black bg-white border border-line rounded-lg focus:border-petrolio focus:outline-none px-2 py-1 text-ink"
             />
             <div className="text-xs text-muted px-1">
               {quiz.questions.length} {t.questionsCreated}
@@ -394,14 +402,14 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
 
           {quiz.videoConfig && <button type="button" className="btn-petrolio rounded-xl px-4 py-2 text-sm font-bold disabled:opacity-50" disabled={isSaving || videoBusy || timelinePending || !draftReady} onClick={() => {
             setSaveError('');
-            try { const prepared = prepareVideoQuiz(quiz, videoDuration); if (!quizCheckpoints(prepared).length) throw new Error('Associa almeno una domanda al video prima di provare l’attività.'); setPreviewQuiz(prepared); }
+            try { const prepared = prepareQuiz(); if (!quizCheckpoints(prepared).length) throw new Error('Associa almeno una domanda al video prima di provare l’attività.'); setPreviewQuiz(prepared); }
             catch (error) { setSaveError(error instanceof Error ? error.message : 'Anteprima non disponibile.'); }
           }}>Prova attività</button>}
           <button
             disabled={isSaving || videoBusy || timelinePending || !draftReady}
             onClick={async () => {
               setIsSaving(true); setSaveError('');
-              try { const prepared = prepareVideoQuiz(quiz, videoDuration); await onSave(prepared); baseline.current = JSON.stringify(quiz); await editorDraft('delete'); }
+              try { const prepared = prepareQuiz(); await onSave(prepared); baseline.current = JSON.stringify(quiz); await editorDraft('delete'); }
               catch (error) { setSaveError(error instanceof Error ? error.message : 'Salvataggio non riuscito.'); }
               finally { setIsSaving(false); }
             }}
@@ -538,7 +546,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
           <div className="editor-question-canvas min-w-0 shrink-0 lg:shrink flex-1 flex flex-col lg:overflow-y-auto p-4 md:p-6 bg-white">
             {saveError && <p role="alert" className="w-full max-w-3xl mx-auto mb-4 text-sm text-rose-700">{saveError}</p>}
             <div className="w-full max-w-3xl mx-auto mb-6 space-y-3">
-              <details open={!quiz.videoConfig}><summary className="text-sm font-bold text-petrolio cursor-pointer">Copertina del quiz</summary>
+              <details open><summary className="text-sm font-bold text-petrolio cursor-pointer">Copertina del quiz</summary>
               <ImagePicker label="Copertina del quiz" value={quiz.coverImage} attribution={quiz.coverAttribution}
                 onChange={(url, attribution) => setQuiz(prev => ({ ...prev, coverImage: url, coverAttribution: attribution }))} /></details>
             </div>
@@ -572,6 +580,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                 </span>
               </div>
 
+              <p className="mb-3 text-xs text-muted">Seleziona una sola risposta corretta.</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 {currentQuestion.options.map((opt, optIdx) => {
                   const style = OPTION_COLORS[opt.color] || OPTION_COLORS.blue;
@@ -597,10 +606,10 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                         type="text" value={opt.text} onChange={event => updateOption(opt.id, { text: event.target.value })} placeholder={`Option ${optIdx + 1}...`}
                         className="min-w-0 flex-1 bg-transparent border-0 focus:outline-none font-bold text-sm text-ink placeholder-muted" />}
 
-                      {/* Correct Checkbox */}
+                      {/* Selecting an answer replaces the previous correct answer. */}
                       <button
                         type="button"
-                        onClick={() => updateOption(opt.id, { isCorrect: !opt.isCorrect })}
+                        onClick={() => updateCurrentQuestion({ options: currentQuestion.options.map(option => ({ ...option, isCorrect: option.id === opt.id })) })}
                         aria-label={`Risposta ${optIdx + 1} corretta`} aria-pressed={opt.isCorrect}
                         className={`shrink-0 w-7 h-7 rounded-xl flex items-center justify-center transition cursor-pointer ${
                           opt.isCorrect

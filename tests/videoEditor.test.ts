@@ -100,6 +100,13 @@ test('real editor captures a timestamp, creates/associates/edits/removes checkpo
       Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(element, value); element.dispatchEvent(new dom.window.Event(element.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); });
   };
   await mount(); await wait(() => ![...document.querySelectorAll('button')].find(b => b.textContent === 'Salva Quiz')?.disabled, 'draft ready');
+  const title = document.querySelector('input[id]') as HTMLInputElement;
+  assert.equal(document.querySelector(`label[for="${title.id}"]`)?.textContent, 'Titolo del quiz');
+  await input(title, 'Il mio quiz video');
+  const cover = document.querySelector('section[aria-label="Copertina del quiz"]')!;
+  assert.equal(cover.closest('details')!.open, true, 'video quiz cover is visible without expanding a panel');
+  await input(cover.querySelector('input[type="url"]')!, 'https://example.org/copertina.png');
+  assert.equal(cover.querySelector('img')!.src, 'https://example.org/copertina.png');
   const video = document.querySelector('video')!;
   await act(async () => { video.currentTime = 8.4; video.dispatchEvent(new dom.window.Event('loadedmetadata')); video.dispatchEvent(new dom.window.Event('timeupdate')); });
   await click('Aggiungi domanda qui'); await click('Crea nuova domanda qui');
@@ -124,10 +131,14 @@ test('real editor captures a timestamp, creates/associates/edits/removes checkpo
   await input(document.querySelector('input[aria-label="Tempo del checkpoint"]')!, '02:00'); await click('Applica tempo');
   await click('Salva Quiz'); assert.equal(Boolean(saved), false); assert.match(document.body.textContent!, /superano la durata/);
   await input(document.querySelector('input[aria-label="Tempo del checkpoint"]')!, '00:09'); await click('Applica tempo');
-  await click('Salva Quiz'); assert.ok(saved); assert.equal(saved.questions.length, 4); assert.equal(saved.videoConfig!.checkpointMode, 'explicit');
+  await click('Salva Quiz'); assert.ok(saved);
+  assert.equal(saved.title, 'Il mio quiz video'); assert.equal(saved.coverImage, 'https://example.org/copertina.png');
+  assert.equal(saved.videoConfig!.videoTitle, source.videoConfig!.videoTitle, 'quiz title is distinct from video source title');
+  assert.equal(saved.questions.length, 4); assert.equal(saved.videoConfig!.checkpointMode, 'explicit');
   await wait(() => ![...document.querySelectorAll('button')].find(b => b.textContent === 'Prova attività')?.disabled, 'save finished');
   // Preview uses only local classroom state and preserves the mounted editor's draft.
-  await click('Prova attività'); const preview = document.querySelector('video')!;
+  await click('Prova attività'); assert.match(document.querySelector('h2')!.textContent!, /Il mio quiz video/);
+  const preview = document.querySelector('video')!;
   await act(async () => { preview.currentTime = 9; preview.dispatchEvent(new dom.window.Event('loadedmetadata')); preview.dispatchEvent(new dom.window.Event('timeupdate')); });
   await click('Marte'); await click('Continua Video');
   assert.match(document.body.textContent!, /Domanda creata dal video/); // same timestamp, before playback resumes
@@ -144,6 +155,8 @@ test('real editor captures a timestamp, creates/associates/edits/removes checkpo
   const event = new dom.window.Event('beforeunload', { cancelable: true }); dom.window.dispatchEvent(event); assert.equal(event.defaultPrevented, true);
   await act(async () => root.unmount()); root = createRoot(document.getElementById('app')!); await mount();
   await wait(() => document.body.textContent?.includes('Riprendi bozza'), 'draft offer'); await click('Riprendi bozza');
+  assert.equal((document.querySelector('input[id]') as HTMLInputElement).value, 'Il mio quiz video');
+  assert.equal(document.querySelector('section[aria-label="Copertina del quiz"] img')!.getAttribute('src'), 'https://example.org/copertina.png');
   assert.equal((document.querySelector('textarea[aria-label="Testo della domanda"]') as HTMLTextAreaElement).value, 'Bozza da recuperare');
   assert.match(document.querySelector('[aria-label="Domande in ordine cronologico"]')!.textContent!, /Bozza da recuperare/);
   assert.equal(env.requests(), 0);
@@ -227,4 +240,41 @@ test('classroom preview completes a checkpoint exactly at duration without relyi
   const resume = [...document.querySelectorAll('button')].find(b => b.textContent?.includes('Continua Video'))!;
   await act(async () => resume.click());
   assert.match(document.body.textContent!, /Attività conclusa/); assert.equal(env.requests(), 0);
+});
+
+
+test('editor selects exactly one correct answer in classic/video and true/false questions and rejects inconsistent imports', async t => {
+  const env = browser(t), { dom } = env;
+  const { createRoot } = await import('react-dom/client');
+  const { LanguageProvider } = await import('../src/context/LanguageContext');
+  const { QuizEditor } = await import('../src/components/builder/QuizEditor');
+  const root = createRoot(document.getElementById('app')!);
+  env.cleanup(async () => { await act(async () => root.unmount()); });
+  for (const mode of ['classic', 'video', 'true_false']) {
+    const quiz = editableVideoQuiz(structuredClone(DEFAULT_QUIZZES[0]));
+    quiz.questions = quiz.questions.slice(0, 1);
+    if (mode !== 'video') quiz.videoConfig = undefined;
+    else quiz.videoConfig!.checkpoints = quiz.videoConfig!.checkpoints.filter(cp => cp.questionId === quiz.questions[0].id);
+    if (mode === 'true_false') { quiz.questions[0].type = 'true_false'; quiz.questions[0].options = quiz.questions[0].options.slice(0, 2); }
+    // Older/imported quizzes may have several correct answers; require an explicit choice.
+    quiz.questions[0].options.forEach(option => { option.isCorrect = true; });
+    let saved: Quiz | undefined;
+    await act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(QuizEditor, { key: mode, initialQuiz: quiz, onSave: async q => { saved = q; await storeQuizzes([q]); }, onCancel() {} }))));
+    const save = () => [...document.querySelectorAll('button')].find(button => button.textContent === 'Salva Quiz')!;
+    for (let n = 0; n < 100 && save()?.disabled; n++) await act(async () => { await delay(10); });
+    await act(async () => save().click());
+    assert.equal(Boolean(saved), false); assert.match(document.body.textContent!, /deve avere una sola risposta corretta/);
+    const second = document.querySelector('button[aria-label="Risposta 2 corretta"]') as HTMLButtonElement;
+    for (let n = 0; n < 2; n++) {
+      await act(async () => second.click());
+      assert.equal(document.querySelectorAll('button[aria-label$=" corretta"][aria-pressed="true"]').length, 1);
+      assert.equal(second.getAttribute('aria-pressed'), 'true', 'clicking again keeps the answer selected');
+    }
+    await act(async () => save().click());
+    for (let n = 0; n < 100 && save().disabled; n++) await act(async () => { await delay(10); });
+    assert.ok(saved); assert.equal(saved.questions[0].options.filter(option => option.isCorrect).length, 1);
+    assert.equal(saved.questions[0].options[1].isCorrect, true);
+    const stored = (await loadQuizzes())![0]; assert.deepEqual(stored.questions[0].options, saved.questions[0].options);
+    assert.equal(quiz.questions[0].options.every(option => option.isCorrect), true, 'source is not mutated');
+  }
 });
