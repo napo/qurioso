@@ -29,17 +29,21 @@ import { importText } from '../../i18n/questionImport';
 
 interface QuizEditorProps {
   initialQuiz?: Quiz;
+  categories?: string[];
   onSave: (quiz: Quiz) => void | Promise<void>;
   onCancel: () => void;
 }
 
 export const QuizEditor: React.FC<QuizEditorProps> = ({
   initialQuiz,
+  categories = [],
   onSave,
   onCancel,
 }) => {
   const { t, language } = useLanguage();
   const titleId = useId();
+  const categoryId = useId();
+  const categoryListId = useId();
   const [importingQuestions, setImportingQuestions] = useState(false);
   const quizImportInput = useRef<HTMLInputElement>(null);
   const [quiz, setQuiz] = useState<Quiz>(() => {
@@ -75,6 +79,9 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
       ],
     };
   });
+
+  const categorySuggestions = [...new Set([...categories, quiz.category || ''].map(category => category.trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, language));
 
   const [videoBusy, setVideoBusy] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -226,7 +233,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
     if (!quiz.title.trim()) throw new Error('Inserisci il titolo del quiz prima di salvare o provare.');
     const invalidIndex = quiz.questions.findIndex(question => question.options.filter(option => option.isCorrect).length !== 1);
     if (invalidIndex >= 0) throw new Error(`La domanda ${invalidIndex + 1} deve avere una sola risposta corretta. Seleziona quella esatta.`);
-    return prepareVideoQuiz({ ...quiz, title: quiz.title.trim() }, videoDuration);
+    return prepareVideoQuiz({ ...quiz, title: quiz.title.trim(), category: (quiz.category || '').trim() }, videoDuration);
   };
 
   // Import JSON quiz
@@ -546,6 +553,15 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
           <div className="editor-question-canvas min-w-0 shrink-0 lg:shrink flex-1 flex flex-col lg:overflow-y-auto p-4 md:p-6 bg-white">
             {saveError && <p role="alert" className="w-full max-w-3xl mx-auto mb-4 text-sm text-rose-700">{saveError}</p>}
             <div className="w-full max-w-3xl mx-auto mb-6 space-y-3">
+              <div>
+                <label htmlFor={categoryId} className="block text-sm font-bold text-petrolio">{t.categoryLabel}</label>
+                <input id={categoryId} type="text" list={categoryListId} value={quiz.category || ''}
+                  onChange={event => setQuiz(prev => ({ ...prev, category: event.target.value }))}
+                  placeholder={t.categoryPlaceholder} aria-describedby={`${categoryId}-hint`}
+                  className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-petrolio focus:outline-none" />
+                <datalist id={categoryListId}>{categorySuggestions.map(category => <option key={category} value={category} />)}</datalist>
+                <p id={`${categoryId}-hint`} className="mt-1 text-xs text-muted">{t.categoryHint}</p>
+              </div>
               <details open><summary className="text-sm font-bold text-petrolio cursor-pointer">Copertina del quiz</summary>
               <ImagePicker label="Copertina del quiz" value={quiz.coverImage} attribution={quiz.coverAttribution}
                 onChange={(url, attribution) => setQuiz(prev => ({ ...prev, coverImage: url, coverAttribution: attribution }))} /></details>

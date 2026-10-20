@@ -162,6 +162,9 @@ export interface Translations {
 
   // Quiz Editor
   untitledQuiz: string;
+  categoryLabel: string;
+  categoryPlaceholder: string;
+  categoryHint: string;
   questionsCreated: string;
   importJson: string;
   exportJsonFile: string;
@@ -343,6 +346,9 @@ export const translations: Record<Language, Translations> = {
     understandBtn: 'Ho Capito',
 
     untitledQuiz: 'Nuovo Quiz Senza Titolo',
+    categoryLabel: 'Categoria',
+    categoryPlaceholder: 'Es. Storia, Scienze, Geografia',
+    categoryHint: 'Scegli una categoria esistente o scrivi un nuovo nome. La categoria viene salvata con il quiz.',
     questionsCreated: 'domande create',
     importJson: 'Importa JSON',
     exportJsonFile: 'Esporta',
@@ -522,6 +528,9 @@ export const translations: Record<Language, Translations> = {
     understandBtn: 'Got It',
 
     untitledQuiz: 'Untitled New Quiz',
+    categoryLabel: 'Category',
+    categoryPlaceholder: 'E.g. History, Science, Geography',
+    categoryHint: 'Choose an existing category or enter a new name. The category is saved with the quiz.',
     questionsCreated: 'questions created',
     importJson: 'Import JSON',
     exportJsonFile: 'Export',
@@ -701,6 +710,9 @@ export const translations: Record<Language, Translations> = {
     understandBtn: 'Verstanden',
 
     untitledQuiz: 'Neues unbenanntes Quiz',
+    categoryLabel: 'Kategorie',
+    categoryPlaceholder: 'Z. B. Geschichte, Naturwissenschaften, Geografie',
+    categoryHint: 'Wähle eine vorhandene Kategorie oder gib einen neuen Namen ein. Die Kategorie wird mit dem Quiz gespeichert.',
     questionsCreated: 'Fragen erstellt',
     importJson: 'JSON importieren',
     exportJsonFile: 'Exportieren',

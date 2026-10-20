@@ -252,6 +252,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
       <div className="h-screen w-screen bg-white flex flex-col">
         <QuizEditor
           initialQuiz={selectedQuiz}
+          categories={quizzes.map(quiz => quiz.category || '')}
           onSave={handleSaveFromEditor}
           onCancel={() => setView('dashboard')}
         />

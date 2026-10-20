@@ -89,7 +89,7 @@ test('real editor captures a timestamp, creates/associates/edits/removes checkpo
   let root = createRoot(document.getElementById('app')!), saved: Quiz | undefined;
   env.cleanup(async () => { await act(async () => root.unmount()); });
   const source = editableVideoQuiz(structuredClone(DEFAULT_QUIZZES[0]));
-  const mount = async () => { await act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(QuizEditor, { initialQuiz: source, onSave: q => { saved = q; }, onCancel() {} })))); };
+  const mount = async () => { await act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(QuizEditor, { initialQuiz: source, categories: ['Storia', ' Scienze ', 'Storia', ''], onSave: q => { saved = q; }, onCancel() {} })))); };
   const wait = async (condition: () => unknown, label: string) => {
     for (let n = 0; n < 150; n++) { let ready; await act(async () => { await delay(10); ready = condition(); }); if (ready) return; }
     assert.fail(label + ': ' + document.body.textContent);
@@ -103,6 +103,11 @@ test('real editor captures a timestamp, creates/associates/edits/removes checkpo
   const title = document.querySelector('input[id]') as HTMLInputElement;
   assert.equal(document.querySelector(`label[for="${title.id}"]`)?.textContent, 'Titolo del quiz');
   await input(title, 'Il mio quiz video');
+  const category = document.querySelector('input[list]') as HTMLInputElement;
+  const suggestedCategories = [...document.querySelectorAll('datalist option')].map(option => (option as HTMLOptionElement).value);
+  assert.ok(suggestedCategories.includes('Storia')); assert.ok(suggestedCategories.includes('Scienze'));
+  assert.equal(suggestedCategories.filter(value => value === 'Storia').length, 1);
+  await input(category, '  Astronomia  ');
   const cover = document.querySelector('section[aria-label="Copertina del quiz"]')!;
   assert.equal(cover.closest('details')!.open, true, 'video quiz cover is visible without expanding a panel');
   await input(cover.querySelector('input[type="url"]')!, 'https://example.org/copertina.png');
@@ -132,6 +137,7 @@ test('real editor captures a timestamp, creates/associates/edits/removes checkpo
   await click('Salva Quiz'); assert.equal(Boolean(saved), false); assert.match(document.body.textContent!, /superano la durata/);
   await input(document.querySelector('input[aria-label="Tempo del checkpoint"]')!, '00:09'); await click('Applica tempo');
   await click('Salva Quiz'); assert.ok(saved);
+  assert.equal(saved.category, 'Astronomia');
   assert.equal(saved.title, 'Il mio quiz video'); assert.equal(saved.coverImage, 'https://example.org/copertina.png');
   assert.equal(saved.videoConfig!.videoTitle, source.videoConfig!.videoTitle, 'quiz title is distinct from video source title');
   assert.equal(saved.questions.length, 4); assert.equal(saved.videoConfig!.checkpointMode, 'explicit');
@@ -155,6 +161,7 @@ test('real editor captures a timestamp, creates/associates/edits/removes checkpo
   const event = new dom.window.Event('beforeunload', { cancelable: true }); dom.window.dispatchEvent(event); assert.equal(event.defaultPrevented, true);
   await act(async () => root.unmount()); root = createRoot(document.getElementById('app')!); await mount();
   await wait(() => document.body.textContent?.includes('Riprendi bozza'), 'draft offer'); await click('Riprendi bozza');
+  assert.equal((document.querySelector('input[list]') as HTMLInputElement).value.trim(), 'Astronomia');
   assert.equal((document.querySelector('input[id]') as HTMLInputElement).value, 'Il mio quiz video');
   assert.equal(document.querySelector('section[aria-label="Copertina del quiz"] img')!.getAttribute('src'), 'https://example.org/copertina.png');
   assert.equal((document.querySelector('textarea[aria-label="Testo della domanda"]') as HTMLTextAreaElement).value, 'Bozza da recuperare');
