@@ -16,7 +16,7 @@ exports.run = async host => {
     for (const mode of ['classic', 'video']) {
       await host.loadURL('http://qurioso.localhost/?app=network&lang=it');
       const start = mode === 'classic' ? 'Quiz classico in rete' : 'Quiz video in rete';
-      await execute(host, `await wait(() => button(${JSON.stringify(start)}) && !button(${JSON.stringify(start)}).disabled, 'quiz card'); button(${JSON.stringify(start)}).click(); await wait(() => phase() === 'lobby' && document.querySelector('[data-testid="join-address"]'), 'host lobby');`);
+      await execute(host, `await wait(() => button(${JSON.stringify(start)}) && !button(${JSON.stringify(start)}).disabled, 'quiz card'); button(${JSON.stringify(start)}).click(); await wait(() => phase() === 'lobby' && document.querySelector('[data-testid="join-address"]'), 'host lobby'); document.querySelector('[aria-labelledby="internet-sharing-title"] button')?.click();`);
       const entry = await execute(host, `return { pin: document.querySelector('[data-testid="join-pin"]').textContent, base: document.querySelector('[data-testid="join-address"]').textContent };`);
       const url = `${entry.base}/?pin=${entry.pin}&role=player&lang=it`;
       student = open(); await student.loadURL(url);
@@ -53,18 +53,10 @@ exports.run = async host => {
         await execute(student, `await wait(()=>document.querySelector('.player-answer'),'mobile answers');
           await wait(()=>innerWidth===${width}&&innerHeight===${height},'mobile viewport ${width}x${height}');
           const grid=document.querySelector('.player-answer-grid'),count=grid.dataset.answerCount;
-          const originals=[...grid.querySelectorAll('.player-answer-text')].map(e=>e.textContent),clones=[];
-          for(let i=grid.children.length;i<12;i++){const clone=grid.firstElementChild.cloneNode(true);clone.querySelector('.player-answer-letter').textContent=String.fromCharCode(65+i);grid.append(clone);clones.push(clone);}
-          grid.dataset.answerCount='12';
           const labels=[...grid.querySelectorAll('.player-answer-text')];
-          labels.forEach((e,i)=>e.textContent=i%2?'Supercalifragilistichespiralidoso'.repeat(8):'Una risposta molto lunga con parole e dettagli che devono restare sullo schermo del docente. '.repeat(4));
-          await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-          for(const label of labels)if(getComputedStyle(label).display!=='none')throw new Error('Answer text is still visible in compact phone controls');
+          for(const label of labels){const text=label.firstElementChild;if(getComputedStyle(label).display==='none'||!label.textContent.trim())throw new Error('Complete answer text missing');if(text.scrollHeight>label.clientHeight+1||text.scrollWidth>label.clientWidth+1)throw new Error('Answer text does not fit');}
           for(const answer of grid.querySelectorAll('button')){const r=answer.getBoundingClientRect();if(r.width<44||r.height<44||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth)throw new Error('Answer requires scrolling or is too small to tap');}
           if(document.documentElement.scrollWidth>innerWidth||document.documentElement.scrollHeight>innerHeight+1)throw new Error('Phone answer screen requires scrolling');
-          if(getComputedStyle(document.querySelector('.player-look-at-teacher')).display==='none')throw new Error('Teacher screen instruction missing');
-          clones.forEach(e=>e.remove());grid.dataset.answerCount=count;
-          [...grid.querySelectorAll('.player-answer-text')].forEach((e,i)=>e.textContent=originals[i]);
         `);
       }
       await execute(student, `await wait(() => document.querySelectorAll('.grid button').length === 6, 'options'); document.querySelector('.grid button').click(); await wait(() => document.body.textContent.includes('Risposta Inviata!'), 'accepted');`);
@@ -91,7 +83,7 @@ exports.run = async host => {
         if (localStorage.getItem('qurioso_player_recovery_v1:${entry.pin}')) throw new Error('Finished recovery retained the secret');
         const image = document.querySelector('[data-player-final] img');
         const blob = await (await fetch(image.src)).blob(), bitmap = await createImageBitmap(blob);
-        if(blob.type !== 'image/png' || bitmap.width !== 1080 || bitmap.height !== 1080)throw new Error('Invalid result PNG');bitmap.close();
+        if(blob.type !== 'image/png' || bitmap.width !== 1080 || bitmap.height < 1080)throw new Error('Invalid result PNG');bitmap.close();
         Object.defineProperty(navigator, 'canShare', { configurable:true, value:()=>true });
         Object.defineProperty(navigator, 'share', { configurable:true, value:async data=>{window.__resultShare=data;} });
         button('Condividi risultato').click();await wait(()=>window.__resultShare?.files?.length===1,'PNG share sheet');

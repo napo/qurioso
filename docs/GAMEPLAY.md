@@ -10,7 +10,7 @@ A participant who was offline when the game ended can retrieve the final result 
 
 ## Sharing an image
 
-The personal result card displayed on the page is generated as a 1080 × 1080 PNG. It includes the quiz title, the participant’s name, score and position. It excludes the game PIN, session URL, credentials and other participants’ names. No external image requests or screen-capture permission are needed.
+The personal result card displayed on the page is generated as a 1080-pixel-wide PNG with height adapted to the complete ranking. It includes the quiz title, the participant’s name, score and position. It includes the podium and complete ranking, with participant names and avatars, and highlights the current player. It excludes the game PIN, session URL and credentials. The sharing hint explains that participant names will be visible. No external image requests or screen-capture permission are needed.
 
 **Share result** opens the device’s native sharing menu when file sharing is supported. The user chooses an available social, messaging or other application; Qurioso does not post automatically or guarantee a particular destination. The image is prepared before the click to preserve the browser’s user activation.
 
@@ -27,6 +27,6 @@ Starting a video competition requests fullscreen from the teacher’s click. Ful
 
 Use the video’s fullscreen button to enter or leave fullscreen, or press **Esc** to leave. The fullscreen indicator follows the browser’s actual state. If permission is denied or the API is unavailable, the page explains the fallback and the game continues within the window. Resuming after a checkpoint does not override a previous decision to leave fullscreen.
 
-On phones and short landscape screens, the answer screen fits the dynamic viewport without scrolling. Buttons show a letter, color and symbol; an instruction directs participants to read the complete question and answers on the teacher’s screen. The teacher displays the same letters. Full answer text remains in each button’s accessible name, and remains visible in larger browser windows. Layouts use two or three columns, depending on the number of answers and available height, with touch targets of at least 44 pixels. Quiz texts are never shortened or changed.
+On phones and short landscape screens, complete answer text remains visible. The grid fills the available viewport, and each answer uses a measured font size that adapts to its cell, including after rotation and font loading. Buttons keep letters, colors and symbols alongside their text, with touch targets of at least 44 pixels. No answer is truncated or removed; very dense combinations necessarily use smaller text. The question remains available on the teacher's screen and to assistive technology.
 
 These controls and messages support Italian, English and German.

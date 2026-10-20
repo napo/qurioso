@@ -8,6 +8,7 @@ exports.run = async (window, port) => {
     await waitFor(() => [...document.querySelectorAll('button')].some(button => button.textContent === 'Quiz classico in rete' && !button.disabled), 'network quiz entry');
     [...document.querySelectorAll('button')].find(button => button.textContent === 'Quiz classico in rete').click();
     await waitFor(async () => (await (await fetch('/api/health')).json()).activeSessions === 1, 'authenticated host creates room');
+    document.querySelector('[aria-labelledby="internet-sharing-title"] button')?.click();
     const health = await (await fetch('/api/health')).json();
     const info = await (await fetch('/api/server-info')).json();
     const pin = [...document.querySelectorAll('span')].find(el => /^\\d{6}$/.test(el.textContent || '')).textContent;
@@ -88,6 +89,7 @@ exports.run = async (window, port) => {
   if (result.health !== 'ok' || result.port !== port || result.configuredPort !== port || result.nodeAccess !== 'undefined' || result.origin !== 'http://qurioso.localhost') {
     throw new Error(`Desktop smoke failed: ${JSON.stringify(result)}`);
   }
+  await require('./answerLayoutSmoke.cjs').run(window);
   await require('./presenterSmoke.cjs').run(window, port);
   await require('./studentSmoke.cjs').run(window);
   await require('./editorSmoke.cjs').run(window);

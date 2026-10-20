@@ -4,7 +4,7 @@ import React, { act } from 'react';
 import { JSDOM } from 'jsdom';
 import { IDBFactory } from 'fake-indexeddb';
 
-test('settings, runtime notices, first-run errors and web installation work in every supported language', async t => {
+test('settings, runtime notices and web installation work in every supported language', async t => {
   const dom = new JSDOM('<div id="app"></div>', { url: 'https://qurioso.it/?app=network&lang=it' });
   Object.defineProperty(dom.window.navigator, 'userAgent', { value: 'iPhone Safari', configurable: true });
   const saved = new Map<string, PropertyDescriptor | undefined>(); let requests = 0;
@@ -15,7 +15,6 @@ test('settings, runtime notices, first-run errors and web installation work in e
   const { LanguageProvider } = await import('../src/context/LanguageContext');
   const { LanguageSelector } = await import('../src/components/common/LanguageSelector');
   const { default: App } = await import('../src/App');
-  const { InternetSetup } = await import('../src/components/settings/InternetSetup');
   const { PWAInstallButton } = await import('../src/components/common/PWAInstallButton');
   const { importText } = await import('../src/i18n/questionImport');
   const { backupError } = await import('../src/i18n/libraryBackup');
@@ -57,19 +56,8 @@ test('settings, runtime notices, first-run errors and web installation work in e
     }
     await mount(c.language, `join-${c.language}`, React.createElement(App), '&role=player&pin=123456');
     assert.ok(document.body.textContent!.includes(c.join));
-    await mount(c.language, `setup-${c.language}`, React.createElement(React.Fragment, null,
-      React.createElement(InternetSetup, { firstRun: true, preference: null, onSave: () => { throw new Error('Storage unavailable'); } }),
+    await mount(c.language, `install-${c.language}`, React.createElement(React.Fragment, null,
       React.createElement(PWAInstallButton), React.createElement(LanguageSelector)));
-    assert.ok(document.body.textContent!.includes(c.setup));
-    assert.equal(document.querySelectorAll('[data-internet-setup] nav a').length, 4);
-    await click(c.enable); assert.ok(document.querySelector('[role="alert"]')!.textContent!.startsWith(c.error));
-    if (c.language === 'en') {
-      await act(async () => document.querySelector<HTMLButtonElement>('button[aria-expanded]')!.click());
-      await act(async () => document.querySelector<HTMLButtonElement>('button[lang="de"]')!.click());
-      assert.ok(document.querySelector('[role="alert"]')!.textContent!.startsWith(cases[2].error), 'visible errors update with the language');
-      await act(async () => document.querySelector<HTMLButtonElement>('button[aria-expanded]')!.click());
-      await act(async () => document.querySelector<HTMLButtonElement>('button[lang="en"]')!.click());
-    }
     await click(c.ios);
     assert.equal(document.querySelector('h3')!.textContent!.trim(), c.iosTitle);
     assert.ok(document.body.textContent!.includes(c.step));

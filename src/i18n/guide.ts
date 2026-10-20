@@ -121,7 +121,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
     "classroom": {
       "title": "Fare un’attività in classe",
       "summary": "Un solo schermo, discussione e risposta collettiva.",
-      "audience": "web",
+      "audience": "both",
       "needs": "Il computer del docente; un proiettore o un grande schermo se vuoi mostrare le domande.",
       "steps": [
         {
@@ -156,7 +156,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Apri un quiz in rete",
-          "body": "Nella biblioteca premi Quiz classico in rete oppure Quiz video in rete. Per un quiz video prepara prima almeno una domanda associata a un checkpoint."
+          "body": "Nell’app desktop seleziona Quiz sui dispositivi, poi Quiz video in rete nella scheda Tipi di vulcani con geopop. Il quiz incluso resta disponibile anche nelle biblioteche già salvate. Puoi avviare allo stesso modo i tuoi quiz con checkpoint validi."
         },
         {
           "title": "Mostra indirizzo, PIN e QR",
@@ -188,7 +188,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Guarda il docente e scegli",
-          "body": "Leggi domanda e risposte sullo schermo del docente. Sul telefono premi il pulsante con la lettera, il colore o il simbolo corrispondente. I controlli compatti non richiedono di scorrere per leggere risposte lunghe."
+          "body": "Sul telefono leggi e tocca il testo della risposta. Qurioso usa tutto lo spazio disponibile e adatta la dimensione del carattere alla lunghezza dei testi e alle dimensioni dello schermo, anche ruotando il telefono."
         },
         {
           "title": "Aspetta la conferma",
@@ -261,7 +261,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       "steps": [
         {
           "title": "Abilita la funzione",
-          "body": "Al primo avvio o nelle Impostazioni scegli Preferisci accesso Internet. La scelta resta evidenziata e apre i controlli Cloudflare a ogni nuova partita, senza avviare download o tunnel. Puoi aprire gli stessi controlli dalla partita anche se hai scelto solo LAN."
+          "body": "Apri la partita in rete. Qurioso chiede se usare solo la LAN o avviare Cloudflare: non serve una preferenza nelle Impostazioni. La scelta, da sola, non avvia download o tunnel."
         },
         {
           "title": "Leggi le informazioni sul servizio",
@@ -270,7 +270,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Attiva dalla partita",
-          "body": "Apri un quiz in rete, premi il globo Condividi su Internet e poi Attiva condivisione. Al primo utilizzo Qurioso scarica e verifica il componente ufficiale cloudflared; attendi download e connessione."
+          "body": "Premi Attiva condivisione dopo aver letto le informazioni sul servizio. La finestra si chiude e lo stato del docente mostra download e connessione. Fuori dallo schermo intero, lo switch Cloudflare permette di spegnere il tunnel e riattivarlo con un clic dopo la prima autorizzazione della partita."
         },
         {
           "title": "Prova da un’altra rete",
@@ -351,7 +351,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Chiudi la finestra",
-          "body": "Premi Chiudi finestra. Se il browser consente la chiusura automatica, la finestra si chiude; altrimenti segui il messaggio e chiudi la scheda manualmente. Qurioso non pubblica automaticamente sui social."
+          "body": "Premi Condividi risultato. Scegli un’app dal menu del dispositivo oppure scarica il PNG. L’immagine include titolo del quiz, nome e avatar del giocatore, podio e classifica completa con i nomi dei partecipanti. PIN e credenziali sono esclusi."
         }
       ]
     },
@@ -411,7 +411,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
     "classroom": {
       "title": "Run a classroom activity",
       "summary": "One screen, a discussion and a shared answer.",
-      "audience": "web",
+      "audience": "both",
       "needs": "The teacher’s computer; a projector or large display if you want to show the questions.",
       "steps": [
         {
@@ -446,7 +446,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Open a network quiz",
-          "body": "In the library press Classic network quiz or Network video quiz. A video quiz needs at least one question attached to a checkpoint first."
+          "body": "In the desktop app select Quiz on participants’ devices, then Network video quiz on the Tipi di vulcani con geopop card. This included quiz remains available in previously saved libraries too. Start your own quizzes with valid checkpoints in the same way."
         },
         {
           "title": "Show the address, PIN and QR code",
@@ -478,7 +478,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Look at the teacher’s screen and choose",
-          "body": "Read the question and answers on the teacher’s screen. On your phone, press the matching letter, color or symbol. Compact controls do not require scrolling through long answers."
+          "body": "On your phone, read and tap the full answer text. Qurioso uses the available space and adapts the font to the text length and screen size, including after rotating your phone."
         },
         {
           "title": "Wait for confirmation",
@@ -551,7 +551,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       "steps": [
         {
           "title": "Enable the feature",
-          "body": "On first launch or in Settings choose Prefer Internet access. The selection remains highlighted and opens Cloudflare controls for each new game, without starting downloads or tunnels. The same controls are available in the game even if you chose LAN only."
+          "body": "Open a network game. Qurioso asks whether to use the LAN only or start Cloudflare; there is no global preference in Settings. Opening the choice does not start a download or tunnel."
         },
         {
           "title": "Read the service information",
@@ -560,7 +560,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Start sharing from the game",
-          "body": "Open a network quiz, press the Share over the Internet globe, then Start sharing. On first use Qurioso downloads and verifies the official cloudflared component; wait for the download and connection."
+          "body": "Press Start sharing after reading the service information. The modal closes and the teacher status shows download and connection progress. Outside fullscreen, the Cloudflare switch stops and restarts the tunnel with one click after the first authorization for that game."
         },
         {
           "title": "Test from another network",
@@ -641,7 +641,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Close the window",
-          "body": "Press Close window. If the browser allows automatic closing, the window closes; otherwise follow the message and close the tab manually. Qurioso does not post automatically to social media."
+          "body": "Press Share result. Choose an app in the device menu or download the PNG. The image includes the quiz title, player name and avatar, podium and complete ranking with participant names. PIN and credentials are excluded."
         }
       ]
     },
@@ -701,7 +701,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
     "classroom": {
       "title": "Eine Klassenaktivität durchführen",
       "summary": "Ein Bildschirm, gemeinsame Diskussion und Antwort.",
-      "audience": "web",
+      "audience": "both",
       "needs": "Den Computer der Lehrkraft; bei Bedarf einen Projektor oder großen Bildschirm.",
       "steps": [
         {
@@ -736,7 +736,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Netzwerkquiz öffnen",
-          "body": "Wähle in der Bibliothek Klassisches Netzwerkquiz oder Video-Netzwerkquiz. Ein Videoquiz benötigt zuvor mindestens eine Frage an einem Checkpoint."
+          "body": "Wähle in der Desktop-App Quiz auf den Geräten und dann Video-Netzwerkquiz auf der Karte Tipi di vulcani con geopop. Dieses enthaltene Quiz bleibt auch in gespeicherten Bibliotheken verfügbar. Eigene Quiz mit gültigen Checkpoints startest du genauso."
         },
         {
           "title": "Adresse, PIN und QR-Code zeigen",
@@ -768,7 +768,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Auf den Bildschirm schauen und wählen",
-          "body": "Lies Frage und Antworten auf dem Bildschirm der Lehrkraft. Tippe auf deinem Telefon auf den passenden Buchstaben, die Farbe oder das Symbol. Die kompakten Schaltflächen erfordern kein Scrollen durch lange Antworten."
+          "body": "Lies und tippe auf deinem Telefon auf den vollständigen Antworttext. Qurioso nutzt den verfügbaren Platz und passt die Schrift an Textlänge und Bildschirmgröße an, auch nach dem Drehen des Telefons."
         },
         {
           "title": "Bestätigung abwarten",
@@ -841,7 +841,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       "steps": [
         {
           "title": "Funktion aktivieren",
-          "body": "Wähle beim ersten Start oder in den Einstellungen Internetzugang bevorzugen. Die Auswahl bleibt hervorgehoben und öffnet die Cloudflare-Steuerung bei jedem neuen Spiel, ohne Downloads oder Tunnel zu starten. Du kannst die Steuerung auch bei gewähltem LAN-Modus im Spiel öffnen."
+          "body": "Öffne ein Netzwerkspiel. Qurioso fragt, ob nur das LAN oder Cloudflare genutzt werden soll; eine globale Voreinstellung entfällt. Das Öffnen dieser Auswahl startet weder Download noch Tunnel."
         },
         {
           "title": "Serviceinformationen lesen",
@@ -850,7 +850,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Freigabe im Spiel starten",
-          "body": "Öffne ein Netzwerkquiz, wähle den Globus Über das Internet teilen und dann Freigabe starten. Beim ersten Mal lädt Qurioso die offizielle cloudflared-Komponente herunter und prüft sie. Warte auf Download und Verbindung."
+          "body": "Lies die Informationen und wähle Freigabe starten. Das Fenster schließt sich; der Status der Lehrkraft zeigt Download und Verbindungsaufbau. Außerhalb des Vollbilds beendet und startet der Cloudflare-Schalter den Tunnel nach der ersten Bestätigung für dieses Spiel mit einem Klick."
         },
         {
           "title": "Aus einem anderen Netzwerk testen",
@@ -931,7 +931,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Fenster schließen",
-          "body": "Wähle Fenster schließen. Wenn der Browser das automatische Schließen erlaubt, schließt sich das Fenster. Sonst folgst du dem Hinweis und schließt den Tab manuell. Qurioso veröffentlicht nichts automatisch in sozialen Medien."
+          "body": "Wähle Ergebnis teilen. Wähle eine App im Gerätemenü oder lade das PNG herunter. Es enthält Quiztitel, Spielername und Avatar, Podium und vollständige Rangliste mit den Namen der Teilnehmenden. PIN und Zugangsdaten sind ausgeschlossen."
         }
       ]
     },

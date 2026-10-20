@@ -1,3 +1,4 @@
+import { FitAnswerText } from '../common/FitAnswerText';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Gamepad2,
@@ -241,7 +242,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
   // 1. JOIN FORM VIEW
   if (!isJoined) {
     return (
-      <div className="player-question-screen min-h-screen bg-qurioso-canvas text-ink flex flex-col justify-between p-4 md:p-6 select-none">
+      <div className="player-join-screen min-h-screen bg-qurioso-canvas text-ink flex flex-col justify-between p-4 md:p-6 select-none">
         {/* Top Header */}
         <div className="flex items-center justify-between py-2">
           <div className="flex items-center gap-2">
@@ -453,7 +454,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
             </p>
           </div>
         ) : (
-          <div className="player-question-choices my-auto flex flex-col gap-3 py-2 w-full max-w-md mx-auto">
+          <div className="player-question-choices my-auto flex flex-col gap-3 py-2 w-full mx-auto">
             <div className="player-question-prompt text-center mb-2">
               <p className="player-look-at-teacher hidden text-sm font-bold text-petrolio">{gameText.lookAtTeacher}</p>
               <span className="player-question-text block text-sm font-bold [overflow-wrap:anywhere] text-accent-ink">
@@ -474,15 +475,13 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
                     aria-label={`${gameText.answer} ${String.fromCharCode(65 + idx)}: ${option.text}`}
                     disabled={isSubmitting}
                     onClick={() => handleSelectOption(option.id)}
-                    className={`player-answer min-w-0 min-h-36 sm:min-h-44 h-auto p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-3 transition-transform active:scale-95 shadow-md cursor-pointer ${colorStyle.bg} ${colorStyle.border}`}
+                    className={`player-answer min-w-0 min-h-0 p-3 rounded-2xl border-2 grid items-center justify-items-center gap-2 transition-transform active:scale-95 shadow-md cursor-pointer ${colorStyle.bg} ${colorStyle.border}`}
                   >
-                    <div aria-hidden="true" className={`player-answer-symbol w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center shadow-inner text-3xl font-black ${colorStyle.badge}`}>
+                    <div aria-hidden="true" className="player-answer-heading flex items-center justify-center gap-2"><div className={`player-answer-symbol w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center text-3xl font-black ${colorStyle.badge}`}>
                       {shapeSymbol}
                     </div>
-                    <span aria-hidden="true" className="player-answer-letter hidden font-black text-xl">{String.fromCharCode(65 + idx)}</span>
-                    <span className="player-answer-text w-full min-w-0 whitespace-normal [overflow-wrap:anywhere] font-bold text-sm leading-snug text-ink">
-                      {option.text}
-                    </span>
+                    <span aria-hidden="true" className="player-answer-letter hidden font-black text-xl">{String.fromCharCode(65 + idx)}</span></div>
+                    <FitAnswerText text={option.text} />
                   </button>
                 );
               })}

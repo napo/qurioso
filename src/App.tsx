@@ -33,11 +33,11 @@ import { useLanguage } from './context/LanguageContext';
 import { gameSync, ServerInfo } from './services/gameSync';
 import { checkpointProblems, quizCheckpoints } from './services/videoQuiz';
 import { QuestionImportDialog } from './components/builder/QuestionImportDialog';
-import { isPublicWebsite, readInternetPreference, saveInternetPreference, type InternetPreference } from './services/appEnvironment';
+import { isPublicWebsite } from './services/appEnvironment';
 import { settingsTranslations } from './i18n/settings';
 import { SettingsScreen } from './components/settings/SettingsScreen';
 import { workspaceTranslations } from './i18n/workspace';
-import { InternetSetup } from './components/settings/InternetSetup';
+import { withOfficialQuizzes, OFFICIAL_QUIZZES } from './services/officialQuizzes';
 
 export default function App({ classroomOnly = false }: { classroomOnly?: boolean }) {
   const { t, language } = useLanguage();
@@ -54,9 +54,6 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
     url.searchParams.set('app', mode);
     window.history.replaceState({}, '', url);
   };
-  const [showInitialSetup, setShowInitialSetup] = useState(() => readInternetPreference() === null);
-  const [internetPreference, setInternetPreference] = useState(readInternetPreference);
-  const changeInternetPreference = (value: InternetPreference) => { saveInternetPreference(value); setInternetPreference(value); };
   const downloadsUrl = `./?lang=${language}#quiz-in-rete`;
   const environmentText = publicSite
     ? labels.websiteEnvironment
@@ -68,6 +65,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
   const [view, setView] = useState<'dashboard' | 'classroom' | 'host' | 'player' | 'editor' | 'settings'>('dashboard');
 
   const [quizzes, setQuizzes] = useState<Quiz[]>(DEFAULT_QUIZZES);
+  const availableQuizzes = withOfficialQuizzes(quizzes);
   const [libraryReady, setLibraryReady] = useState(false);
   const [storageError, setStorageError] = useState('');
   useEffect(() => {
@@ -267,7 +265,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
     );
   }
 
-  if (view === 'settings') return <>{importDialog}{guide}<SettingsScreen quizzes={quizzes} onRestored={updated => { setQuizzes(updated); setStorageError(''); }} onEditor={handleEditQuiz} onQuestions={() => setImportingQuestions(true)} onCreate={() => handleCreateNewQuiz()} onCreateVideo={() => handleCreateNewQuiz(true)} onBack={() => setView('dashboard')} onGuide={() => setShowGuide(true)} desktop={desktop} preference={internetPreference} onPreference={value => { changeInternetPreference(value); setShowInitialSetup(false); }} environment={environmentText} /></>;
+  if (view === 'settings') return <>{importDialog}{guide}<SettingsScreen quizzes={quizzes} onRestored={updated => { setQuizzes(updated); setStorageError(''); }} onEditor={handleEditQuiz} onQuestions={() => setImportingQuestions(true)} onCreate={() => handleCreateNewQuiz()} onCreateVideo={() => handleCreateNewQuiz(true)} onBack={() => setView('dashboard')} onGuide={() => setShowGuide(true)} environment={environmentText} /></>;
 
   // DEFAULT VIEW: MAIN DASHBOARD & QUIZ HUB
   return (
@@ -287,7 +285,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
       <OfflineIndicator />
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-8 space-y-8">
+      <main className="flex-1 w-full p-4 md:p-8 space-y-8">
         {!desktop && <a href="./" className="inline-block text-sm font-bold text-petrolio underline">{labels.backHome}</a>}
         {recoveryProblem && <div role="alert" className="rounded-xl border border-line bg-white p-4 text-petrolio">
           <p>{recoveryProblem.message}</p>
@@ -318,7 +316,6 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
           {networkMode && <p role="status" className="text-sm text-petrolio">{serverInfo ? workspace.networkReady : workspace.networkWaiting} <a className="underline font-bold" href={`?app=guide&topic=network&lang=${language}`}>{workspace.docs}</a></p>}
           {publicSite && <details className="rounded-2xl border border-line bg-white p-4"><summary className="cursor-pointer font-bold text-petrolio">{workspace.webDesktopTitle}</summary><p className="mt-3 text-sm">{workspace.webDesktopHint}</p><p className="mt-2 text-sm text-muted">{workspace.transfer}</p><p className="mt-2 text-sm text-muted">{labels.websiteLibraryHint}</p><a href={downloadsUrl} className="inline-block mt-3 btn-petrolio rounded-xl px-4 py-3 font-bold">{labels.downloadDesktop}</a></details>}
         </section>
-        {desktop && showInitialSetup && <InternetSetup firstRun preference={internetPreference} onSave={changeInternetPreference} onDone={() => setShowInitialSetup(false)} />}
         {/* Quizzes Collection Section */}
         <div>
           <div className="flex items-center justify-between mb-4">
@@ -342,12 +339,14 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
 
           {/* Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {quizzes.map((quiz) => {
+            {availableQuizzes.map((quiz) => {
+              const included = OFFICIAL_QUIZZES.some(item => item.id === quiz.id);
+              const personal = quizzes.some(item => item.id === quiz.id);
               const isVideoQuiz = !!quiz.videoConfig;
 
               return (
                 <div
-                  key={quiz.id}
+                  key={quiz.id} data-quiz-id={quiz.id}
                   className="group rounded-3xl bg-white border border-line hover:border-mandarino/60 shadow-md overflow-hidden flex flex-col transition duration-200 hover:-translate-y-1"
                 >
                   {/* Card Cover Image */}
@@ -366,7 +365,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
 
                     {/* Category Tag */}
                     <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-white backdrop-blur-md text-[11px] font-extrabold text-ink border border-line shadow-md">
-                      {quiz.category}
+                      {quiz.category}{included && ` · ${workspace.included}`}
                     </span>
 
                     {/* Mode Tag */}
@@ -411,7 +410,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
                       {/* Primary Play Button */}
                       <button
                         disabled={!serverInfo || (isVideoQuiz && !quizCheckpoints(quiz).length)}
-                        title={!serverInfo ? labels.needsLocalServer : labels.sameNetwork}
+                        title={!serverInfo ? labels.needsLocalServer : workspace.networkHint}
                         onClick={() => handleStartHost(quiz)}
                         className="w-full py-2.5 px-3 rounded-xl btn-petrolio font-bold text-xs shadow-md transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                       >
@@ -442,13 +441,13 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
                           >
                             <Copy className="w-3.5 h-3.5" />
                           </button>
-                          <button
+                          {personal && !included && <button
                             onClick={() => handleDeleteQuiz(quiz.id)}
                             className="p-1.5 rounded-lg hover:bg-rose-50 text-muted hover:text-rose-700 transition cursor-pointer"
                             title={t.deleteQuiz}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          </button>}
                         </div>
                       </div>
                     </div>

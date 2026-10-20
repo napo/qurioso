@@ -27,3 +27,9 @@ Content lives in `src/i18n/guide.ts`; home/header labels live in the small `guid
 When a user flow changes, update the corresponding tutorial in all three languages. Keep product instructions separate from implementation details, and distinguish the static website, classroom mode, local network hosting and optional Internet sharing. Repository documentation and GitHub communication remain in English.
 
 Tests cover navigation, language changes, direct links, browser history, home entry links and the absence of service requests. Electron smoke checks the real guide route at desktop and phone sizes in all languages.
+
+## Screenshots
+
+Every chapter includes a real application screenshot using the included **Tipi di vulcani con geopop** quiz. Screenshots are captured separately in Italian, English and German. They can be enlarged in the guide. Participant names and scores in examples are illustrative.
+
+Run `npm run desktop:guide-screenshots` to rebuild and capture the production interface into `public/guide/{it,en,de}/`. The script uses a temporary, isolated profile and its own game server, never the user's library. It opens the Cloudflare information modal without downloading a component or creating a public tunnel. The teacher, editor, import, settings, classroom video, participant answer and final result views come from actual React screens and the bundled quiz. The shared result PNG is also saved for visual verification. Rebuild the app after capturing to include newly generated images in distribution files.

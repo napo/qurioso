@@ -29,7 +29,7 @@ exports.run = async (host, port) => {
             const rect = el.getBoundingClientRect();
             if (!rect.width || !rect.height || rect.top < -1 || rect.left < -1 || rect.bottom > innerHeight + 1 || rect.right > innerWidth + 1)
               throw new Error(${JSON.stringify(label)} + ' ' + innerWidth + 'x' + innerHeight + ' outside viewport: ' + selector + ' ' + JSON.stringify(rect.toJSON()));
-            if (el.scrollWidth > el.clientWidth + 2) throw new Error('Horizontal clipping: ' + selector);
+            if (el.scrollWidth > el.clientWidth + 2) throw new Error(${JSON.stringify(label)} + ' ' + innerWidth + 'x' + innerHeight + ' horizontal clipping: ' + selector);
           }
         }
         if (document.documentElement.scrollWidth > innerWidth) throw new Error('Page overflows horizontally');
@@ -64,7 +64,7 @@ exports.run = async (host, port) => {
       await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); }); db.close();
     `);
     await host.loadURL('http://qurioso.localhost/?app=network&lang=it');
-    await execute(host, `await wait(() => button('Quiz classico in rete') && !button('Quiz classico in rete').disabled, 'classic fixture'); button('Quiz classico in rete').click(); await wait(() => phase() === 'lobby' && document.querySelector('[data-testid="join-address"]'), 'lobby address');`);
+    await execute(host, `await wait(() => button('Quiz classico in rete') && !button('Quiz classico in rete').disabled, 'classic fixture'); button('Quiz classico in rete').click(); await wait(() => phase() === 'lobby' && document.querySelector('[data-testid="join-address"]'), 'lobby address'); document.querySelector('[aria-labelledby="internet-sharing-title"] button')?.click();`);
     await check('classic-lobby', ['.host-header', '.join-address', '[data-testid="join-pin"]', '.host-lobby-banner button', '.host-lobby-qr canvas']);
     await check('mobile-host-lobby', ['.host-header', '.join-address', '[data-testid="join-pin"]'], [[390, 844]]);
     host.setContentSize(1280, 720);

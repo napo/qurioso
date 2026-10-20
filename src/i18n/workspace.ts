@@ -1,7 +1,7 @@
 import type { Language } from './translations';
 
 const it = {
-  web: 'Qurioso Web', desktop: 'Qurioso Desktop', local: 'Qurioso · server locale',
+  included: 'Quiz incluso', web: 'Qurioso Web', desktop: 'Qurioso Desktop', local: 'Qurioso · server locale',
   title: 'Prepara la lezione, scegli come giocare.', webTitle: 'Lezioni e quiz per la tua classe.',
   intro: 'Crea o modifica un quiz, poi scegli come raccogliere le risposte.',
   classroom: 'Lezione in aula', classroomHint: 'Proietta il quiz e scegli la risposta insieme alla classe. Basta il tuo computer.',
@@ -16,6 +16,7 @@ const it = {
 };
 type Text = Record<keyof typeof it, string>;
 const en: Text = {
+  included: 'Included quiz',
   web: 'Qurioso Web', desktop: 'Qurioso Desktop', local: 'Qurioso · local server',
   title: 'Prepare your lesson, choose how to play.', webTitle: 'Lessons and quizzes for your classroom.',
   intro: 'Create or edit a quiz, then choose how to collect answers.',
@@ -29,6 +30,7 @@ const en: Text = {
   networkWaiting: 'Waiting for the local server…', docs: 'How LAN and Internet access work',
 };
 const de: Text = {
+  included: 'Enthaltenes Quiz',
   web: 'Qurioso Web', desktop: 'Qurioso Desktop', local: 'Qurioso · lokaler Server',
   title: 'Unterricht vorbereiten, Spielweise wählen.', webTitle: 'Unterricht und Quiz für deine Klasse.',
   intro: 'Erstelle oder bearbeite ein Quiz und wähle dann, wie die Antworten gesammelt werden.',

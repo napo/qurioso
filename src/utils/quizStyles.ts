@@ -6,12 +6,12 @@ const neutralOption = {
   ring: 'focus:ring-petrolio', shadow: 'shadow-petrolio/10',
 };
 export const OPTION_COLORS = {
-  red: { ...neutralOption, badge: 'bg-white text-violet-700' },
-  blue: { ...neutralOption, badge: 'bg-white text-blue-700' },
-  yellow: { ...neutralOption, badge: 'bg-white text-amber-700' },
-  green: { ...neutralOption, badge: 'bg-white text-cyan-700' },
-  purple: { ...neutralOption, badge: 'bg-white text-fuchsia-700' },
-  orange: { ...neutralOption, badge: 'bg-white text-orange-700' },
+  red: { ...neutralOption, badge: 'bg-transparent text-violet-700' },
+  blue: { ...neutralOption, badge: 'bg-transparent text-blue-700' },
+  yellow: { ...neutralOption, badge: 'bg-transparent text-amber-700' },
+  green: { ...neutralOption, badge: 'bg-transparent text-cyan-700' },
+  purple: { ...neutralOption, badge: 'bg-transparent text-fuchsia-700' },
+  orange: { ...neutralOption, badge: 'bg-transparent text-orange-700' },
 };
 
 export const COLOR_KEYS: ('red' | 'blue' | 'yellow' | 'green' | 'purple' | 'orange')[] = [

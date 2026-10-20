@@ -6,16 +6,16 @@ This feature is available in the desktop app for Windows x64, Linux x64, and mac
 
 Run `npm run desktop:dev` from the repository to build and open the current desktop app. `npm run desktop:pack` creates a runnable desktop directory; on Linux the executable is `release-desktop/linux-unpacked/qurioso`. These local builds include uncommitted changes and do not publish a release. On Linux, use `desktop:pack` to prepare the unpacked sandbox helper correctly; for an older build, run `node scripts/prepare-desktop-directory.mjs` before launching. See [Linux startup notes](DEVELOPMENT.md#desktop-installers-electron).
 
-Prefer Internet access in Settings, start a network quiz, then use **Share over the Internet → Start sharing** in the teacher toolbar. Wait for the connected state and the `trycloudflare.com` address. To test access from outside the LAN, turn off Wi-Fi on a phone and use mobile data to open the public link or scan the QR code. Keep the teacher app open. A firewall or download failure is reported in the sharing panel with links to Cloudflare documentation and service status.
+Start a network quiz and use **Start sharing** in its Cloudflare modal, or close it to stay on LAN. Wait for the connected state and the `trycloudflare.com` address. To test access from outside the LAN, turn off Wi-Fi on a phone and use mobile data to open the public link or scan the QR code. Keep the teacher app open. A firewall or download failure is reported in the sharing panel with links to Cloudflare documentation and service status.
 
 ## Usage
 
-1. On first launch, choose **Prefer Internet access**, or enable it later under **Settings → Internet sharing · Cloudflare**. This choice does not start downloads or tunnels. Then start a network quiz in the desktop app.
-2. Cloudflare controls open automatically for a new game if Internet is preferred. Otherwise press the globe button in the teacher’s toolbar; the controls remain available in LAN mode too.
-3. Read the service information and press **Start sharing**. No account, terminal or manual installation is required.
+1. Start a network quiz. The optional Cloudflare modal opens for the new game; there is no global preference in Settings.
+2. Close the modal for LAN-only play, or read the service information before activating sharing.
+3. Press **Start sharing**. The modal closes automatically while progress remains on the teacher screen. No account, terminal or manual installation is required.
 4. On first use, the app downloads the official `cloudflared` component for the system, displays progress, and checks its size and SHA-256 hash. The component and its Apache 2.0 license are stored in Qurioso’s app data folder and reused.
 5. Once the tunnel connects, its public address is selected for the game link and QR code. The public address is the only advertised choice while sharing is active. On interruption or stop, the link and both QR views return to LAN addresses.
-6. **Stop sharing** closes the tunnel. Leaving the game, navigating to another desktop screen, reloading the page or closing the app also stops sharing. Sharing must be enabled again after a reload.
+6. Outside fullscreen, the Cloudflare ON/OFF switch stops sharing and directly reactivates an already authorized tunnel. The first activation in a game opens the service information; errors can reopen the controls for retry. The switch is hidden during fullscreen. Leaving the game, navigating to another desktop screen, reloading the page or closing the app also stops sharing. Sharing must be enabled again after a reload.
 
 The teacher continues to use their library in the local app. The public link opens the participant page. Sharing applies only to the selected game; teacher APIs and other games are inaccessible through the tunnel.
 

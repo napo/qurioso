@@ -40,7 +40,6 @@ import { QuriosoIcon, BRAND_COLORS } from '../common/QuriosoLogo';
 import { useInternetSharing } from './useInternetSharing';
 import { InternetSharingPanel } from './InternetSharingPanel';
 import { gameExperienceTranslations } from '../../i18n/gameExperience';
-import { readInternetPreference } from '../../services/appEnvironment';
 import { sharingTranslations } from '../../i18n/internetSharing';
 
 interface HostScreenProps {
@@ -85,8 +84,10 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
   const [selectedAddress, setSelectedAddress] = useState('');
   const sharing = useInternetSharing(pin);
-  const [showSharing, setShowSharing] = useState(() => !recoveredSession && readInternetPreference() === 'internet');
+  const sharingConsent = useRef(false);
+  const [showSharing, setShowSharing] = useState(() => sharing.available && !recoveredSession);
   const sharingText = sharingTranslations[language];
+  useEffect(() => { if (sharing.state.phase === 'active') setShowSharing(false); }, [sharing.state.phase]);
   const publicUrl = sharing.state.phase === 'active' && sharing.state.pin === pin ? sharing.state.url : undefined;
   const joinAddresses = getSessionJoinAddresses(window.location.origin, serverInfo, sharing.state, pin);
   const joinAddress = publicUrl || (joinAddresses.includes(selectedAddress) ? selectedAddress : joinAddresses[0] || '');
@@ -413,13 +414,16 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
         </div>
 
         {/* PIN Banner & Action controls */}
-        <div className="flex items-center gap-3">
-          {sharing.available && <button type="button" onClick={() => setShowSharing(true)} aria-label={sharingText.title}
-            title={sharingText.openPanel} data-sharing-phase={sharing.state.phase} aria-expanded={showSharing} className={`rounded-xl border-2 p-2 inline-flex items-center gap-1.5 ${publicUrl ? 'border-emerald-600 bg-emerald-600 text-white' : sharingFailed ? 'border-rose-300 bg-rose-50 text-rose-800' : sharingBusy ? 'border-amber-400 bg-amber-50 text-amber-900' : 'border-line bg-surface-soft text-petrolio'}`}>
-            <Globe className={`w-4 h-4 ${sharingBusy ? 'animate-pulse' : ''}`} /><span className="hidden lg:inline text-xs font-bold">{sharingText[sharing.state.phase]}{sharing.state.phase === 'downloading' && sharing.state.progress !== undefined ? ` · ${sharing.state.progress}%` : ''}</span>
-            <span className={`h-2 w-2 rounded-full ${sharing.state.phase === 'active' ? 'bg-white' : sharing.state.phase === 'error' ? 'bg-rose-600' : 'bg-gray-400'}`} aria-hidden="true" />
-          </button>}
-          <div className="bg-surface-soft px-4 py-1.5 rounded-xl border-2 border-mandarino flex items-center gap-2.5 shadow-lg shadow-mandarino/10">
+        <div className="flex flex-wrap items-center gap-2">
+          {sharing.available && !isFullscreen && <div className="flex items-center gap-2" data-sharing-controls>
+            <span role="status" className="hidden lg:inline text-xs font-bold text-petrolio">{sharingText[sharing.state.phase]}{sharing.state.phase === 'downloading' && sharing.state.progress !== undefined ? ` · ${sharing.state.progress}%` : ''}</span>
+            <button type="button" role="switch" aria-checked={Boolean(publicUrl)} aria-label={sharingText.title} disabled={sharing.state.phase === 'stopping'} data-sharing-phase={sharing.state.phase}
+              onClick={() => { if (publicUrl || sharingBusy) void sharing.stop(); else if (sharingConsent.current && sharing.state.phase === 'idle') void sharing.start(); else setShowSharing(true); }} title={publicUrl || sharingBusy ? sharingText.stop : sharingText.start}
+              className={`inline-flex items-center gap-2 rounded-full border-2 px-2 py-1 font-bold text-xs ${publicUrl ? 'border-emerald-600 bg-emerald-50 text-emerald-900' : sharingFailed ? 'border-rose-400 bg-rose-50 text-rose-900' : 'border-line bg-surface-soft text-petrolio'}`}>
+              <Globe size={16} className="hidden sm:block" /><span className="hidden lg:inline">Cloudflare</span><span aria-hidden="true" className={`relative w-11 h-6 rounded-full ${publicUrl ? 'bg-emerald-600' : sharingBusy ? 'bg-amber-500 animate-pulse' : 'bg-gray-400'}`}><span className={`absolute top-0.5 h-5 w-5 bg-white rounded-full shadow transition-transform ${publicUrl ? 'translate-x-5 left-0.5' : 'left-0.5'}`} /></span><span className="hidden sm:inline">{publicUrl ? 'ON' : 'OFF'}</span>
+            </button>
+          </div>}
+          <div className="bg-surface-soft px-2 sm:px-4 py-1.5 rounded-xl border-2 border-mandarino flex items-center gap-2.5 shadow-lg shadow-mandarino/10">
             <span className="text-[11px] font-bold uppercase text-muted tracking-wider">PIN:</span>
             <span className="font-mono font-black text-xl md:text-2xl text-ink tracking-widest">{pin}</span>
           </div>
@@ -475,7 +479,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
         </div>}
         {/* LOBBY VIEW */}
         {status === 'lobby' && (
-          <div className="w-full max-w-6xl flex flex-col items-center">
+          <div className="w-full max-w-none flex flex-col items-center">
             <div className="host-lobby-banner w-full grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-4 items-center bg-white border-2 border-line rounded-2xl p-4 shadow-lg mb-3">
               <div className="min-w-0 space-y-3">
                 <div data-session-access={publicUrl ? 'public' : 'lan'} role="status" aria-live="polite" className={`rounded-xl border px-3 py-2 ${publicUrl ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : sharingFailed ? 'border-rose-300 bg-rose-50 text-rose-900' : 'border-line bg-surface-soft text-petrolio'}`}>
@@ -808,7 +812,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
         )}
       </main>
 
-      {showSharing && sharing.available && <InternetSharingPanel state={sharing.state} onStart={() => void sharing.start()} onStop={() => void sharing.stop()} onClose={() => setShowSharing(false)} />}
+      {showSharing && sharing.available && <InternetSharingPanel state={sharing.state} onStart={() => { sharingConsent.current = true; setShowSharing(false); void sharing.start(); }} onStop={() => void sharing.stop()} onClose={() => setShowSharing(false)} />}
       {/* Enlarged QR Code Modal */}
       {showQRModal && (
         <div className="fixed inset-0 bg-petrolio/15 backdrop-blur-md z-50 flex items-center justify-center p-4">

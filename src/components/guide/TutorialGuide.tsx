@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, BookOpen, Check, ExternalLink } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { guideLessons, guideTranslations, tutorialIds, type GuideAction, type TutorialId } from '../../i18n/guide';
+import { guideScreenshot, guideScreenshotText } from '../../i18n/guideScreenshots';
 import { sharingLinks } from '../../i18n/internetSharing';
 import { LanguageSelector } from '../common/LanguageSelector';
 import { QuriosoLogo } from '../common/QuriosoLogo';
@@ -17,6 +18,8 @@ export function readGuideLocation(): Cursor {
 
 export function TutorialGuide() {
   const { language, setLanguage } = useLanguage(), t = guideTranslations[language], lessons = guideLessons[language];
+  const [preview, setPreview] = useState(false);
+  const pictureText = guideScreenshotText[language];
   const [cursor, setCursor] = useState(readGuideLocation);
   const article = useRef<HTMLElement>(null), focusRequested = useRef(false);
   const lesson = lessons[cursor.topic], step = lesson.steps[cursor.step], topicIndex = tutorialIds.indexOf(cursor.topic);
@@ -37,6 +40,7 @@ export function TutorialGuide() {
     article.current?.scrollIntoView?.({ block: 'nearest' });
   }, [cursor]);
   const go = (topic: TutorialId, step = 0) => {
+    setPreview(false);
     const url = new URL(window.location.href);
     url.search = new URLSearchParams({ app: 'guide', lang: language, topic, step: String(step + 1) }).toString(); url.hash = '';
     window.history.pushState(null, '', url);
@@ -64,11 +68,13 @@ export function TutorialGuide() {
           <div className="bg-surface-soft border border-line rounded-xl p-4 text-sm"><h3 className="font-bold text-petrolio mb-1">{t.requirements}</h3><p>{lesson.needs}</p></div>
           <div className="space-y-2"><p role="status" className="font-bold text-sm text-petrolio">{t.step} {cursor.step + 1} {t.of} {lesson.steps.length}</p><progress aria-label={t.steps} value={cursor.step + 1} max={lesson.steps.length} className="w-full accent-petrolio" /><nav aria-label={t.steps} className="flex flex-wrap gap-2">{lesson.steps.map((item, index) => <button type="button" key={index} onClick={() => go(cursor.topic, index)} aria-label={`${t.step} ${index + 1}: ${item.title}`} aria-current={index === cursor.step ? 'step' : undefined} className={`min-w-11 min-h-11 rounded-xl border font-bold ${index === cursor.step ? 'bg-petrolio border-petrolio text-white' : 'border-line bg-surface-soft text-petrolio'}`}>{index < cursor.step ? <Check size={18} className="mx-auto" /> : index + 1}</button>)}</nav></div>
           <section data-guide-step className="space-y-4 py-3 [overflow-wrap:anywhere]"><h3 className="text-xl font-black text-ink">{step.title}</h3><p className="leading-relaxed text-base md:text-lg">{step.body}</p>{step.action && <a href={href(step.action)} {...(step.action === 'cloudflareDocs' || step.action === 'status' ? { target: '_blank', rel: 'noopener noreferrer' } : {})} className="inline-flex items-center gap-2 min-h-11 rounded-xl border border-line px-4 py-3 font-bold text-petrolio">{t[step.action]}<ExternalLink size={16} className="shrink-0" /></a>}</section>
+          <figure className="space-y-2"><button type="button" className="w-full cursor-zoom-in rounded-xl border border-line overflow-hidden bg-surface-soft" aria-label={pictureText.zoom} onClick={() => setPreview(true)}><img loading="lazy" src={`./guide/${language}/${guideScreenshot[cursor.topic]}.png`} alt={`${lesson.title} · Tipi di vulcani con geopop`} className="w-full max-h-80 object-contain" /></button><figcaption className="text-sm text-muted">{pictureText.caption}</figcaption></figure>
           {last && <p className="text-sm font-bold text-petrolio flex items-center gap-2"><Check size={18} />{t.end}</p>}
           <div className="flex flex-wrap justify-between gap-3 pt-4 border-t border-line"><button type="button" onClick={() => go(cursor.topic, cursor.step - 1)} disabled={cursor.step === 0} className="min-h-11 rounded-xl border border-line px-4 py-3 font-bold text-petrolio disabled:opacity-40 inline-flex items-center gap-2"><ArrowLeft size={18} />{t.previous}</button><button type="button" onClick={() => last ? go(tutorialIds[(topicIndex + 1) % tutorialIds.length]) : go(cursor.topic, cursor.step + 1)} className="min-h-11 rounded-xl btn-mandarino px-4 py-3 font-bold inline-flex items-center gap-2">{last ? topicIndex === tutorialIds.length - 1 ? t.restart : t.nextTopic : t.next}<ArrowRight size={18} /></button></div>
           {(cursor.topic === 'internet' || cursor.topic === 'problems') && <aside className="text-sm space-y-2 pt-3 border-t border-line"><h3 className="font-bold text-petrolio">{t.references}</h3><div className="flex flex-wrap gap-3">{[['cloudflareDocs', sharingLinks.docs], ['status', sharingLinks.service], ['privacy', sharingLinks.privacy]].map(([key, url]) => <a key={key} href={url} target="_blank" rel="noopener noreferrer" className="underline text-petrolio">{t[key as 'cloudflareDocs' | 'status' | 'privacy']}</a>)}</div></aside>}
         </article>
       </div>
     </main>
+    {preview && <div role="dialog" aria-modal="true" aria-label={pictureText.zoom} className="fixed inset-0 z-50 bg-black/80 p-3 flex flex-col items-center gap-3 overflow-auto" onKeyDown={event => { if (event.key === 'Escape') setPreview(false); }}><button autoFocus type="button" onClick={() => setPreview(false)} className="sticky top-0 bg-white rounded-xl px-4 py-3 font-bold text-petrolio">{pictureText.close}</button><img src={`./guide/${language}/${guideScreenshot[cursor.topic]}.png`} alt={`${lesson.title} · Tipi di vulcani con geopop`} className="max-w-full h-auto" /></div>}
   </div>;
 }

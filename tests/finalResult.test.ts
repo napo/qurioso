@@ -5,7 +5,7 @@ import { JSDOM } from 'jsdom';
 import { finalResult, readFinalResult, saveFinalResult } from '../src/services/finalResult';
 import { round } from './helpers/lanServer';
 
-test('final results remain read-only after refresh and sharing exports only the personal image with safe fallbacks', async t => {
+test('final results remain read-only after refresh and sharing exports the avatar, quiz and full ranking with safe fallbacks', async t => {
   const dom = new JSDOM('<div id="app"></div>', { url: 'https://classroom.test/?pin=123456' });
   const saved = new Map<string, PropertyDescriptor | undefined>();
   for (const [key, value] of Object.entries({ window: dom.window, document: dom.window.document, navigator: dom.window.navigator, localStorage: dom.window.localStorage, IS_REACT_ACT_ENVIRONMENT: true })) {
@@ -48,7 +48,7 @@ test('final results remain read-only after refresh and sharing exports only the 
   assert.equal(document.querySelector('img')?.alt, 'Volcanoes · Alice · Final score: 250 · Position 2 of 2');
   await click('Share result');
   assert.equal(shared?.files?.[0].type, 'image/png'); assert.equal(shared?.url, undefined); assert.equal(shared?.text, undefined);
-  assert.ok(texts.includes('Alice')); assert.equal(texts.includes('Bob'), false); assert.equal(texts.includes('123456'), false);
+  assert.ok(texts.some(value => value.includes('🦊 Alice'))); assert.ok(texts.some(value => /🦁\s+Bob/.test(value))); assert.ok(texts.includes('Volcanoes')); assert.equal(texts.includes('123456'), false);
   Object.defineProperty(navigator, 'share', { configurable: true, value: async () => { throw new DOMException('Cancelled', 'AbortError'); } });
   await click('Share result'); assert.equal(downloads, 0); assert.equal(document.querySelector('[role="status"]'), null);
   Object.defineProperty(navigator, 'share', { configurable: true, value: async () => { throw new Error('Unavailable'); } });

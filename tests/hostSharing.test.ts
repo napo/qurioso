@@ -48,16 +48,17 @@ test('actual host switches both QR views and copied address to the active public
   assert.equal(starts, 1);
   assert.equal(toolbar().dataset.sharingPhase, 'connecting', 'click gives immediate feedback while native activation is pending');
   await emit({ phase: 'downloading', progress: 42, pin: '123456' });
-  assert.equal(document.querySelector('progress')!.value, 42);
+  assert.match(document.querySelector('[data-sharing-controls]')!.textContent!, /42%/);
+  assert.equal(document.querySelector('[role="dialog"]'), null);
   assert.equal(address(), 'http://192.168.1.7:54321');
   const active: InternetSharingState = { phase: 'active', pin: '123456', url: 'https://first-example.trycloudflare.com' };
   await act(async () => { listener(active); finishStart(active); });
   assert.equal(toolbar().dataset.sharingPhase, 'active');
-  assert.ok(toolbar().className.includes('bg-emerald-600'));
+  assert.equal(toolbar().getAttribute('aria-checked'), 'true');
+  assert.equal(document.querySelector('[role="dialog"]'), null, 'activation closes the service modal');
   assert.equal(document.querySelector('[data-session-access]')!.getAttribute('data-session-access'), 'public');
   assert.equal(address(), active.url);
   assert.equal(document.querySelector('select'), null, 'LAN interfaces cannot override the advertised public address');
-  await click('Chiudi');
   await click('Copia indirizzo'); assert.equal(copied, active.url);
   await act(async () => document.querySelector<HTMLButtonElement>('button[title="Mostra QR Code Ingrandito"]')!.click());
   const checkQRs = (base: string) => {
@@ -72,5 +73,12 @@ test('actual host switches both QR views and copied address to the active public
   await emit(renewed); assert.equal(address(), renewed.url); checkQRs(renewed.url);
   await emit({ ...active, pin: '999999' }); assert.equal(address(), 'http://192.168.1.7:54321', 'a different game cannot replace this game’s address');
   await emit(renewed);
-  await emit({ phase: 'idle' }); assert.equal(address(), 'http://192.168.1.7:54321'); checkQRs('http://192.168.1.7:54321');
+  await act(async () => toolbar().click());
+  assert.equal(toolbar().getAttribute('aria-checked'), 'false', 'the switch stops public sharing');
+  assert.equal(address(), 'http://192.168.1.7:54321'); checkQRs('http://192.168.1.7:54321');
+  await act(async () => toolbar().click());
+  assert.equal(starts, 2, 'the switch reactivates an already authorized tunnel directly');
+  assert.equal(document.querySelector('[aria-labelledby="internet-sharing-title"]'), null);
+  await act(async () => { listener(renewed); finishStart(renewed); });
+  assert.equal(toolbar().getAttribute('aria-checked'), 'true');
 });

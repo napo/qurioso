@@ -1,7 +1,7 @@
 {
   "name": "qurioso",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.2.1",
   "author": "Maurizio Napolitano <maurizio.napolitano@gmail.com>",
   "license": "AGPL-3.0-or-later",
   "type": "module",
@@ -17,6 +17,7 @@
     "desktop:dev": "npm run desktop:prepare && electron .",
     "desktop:pack": "npm run desktop:prepare && electron-builder --dir --publish never && node scripts/prepare-desktop-directory.mjs",
     "desktop:build": "npm run desktop:prepare && electron-builder --publish never",
+    "desktop:guide-screenshots": "npm run desktop:prepare && node scripts/capture-guide.mjs",
     "desktop:smoke": "node scripts/test-desktop.mjs",
     "desktop:internet-smoke": "node scripts/test-internet-sharing-live.mjs",
     "android:icons": "node scripts/prepare-android-icons.mjs"

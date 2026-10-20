@@ -4,6 +4,8 @@ const path = require('node:path');
 const fs = require('node:fs');
 const ORIGIN = 'http://qurioso.localhost';
 const smoke = process.env.QURIOSO_DESKTOP_SMOKE === '1';
+const captureGuide = process.env.QURIOSO_GUIDE_CAPTURE;
+if (captureGuide && !process.env.QURIOSO_TEST_USER_DATA) throw new Error('Guide capture requires an isolated profile. Use npm run desktop:guide-screenshots.');
 let window;
 let backend;
 let quitting = false;
@@ -13,7 +15,7 @@ let sharing;
 const sharingToken = randomBytes(32).toString('hex');
 
 app.setName('Qurioso');
-if (smoke && process.env.QURIOSO_TEST_USER_DATA) app.setPath('userData', process.env.QURIOSO_TEST_USER_DATA);
+if ((smoke || captureGuide) && process.env.QURIOSO_TEST_USER_DATA) app.setPath('userData', process.env.QURIOSO_TEST_USER_DATA);
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -27,7 +29,7 @@ function fail(error) {
   quitting = true;
   backend?.kill();
   sharing?.shutdown();
-  if (!smoke) dialog.showErrorBox('Qurioso', `Impossibile avviare Qurioso.\n${error.message || error}`);
+  if (!smoke && !captureGuide) dialog.showErrorBox('Qurioso', `Impossibile avviare Qurioso.\n${error.message || error}`);
   app.exit(1);
 }
 
@@ -88,7 +90,7 @@ async function start() {
   browserSession.setPermissionRequestHandler((contents, permission, callback) => {
     callback(Boolean(contents?.getURL().startsWith(ORIGIN + '/') && ['clipboard-sanitized-write', 'fullscreen'].includes(permission)));
   });
-  window.once('ready-to-show', () => { if (!smoke) window.show(); });
+  window.once('ready-to-show', () => { if (!smoke && !captureGuide) window.show(); });
   window.on('closed', () => { window = null; });
   let configuration = Promise.resolve();
   sharing = require('./internetSharing.cjs').createInternetSharing({
@@ -132,10 +134,16 @@ async function start() {
     ] },
     { role: 'editMenu' }, { role: 'viewMenu' },
   ]));
+  if (captureGuide) {
+    window.webContents.setBackgroundThrottling(false);
+  }
   // Smoke fixtures use Italian labels independently of the operating system locale.
   await window.loadURL(`${ORIGIN}/?app=network${smoke ? '&lang=it' : ''}`);
-  updater.start();
-  if (smoke) {
+  if (!captureGuide) updater.start();
+  if (captureGuide) {
+    await require('./captureGuide.cjs').run(window, backendPort, captureGuide);
+    app.quit();
+  } else if (smoke) {
     const result = await require('./smoke.cjs').run(window, backendPort);
     console.log(`QURIOSO_SMOKE_RESULT=${JSON.stringify(result)}`);
     app.quit();

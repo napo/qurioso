@@ -1,25 +1,21 @@
-# Quiz inclusi in Qurioso
+# Included Qurioso quizzes
 
 ## Tipi di vulcani con geopop
 
-- Autore del quiz: Maurizio Napolitano.
-- Categoria: Scienze.
-- 11 domande, una sola risposta corretta per domanda.
+- Quiz author: Maurizio Napolitano.
+- Category: Scienze.
+- 11 questions, each with one correct answer.
 - Video: https://www.youtube.com/watch?v=r4mRzXmQ6mY
-- Checkpoint: 1:00, 2:15, 3:30, 4:45, 6:00, 7:30, 9:00, 10:15, 11:30, 12:30 e 13:45.
+- Checkpoints: 1:00, 2:15, 3:30, 4:45, 6:00, 7:30, 9:00, 10:15, 11:30, 12:30 and 13:45.
 
-Il quiz è incluso nella biblioteca predefinita delle nuove installazioni. La biblioteca già salvata dall’utente rimane quella personale: per aggiungere questo quiz, scaricare [il JSON](../public/quizzes/tipi-di-vulcani.json) e usare **Modifica quiz → Importa quiz completo** nell’editor, quindi salvare. Per aggiungerlo come nuovo quiz, aprire prima l’editor di un nuovo quiz.
+The quiz is included in new installations and remains available alongside previously saved libraries. Missing included quizzes are added to the visible catalog without rewriting personal storage or replacing an edited quiz with the same ID. Included lessons can be edited or duplicated; deleting a personal quiz does not remove the bundled catalog. In the desktop app, choose **Quiz on participants' devices**, then **Network video quiz** on its card. The same quiz is available for classroom activities.
 
-Lo stesso file è distribuito dal sito e dai pacchetti dell’app nel percorso `quizzes/tipi-di-vulcani.json`. È la fonte unica del quiz incluso nell’app e del file importabile.
+The source is [quizzes/tipi-di-vulcani.json](../public/quizzes/tipi-di-vulcani.json), distributed at that path in both the website and desktop app. It can also be imported as a complete quiz in the editor. The cover is embedded for offline use; the YouTube video requires Internet access.
 
-La copertina è incorporata nel JSON e disponibile offline. Il video YouTube richiede una connessione Internet.
+### Cover credits
 
-### Crediti della copertina
+“Fimmvorduhals 2010 03 27 dawn.jpg”, Boaworm, own work, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Fimmvorduhals_2010_03_27_dawn.jpg), [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). The included image is resized from the original. Credits, license and source links remain in the quiz and are displayed in the app.
 
-“Fimmvorduhals 2010 03 27 dawn.jpg”, Boaworm, opera propria, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Fimmvorduhals_2010_03_27_dawn.jpg), licenza [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). La copia inclusa è ridimensionata rispetto all’originale. I crediti e il collegamento alla licenza sono conservati nel quiz e visualizzati nell’app.
+### Content review
 
-### Revisione del file fornito
-
-Le domande, gli identificativi e i checkpoint provengono dal quiz fornito dall’autore. Sono stati completati la descrizione e il testo dell’attribuzione della copertina.
-
-La domanda sul Marsili aveva opzioni copiate da una domanda diversa: testo e opzioni sono stati sostituiti con quelli forniti dall’autore, mantenendo il checkpoint a 9:00 e impostando C come unica risposta corretta. La spiegazione richiama lo scenario di eruzione a bassa esplosività e a 500–1000 metri descritto da [INGVvulcani, 10 maggio 2024](https://ingvvulcani.com/2024/05/10/nuovi-studi-sul-marsili-il-piu-grande-vulcano-del-mediterraneo/). È stato sostituito anche un distrattore duplicato nella domanda sui plateau basaltici, mantenendo la risposta corretta.
+Question IDs and checkpoints are retained from the author's quiz. The Marsili question uses the question and answer options supplied by the author, with C as the single correct answer at 9:00. Its explanation references the low-explosivity eruption scenario discussed by [INGVvulcani, May 10, 2024](https://ingvvulcani.com/2024/05/10/nuovi-studi-sul-marsili-il-piu-grande-vulcano-del-mediterraneo/). A duplicate distractor in the basalt plateau question was also replaced without changing its correct answer.
