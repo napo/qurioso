@@ -15,9 +15,18 @@ export function LandingPage() {
     document.title = t.pageTitle;
     const metadata = { description: t.pageDescription, 'og:title': t.pageTitle, 'og:description': t.pageDescription,
       'twitter:title': t.pageTitle, 'twitter:description': t.pageDescription,
+      'og:image:alt': t.pageImageAlt, 'twitter:image:alt': t.pageImageAlt,
       'og:locale': { it: 'it_IT', en: 'en_GB', de: 'de_DE' }[language] };
     for (const [name, content] of Object.entries(metadata)) {
       document.querySelector(`meta[name="${name}"], meta[property="${name}"]`)?.setAttribute('content', content);
+    }
+    document.querySelectorAll('meta[property="og:locale:alternate"]').forEach(element => element.remove());
+    for (const [code, locale] of Object.entries({ it: 'it_IT', en: 'en_GB', de: 'de_DE' })) {
+      if (code === language) continue;
+      const alternate = document.createElement('meta');
+      alternate.setAttribute('property', 'og:locale:alternate');
+      alternate.setAttribute('content', locale);
+      document.head.appendChild(alternate);
     }
   }, [language, t]);
   const [downloads, setDownloads] = useState<DesktopDownload[]>([]);

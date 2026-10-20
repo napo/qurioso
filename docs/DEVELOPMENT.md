@@ -85,6 +85,10 @@ The visual identity uses a **white background**, **petrolio `#075E63`** and **ma
 
 The website declares Open Graph and Twitter Card metadata using the public PNG URL. For the **repository’s** social preview, upload the same PNG in **[Repository settings](https://github.com/napo/qurioso/settings) → Social preview → Edit → Upload an image**. GitHub manages this image separately from the website’s metadata.
 
+The canonical site and all social image URLs use `https://qurioso.it/`. Keep HTTPS enforcement enabled in GitHub Pages settings. The Italian title, description, image alternative text and application data are present in `index.html`, so crawlers can read them without JavaScript. The landing page updates the title, description, image alternative text and Open Graph locales when a visitor changes language; its Italian text in `src/i18n/landing.ts` must match the initial HTML.
+
+The HTML also declares the app name, allows large image previews and includes Schema.org `WebApplication` JSON-LD describing the free educational web app, supported languages, author and license. These are descriptions of the application, not ratings or a guarantee that a social platform will refresh a previously cached preview.
+
 To regenerate the PNG after editing the SVG, using Inkscape:
 
 ```bash
