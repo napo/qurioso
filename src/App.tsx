@@ -16,6 +16,7 @@ import {
   Trash2,
   Edit3,
   CheckCircle,
+  Download,
 } from 'lucide-react';
 import { Quiz, GameSession } from './types/quiz';
 import { DEFAULT_QUIZZES, DEFAULT_QUIZ_COVER } from './data/defaultQuizzes';
@@ -314,7 +315,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
             </button>)}
           </div> : <p className="rounded-2xl bg-white border border-line p-4 text-petrolio">{workspace.classroomHint}</p>}
           {networkMode && <p role="status" className="text-sm text-petrolio">{serverInfo ? workspace.networkReady : workspace.networkWaiting} <a className="underline font-bold" href={`?app=guide&topic=network&lang=${language}`}>{workspace.docs}</a></p>}
-          {publicSite && <details className="rounded-2xl border border-line bg-white p-4"><summary className="cursor-pointer font-bold text-petrolio">{workspace.webDesktopTitle}</summary><p className="mt-3 text-sm">{workspace.webDesktopHint}</p><p className="mt-2 text-sm text-muted">{workspace.transfer}</p><p className="mt-2 text-sm text-muted">{labels.websiteLibraryHint}</p><a href={downloadsUrl} className="inline-block mt-3 btn-petrolio rounded-xl px-4 py-3 font-bold">{labels.downloadDesktop}</a></details>}
+          {publicSite && <aside data-device-download className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-3"><p className="font-bold text-petrolio">{workspace.devicesTitle}</p><a href={downloadsUrl} className="inline-flex items-center gap-2 btn-petrolio rounded-xl px-4 py-2.5 font-bold"><Download size={18} />{workspace.devicesDownload}</a></aside>}
         </section>
         {/* Quizzes Collection Section */}
         <div>

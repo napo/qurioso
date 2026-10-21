@@ -38,7 +38,7 @@ test('classroom runs without a server; landing switches, remembers and passes al
   assert.equal(entry?.getAttribute('href'), '?app=classroom&lang=it');
   assert.ok(document.querySelector('#quiz-in-rete'));
   assert.equal([...document.querySelectorAll('a')].find(a => a.textContent === 'Guida')?.getAttribute('href'), '?app=guide&lang=it');
-  assert.equal([...document.querySelectorAll('a')].find(a => a.textContent === 'Partecipa con PIN')?.getAttribute('href'), '?role=player&lang=it');
+  assert.equal([...document.querySelectorAll('a')].some(a => a.textContent === 'Partecipa con PIN'), false, 'without a local server a PIN cannot reach the teacher');
   assert.match(document.body.textContent!, /Tutti sulla stessa LAN/);
   assert.equal(document.body.textContent?.match(/Build non ancora disponibile/g)?.length, 3);
   const chooseLanguage = async (label: string) => {
@@ -69,6 +69,11 @@ test('classroom runs without a server; landing switches, remembers and passes al
   assert.match(document.body.textContent!, /Brauche ich ein Konto/);
   assert.equal(document.body.textContent?.match(/Noch keine Installationsdatei verfügbar/g)?.length, 3);
   assert.ok(document.querySelector('a[href="?app=classroom&lang=de"]'));
+  await act(async () => root.render(React.createElement('div')));
+  globalThis.fetch = async (url: string | URL | Request) => String(url) === '/api/server-info' ? Response.json({ port: 3000, addresses: [] }) : new Response('{}', { status: 404 });
+  await act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(LandingPage))));
+  for (let n = 0; n < 40 && ![...document.querySelectorAll('a')].some(a => a.getAttribute('href')?.startsWith('?role=player')); n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 15)); });
+  assert.equal([...document.querySelectorAll('a')].find(a => a.getAttribute('href')?.startsWith('?role=player'))?.getAttribute('href'), '?role=player&lang=de', 'the LAN server landing keeps the PIN entry');
   await act(async () => root.render(React.createElement('div')));
   globalThis.fetch = async () => { throw new TypeError('Network unavailable'); };
   await act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(LandingPage))));

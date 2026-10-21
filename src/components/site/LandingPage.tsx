@@ -53,7 +53,7 @@ export function LandingPage() {
     <a href="#contenuto" className="sr-only focus:not-sr-only focus:block focus:p-3">{t.skip}</a>
     <header className="max-w-6xl mx-auto px-5 md:px-8 py-6 flex flex-wrap items-center justify-between gap-5">
       <a href="./" aria-label={t.home}><QuriosoLogo size="md" /></a>
-      <nav aria-label={t.nav} className="flex flex-wrap items-center gap-5 text-sm font-bold text-petrolio"><a href={`?role=player&lang=${language}`} className="btn-mandarino rounded-xl px-4 py-3">{appText.joinWithPin}</a><a href={classroomUrl} className="hover:underline">{t.classroom}</a><a href={networkUrl} className="hover:underline">{t.network}</a><a href={`?app=guide&lang=${language}`} className="hover:underline">{guideNavigation[language].nav}</a><LanguageSelector /></nav>
+      <nav aria-label={t.nav} className="flex flex-wrap items-center gap-5 text-sm font-bold text-petrolio">{localServer && <a href={`?role=player&lang=${language}`} className="btn-mandarino rounded-xl px-4 py-3">{appText.joinWithPin}</a>}<a href={classroomUrl} className="hover:underline">{t.classroom}</a><a href={networkUrl} className="hover:underline">{t.network}</a><a href={`?app=guide&lang=${language}`} className="hover:underline">{guideNavigation[language].nav}</a><LanguageSelector /></nav>
     </header>
     <main id="contenuto">
       <section className="max-w-6xl mx-auto px-5 md:px-8 pt-12 md:pt-20 pb-16 md:pb-24 grid lg:grid-cols-[1.15fr_1fr] gap-12 items-center">
