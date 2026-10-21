@@ -22,13 +22,15 @@ Question IDs and checkpoints are retained from the author's quiz. The Marsili qu
 
 ## Sample quizzes
 
-The sample quizzes in [src/data/defaultQuizzes.ts](../src/data/defaultQuizzes.ts) use covers and question images bundled in [public/quizzes/covers/](../public/quizzes/covers/), so they display offline, in the PWA and on filtered networks. The images are resized to a maximum width of 800 px and converted to WebP. They are precached by the service worker. New quizzes use the Manarola image as their default cover. If an image cannot be loaded, the library card and question screens show a placeholder.
+The sample quizzes in [src/data/defaultQuizzes.ts](../src/data/defaultQuizzes.ts) are in Italian, plus **Discover the United Kingdom** in English and **Deutschland entdecken** in German (five classic questions each, with explanations). They are shown to new libraries regardless of the interface language. They use covers and question images bundled in [public/quizzes/covers/](../public/quizzes/covers/), so they display offline, in the PWA and on filtered networks. The images are resized to a maximum width of 800 px and converted to WebP. They are precached by the service worker. New quizzes use the Manarola image as their default cover. If an image cannot be loaded, the library card and question screens show a placeholder.
 
 ### Image credits
 
 - `earth.webp` (Viaggio nello Spazio & Scienze): “The Earth seen from Apollo 17.jpg”, NASA / Apollo 17 crew, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:The_Earth_seen_from_Apollo_17.jpg), public domain.
 - `manarola.webp` (Cultura Generale & Italia, and the default cover for new quizzes): “Manarola, Cinque Terre (Italy).jpg”, Davcio, own work, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Manarola,_Cinque_Terre_(Italy).jpg), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
 - `colosseum.webp` (Pantheon question in Cultura Generale & Italia): “Colosseum in Rome, Italy - April 2007.jpg”, Diliff, own work, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Colosseum_in_Rome,_Italy_-_April_2007.jpg), [CC BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+- `tower-bridge.webp` (Discover the United Kingdom): “Tower bridge London Twilight - November 2006.jpg”, Diliff, own work, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Tower_bridge_London_Twilight_-_November_2006.jpg), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
+- `neuschwanstein.webp` (Deutschland entdecken): “Schloss Neuschwanstein 2013.jpg”, Thomas Wolf, www.foto-tw.de, own work, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Schloss_Neuschwanstein_2013.jpg), [CC BY-SA 3.0 DE](https://creativecommons.org/licenses/by-sa/3.0/de/deed.en).
 - `moraine-lake.webp` (Quiz Panoramico: Meraviglie del Mondo): “Moraine Lake 17092005.jpg”, Gorgo, own work, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Moraine_Lake_17092005.jpg), public domain.
 
 The included images are resized from the originals. The resized CC BY-SA images are distributed under the same licenses as the originals. Credits, license and source links remain in the quiz data and are displayed in the app.

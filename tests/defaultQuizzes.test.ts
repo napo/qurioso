@@ -41,7 +41,7 @@ test('sample quiz images are bundled 800px WebP files with Commons credits that 
     { url: quiz.coverImage, credit: quiz.coverAttribution },
     ...quiz.questions.filter(item => item.mediaUrl).map(item => ({ url: item.mediaUrl, credit: item.mediaAttribution })),
   ]).filter(image => image.url && !image.url.startsWith('data:'));
-  assert.equal(images.length, 4);
+  assert.equal(images.length, 6);
   for (const { url, credit } of images) {
     assert.match(url!, /^quizzes\/covers\/[a-z0-9-]+\.webp$/, 'no hotlinked sample images');
     const bytes = readFileSync(new URL(`../public/${url}`, import.meta.url));
@@ -55,4 +55,19 @@ test('sample quiz images are bundled 800px WebP files with Commons credits that 
   const [row] = previewQuestionImport(jsonImportSource(JSON.stringify([pantheon])), { mapping: {}, defaultType: 'multiple_choice', correctMode: 'letters' });
   assert.deepEqual(row.errors, []); assert.deepEqual(row.warnings.filter(issue => issue.key === 'externalAsset'), []);
   assert.equal(row.question?.mediaUrl, pantheon.mediaUrl);
+});
+
+test('English and German sample quizzes are well formed', () => {
+  for (const [id, title, trueText] of [['quiz-sample-united-kingdom', 'Discover the United Kingdom', 'True'], ['quiz-sample-germany', 'Deutschland entdecken', 'Wahr']] as const) {
+    const quiz = DEFAULT_QUIZZES.find(item => item.id === id);
+    assert.ok(quiz, id); assert.equal(quiz.title, title); assert.equal(quiz.questions.length, 5);
+    assert.equal(new Set(quiz.questions.map(q => q.id)).size, 5);
+    for (const question of quiz.questions) {
+      assert.equal(question.options.filter(option => option.isCorrect).length, 1, question.text);
+      assert.equal(new Set(question.options.map(option => option.text)).size, question.options.length, question.text);
+      assert.ok(question.explanation);
+      // Classroom letters (V/F, T/F, W/F) rely on true/false options being stored as [true, false].
+      if (question.type === 'true_false') assert.deepEqual(question.options.map(option => [option.text, option.isCorrect]), [[trueText, true], [trueText === 'True' ? 'False' : 'Falsch', false]]);
+    }
+  }
 });

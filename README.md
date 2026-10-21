@@ -14,11 +14,11 @@ Create quizzes with images and videos. Discuss answers together, or let everyone
 
 **Classroom activities — Attività in classe**
 
-Open Qurioso in your browser, display the questions and select the answer agreed on by the class. Use one device, with or without a projector. No installation required.
+Open Qurioso in your browser, display the questions and select the answer agreed on by the class. Use one device, with or without a projector: answers are labelled A, B, C, D and can be chosen with the keyboard, and the activity has a fullscreen mode. No installation required.
 
 **Network quizzes — Quiz in Rete**
 
-Run Qurioso on the teacher’s computer. Students join from their browsers using a QR code and PIN. **All devices must be on the same local network (LAN or Wi-Fi).**
+Run the Qurioso desktop app on the teacher’s computer. Students join from their browsers using the teacher’s link or QR code, with a PIN. **All devices must be on the same local network (LAN or Wi-Fi)**, unless the teacher turns on the optional Cloudflare sharing for that game to let students join over the Internet.
 
 Desktop builds include the local server and do not require Node.js: Windows `.exe`, macOS `.dmg` (Intel and Apple Silicon), Linux `.AppImage`, `.deb` and `.rpm`. Download the available installers from [Releases](https://github.com/napo/qurioso/releases) or the [website](https://napo.github.io/qurioso/#quiz-in-rete). Beta releases are labeled “In beta”.
 
@@ -27,10 +27,12 @@ Desktop builds include the local server and do not require Node.js: Windows `.ex
 - Create multiple-choice and true/false questions.
 - Upload images or find them on Wikimedia Commons.
 - Add a video file or a YouTube/Vimeo link, with questions at chosen moments.
-- Save quizzes in your browser and import or export them as JSON.
+- Save quizzes in your browser or in the desktop app, import or export them as JSON, and back up the whole library to a ZIP file.
+- Import questions from CSV or JSON files.
+- Use the interface in Italian, English or German. Sample quizzes are included in all three languages, and the desktop app follows the system language (English if it is not supported).
 - View scores and results during network quizzes.
 
-No account or API keys are required. Online videos need Internet access and must allow embedded playback. Export your quizzes before changing browser or computer, or clearing site data.
+No account or API keys are required. Online videos need Internet access and must allow embedded playback. Back up your library before changing browser or computer, or clearing site data.
 
 ## Run locally
 
@@ -53,6 +55,8 @@ The server chooses a free port at startup. To keep the same browser library acro
 - [Participant results, sharing and video presentation](docs/GAMEPLAY.md)
 - [In-app tutorial guide](docs/TUTORIAL_GUIDE.md)
 - [Included quizzes and image credits](docs/OFFICIAL_QUIZZES.md)
+- [Library backup and restore](docs/LIBRARY_BACKUP.md)
+- [Question import from CSV and JSON](docs/QUESTION_IMPORT.md)
 - [Downloads](https://napo.github.io/qurioso/#quiz-in-rete)
 - [Social preview image](public/social-preview.png)
 
