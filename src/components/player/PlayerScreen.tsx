@@ -19,6 +19,8 @@ import { gameSync, type PlayerRecovery } from '../../services/gameSync';
 import { sounds } from '../../services/soundEffects';
 import { OPTION_COLORS, SHAPE_ICONS, COLOR_KEYS, SHAPE_KEYS } from '../../utils/quizStyles';
 import { useLanguage } from '../../context/LanguageContext';
+import { playerTranslations, playerRecoveryText } from '../../i18n/player';
+import { fill } from '../../i18n/format';
 import { gameExperienceTranslations } from '../../i18n/gameExperience';
 import { PlayerFinalResult } from './PlayerFinalResult';
 import { finalResult, readFinalResult, saveFinalResult, clearFinalResult, type FinalResult } from '../../services/finalResult';
@@ -35,6 +37,7 @@ interface PlayerScreenProps {
 export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onExit }) => {
   const { t, language } = useLanguage();
   const gameText = gameExperienceTranslations[language];
+  const p = playerTranslations[language];
   const [completed, setCompleted] = useState<FinalResult | null>(() => readFinalResult(initialPin));
   const completedRef = useRef(completed);
   completedRef.current = completed;
@@ -81,7 +84,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
       ownAnswerRef.current = ownAnswer ? { roundId: restored.roundId, optionId: ownAnswer.optionId } : undefined;
       setSelectedOptionId(ownAnswer?.optionId || null); setSession(restored); setIsJoined(true);
       updatePublicUrl(restored.pin);
-    } else { setRecoveryProblem(result.message || ''); setCanRetry(result.status === 'unavailable'); }
+    } else { setRecoveryProblem(playerRecoveryText(p, result.status) || result.message || ''); setCanRetry(result.status === 'unavailable'); }
   };
   const recover = async () => {
     setRecovering(true); setRecoveryProblem('');
@@ -100,7 +103,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
     setJoinError(''); setLeaving(false);
     if (goHome) onExit?.();
   };
-  const leaveControl = <div className="py-2 text-center"><button type="button" onClick={() => void leave()} className="rounded-xl border border-line bg-white px-4 py-2 text-sm font-bold text-petrolio">Abbandona partita</button>
+  const leaveControl = <div className="py-2 text-center"><button type="button" onClick={() => void leave()} className="rounded-xl border border-line bg-white px-4 py-2 text-sm font-bold text-petrolio">{p.leave}</button>
     {storageWarning && <p role="status" className="mt-2 text-sm text-muted">{storageWarning}</p>}</div>;
 
   // Subscribe to room updates
@@ -113,7 +116,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
     const unsubscribe = gameSync.subscribe((msg) => {
       if (completedRef.current) return;
       if (msg.type === 'PLAYER_SESSION_ENDED' && msg.pin === pin) {
-        setIsJoined(false); setSession(null); setRecoveryProblem(msg.message); setCanRetry(false);
+        setIsJoined(false); setSession(null); setRecoveryProblem(p.sessionEnded); setCanRetry(false);
         return;
       }
       if (msg.type === 'SESSION_STATE_UPDATE' && msg.session.pin === pin) {
@@ -177,10 +180,10 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
     setIsJoining(false);
     if (!joined) {
-      setJoinError('Partita non trovata o server non raggiungibile. Controlla il PIN e riprova.');
+      setJoinError(p.joinError);
       return;
     }
-    setStorageWarning(gameSync.canRecoverPlayer(formattedPin, playerId) ? '' : 'Questo browser non consente di conservare la credenziale: mantieni aperta la pagina per non perdere l’identità.');
+    setStorageWarning(gameSync.canRecoverPlayer(formattedPin, playerId) ? '' : p.storageWarning);
     const joinedSession = await gameSync.fetchSessionFromServer(formattedPin);
     if (joinedSession) {
       activeRoundRef.current = joinedSession.roundId || String(joinedSession.questionStartTime);
@@ -209,7 +212,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
     setIsSubmitting(false);
     if (activeRoundRef.current !== round) return;
     if (!received) {
-      setAnswerError('Risposta non ricevuta. Controlla la connessione e riprova prima che scada il tempo.');
+      setAnswerError(p.answerError);
       return;
     }
     setSelectedOptionId(optionId);
@@ -229,14 +232,14 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
   if (recovering || recoveryProblem || leaving) return <main className="min-h-screen bg-qurioso-canvas p-6 flex flex-col items-center justify-center gap-4 text-center text-petrolio">
     <QuriosoIcon size={44} />
-    <p role="status">{leaving ? 'Uscita dalla partita in corso…' : recovering ? 'Recupero della partecipazione in corso…' : recoveryProblem}</p>
+    <p role="status">{leaving ? p.leaving : recovering ? p.recovering : recoveryProblem}</p>
     {!recovering && !leaving && <div className="flex flex-wrap justify-center gap-3">
-      {canRetry && <button type="button" className="btn-petrolio rounded-xl px-5 py-3" onClick={() => void recover()}>Riprova recupero</button>}
-      <button type="button" className="btn-mandarino rounded-xl px-5 py-3" onClick={() => void leave()}>Torna all’ingresso</button>
+      {canRetry && <button type="button" className="btn-petrolio rounded-xl px-5 py-3" onClick={() => void recover()}>{p.retryRecovery}</button>}
+      <button type="button" className="btn-mandarino rounded-xl px-5 py-3" onClick={() => void leave()}>{p.backToEntry}</button>
     </div>}
   </main>;
   if (isJoined && !session) return <main className="min-h-screen bg-qurioso-canvas p-6 flex flex-col items-center justify-center text-petrolio">
-    <p role="status">Sincronizzazione della partita in corso…</p>{leaveControl}
+    <p role="status">{p.syncing}</p>{leaveControl}
   </main>;
 
   // 1. JOIN FORM VIEW
@@ -266,16 +269,16 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
               <div className="w-14 h-14 rounded-2xl bg-surface-soft border border-line mx-auto flex items-center justify-center mb-3 shadow-lg">
                 <Smartphone className="w-7 h-7 text-accent-ink" />
               </div>
-              <h2 className="text-2xl font-black text-ink tracking-tight">Partecipa al Quiz</h2>
+              <h2 className="text-2xl font-black text-ink tracking-tight">{p.joinTitle}</h2>
               <p className="text-xs text-muted mt-1">
-                Inserisci il codice PIN proiettato sullo schermo
+                {p.pinHint}
               </p>
             </div>
 
             <form onSubmit={handleJoin} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-muted mb-1.5">
-                  Codice PIN
+                  {p.pinLabel}
                 </label>
                 <input
                   type="text"
@@ -290,14 +293,14 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-muted mb-1.5">
-                  Il tuo Nickname
+                  {p.nickname}
                 </label>
                 <input
                   type="text"
                   maxLength={15}
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
-                  placeholder="Nome o soprannome..."
+                  placeholder={p.nicknamePlaceholder}
                   required
                   className="w-full px-4 py-3 bg-surface-soft border-2 border-line focus:border-mandarino rounded-2xl font-bold text-center text-ink placeholder:text-muted focus:outline-none transition shadow-inner"
                 />
@@ -306,7 +309,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
               {/* Avatar Selector */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-muted mb-2 text-center">
-                  Scegli il tuo Avatar
+                  {p.avatar}
                 </label>
                 <div className="grid grid-cols-6 gap-2">
                   {AVATAR_OPTIONS.map((em) => (
@@ -338,7 +341,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
                 className="w-full py-4 rounded-2xl btn-mandarino font-black text-base tracking-wide flex items-center justify-center gap-2 shadow-md shadow-mandarino/25 transition cursor-pointer active:scale-95"
               >
                 <Zap className="w-5 h-5 fill-current" />
-                <span>{isJoining ? 'Connessione...' : 'Entra nel Quiz!'}</span>
+                <span>{isJoining ? p.connecting : p.enter}</span>
               </button>
             </form>
           </div>
@@ -346,7 +349,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
         {/* Footer info */}
         <div className="text-center py-2 text-[11px] text-muted">
-          Qurioso • Connessione HTTP/WebSocket Diretta
+          {p.footer}
         </div>
       </div>
     );
@@ -363,7 +366,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
           </div>
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-soft border border-line text-xs font-bold text-petrolio">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Connesso</span>
+            <span>{p.connected}</span>
           </div>
         </div>
 
@@ -373,22 +376,22 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
               {avatar}
             </div>
             <div className="absolute -bottom-2 -right-2 px-3 py-1 rounded-full bg-mandarino text-ink text-[11px] font-black uppercase tracking-wider shadow-md">
-              Pronto!
+              {p.ready}
             </div>
           </div>
 
           <h2 className="text-3xl font-black text-ink mb-2">{nickname}</h2>
           <div className="inline-block px-4 py-1.5 rounded-full bg-petrolio/40 border border-line text-petrolio text-xs font-bold mb-4">
-            Stanza PIN: {pin}
+            {fill(p.roomPin, { pin })}
           </div>
 
           <div className="p-4 rounded-2xl bg-white border border-line max-w-xs text-xs text-muted leading-relaxed">
-            Sei nella lobby di gioco! Guarda lo schermo del presentatore: il quiz inizierà tra poco.
+            {p.inLobby}
           </div>
         </div>
 
         <div className="text-center text-[11px] text-muted">
-          Rimani su questa schermata per rispondere alle domande
+          {p.stayHere}
           {leaveControl}
         </div>
       </div>
@@ -400,12 +403,12 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
     return (
       <div className="min-h-screen bg-qurioso-canvas text-ink flex flex-col items-center justify-center p-6 text-center select-none">
         <span className="text-xs uppercase font-black tracking-widest text-accent-ink mb-4">
-          Teniti pronto!
+          {p.getReady}
         </span>
         <div className="w-32 h-32 rounded-full bg-surface-soft border-4 border-mandarino flex items-center justify-center text-ink text-5xl font-black shadow-lg animate-pulse">
           ⚡
         </div>
-        <p className="text-sm font-bold text-ink mt-6">La domanda sta arrivando sul tuo telefono...</p>
+        <p className="text-sm font-bold text-ink mt-6">{p.questionComing}</p>
         {leaveControl}
       </div>
     );
@@ -414,8 +417,8 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
   if (session?.status === 'video') {
     return <div className="min-h-screen bg-qurioso-canvas text-ink flex flex-col items-center justify-center p-6 text-center">
       <span className="text-4xl mb-4">🎬</span>
-      <h2 className="text-2xl font-black text-petrolio">Guarda il video sullo schermo del docente</h2>
-      <p role="status" className="mt-4 text-muted">La prossima domanda apparirà qui. Non chiudere questa pagina.</p>
+      <h2 className="text-2xl font-black text-petrolio">{p.watchVideo}</h2>
+      <p role="status" className="mt-4 text-muted">{p.nextHere}</p>
       <p className="mt-6 font-bold">{nickname} · {myPlayer?.score ?? 0} pt</p>
       {leaveControl}
     </div>;
@@ -434,7 +437,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1 text-xs font-bold text-muted">
-              <span>Domanda {currentQIndex + 1}</span>
+              <span>{fill(p.questionN, { n: currentQIndex + 1 })}</span>
             </div>
             <div className="px-3 py-1 rounded-xl bg-surface-soft border border-line font-mono font-black text-sm text-accent-ink">
               {myPlayer?.score ?? 0} pt
@@ -448,9 +451,9 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
             <div className="w-16 h-16 rounded-2xl bg-petrolio border-2 border-mandarino flex items-center justify-center mb-4 shadow-lg animate-pulse">
               <CheckCircle className="w-8 h-8 text-white" />
             </div>
-            <h3 className="text-2xl font-black text-ink mb-2">Risposta Inviata!</h3>
+            <h3 className="text-2xl font-black text-ink mb-2">{p.answerSent}</h3>
             <p className="player-confirmation-detail text-xs text-muted max-w-xs">
-              Hai risposto con successo. Attendi che scada il tempo sullo schermo principale per scoprire se è corretta!
+              {p.answeredWait}
             </p>
           </div>
         ) : (
@@ -458,12 +461,12 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
             <div className="player-question-prompt text-center mb-2">
               <p className="player-look-at-teacher hidden text-sm font-bold text-petrolio">{gameText.lookAtTeacher}</p>
               <span className="player-question-text block text-sm font-bold [overflow-wrap:anywhere] text-accent-ink">
-                {session.currentQuestion?.text || 'Scegli la risposta:'}
+                {session.currentQuestion?.text || p.chooseAnswer}
               </span>
             </div>
 
             {answerError && <p role="alert" className="text-sm text-rose-700">{answerError}</p>}
-            {isSubmitting && <p role="status" className="text-sm text-petrolio">Invio della risposta…</p>}
+            {isSubmitting && <p role="status" className="text-sm text-petrolio">{p.sending}</p>}
             <div data-answer-count={session.currentQuestion?.options.length} className="player-answer-grid grid grid-cols-2 gap-3 w-full">
               {session.currentQuestion?.options.map((option, idx) => {
                 const colorStyle = OPTION_COLORS[option.color];
@@ -491,7 +494,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
         {/* Bottom bar */}
         <div className="player-question-footer pt-2 text-center text-[11px] text-muted">
-          <span>Qurioso Live Multi-device</span>
+          <span>{p.liveBadge}</span>
           {leaveControl}
         </div>
       </div>
@@ -523,28 +526,28 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
           </div>
 
           <h2 className="text-3xl font-black text-ink mb-2">
-            {isCorrect ? 'Risposta Esatta!' : 'Ops, Non Esatta!'}
+            {isCorrect ? p.correct : p.wrong}
           </h2>
 
           {session?.questionResult && <div className="max-w-sm text-sm text-petrolio mt-3" role="status">
-            <p>Risposta corretta: {session.currentQuestion?.options.filter(o => session.questionResult!.correctOptionIds.includes(o.id)).map(o => o.text).join(', ')}</p>
+            <p>{fill(p.correctAnswerIs, { answer: session.currentQuestion?.options.filter(o => session.questionResult!.correctOptionIds.includes(o.id)).map(o => o.text).join(', ') ?? '' })}</p>
             {session.questionResult.explanation && <p className="mt-2">{session.questionResult.explanation}</p>}
           </div>}
 
           {isCorrect && myPlayer?.streak && myPlayer.streak > 1 ? (
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-mandarino/20 border border-mandarino/40 text-accent-ink text-xs font-bold mb-4">
               <Flame className="w-4 h-4 fill-mandarino" />
-              <span>Serie attiva: {myPlayer.streak} di fila!</span>
+              <span>{fill(p.streak, { n: myPlayer.streak })}</span>
             </div>
           ) : null}
 
           <div className="p-4 rounded-2xl bg-white border border-line max-w-xs text-xs text-muted mt-2">
-            Guarda la classifica sullo schermo del presentatore!
+            {p.watchRanking}
           </div>
         </div>
 
         <div className="text-center text-[11px] text-muted">
-          In attesa della prossima domanda...
+          {p.waitingNext}
           {leaveControl}
         </div>
       </div>

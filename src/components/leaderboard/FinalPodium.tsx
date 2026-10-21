@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti';
 import { Trophy, Medal, Download, ArrowLeft, RotateCcw, Check, Sparkles, Clock, Flame } from 'lucide-react';
 import { Player, Question } from '../../types/quiz';
 import { sounds } from '../../services/soundEffects';
+import { lobbyTranslations } from '../../i18n/lobby';
 import { useLanguage } from '../../context/LanguageContext';
 import { QuriosoIcon } from '../common/QuriosoLogo';
 
@@ -23,7 +24,8 @@ export const FinalPodium: React.FC<FinalPodiumProps> = ({
   onRestart,
   onExit,
 }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const lobby = lobbyTranslations[language];
   const playerList: Player[] = Array.isArray(players) ? players : Object.values(players);
 
   // Sort players descending by score
@@ -59,7 +61,7 @@ export const FinalPodium: React.FC<FinalPodiumProps> = ({
   }, []);
 
   const exportToCSV = () => {
-    const headers = ['Posizione', 'Nome Giocatore', 'Punteggio Totale', 'Risposte Corrette', 'Precisione %', 'Tempo Totale (s)'];
+    const headers = lobby.csvHeaders.split('|');
     const rows = sortedPlayers.map((p, idx) => {
       const correct = p.correctAnswersCount || 0;
       const totalTime = p.totalTimeTakenMs || 0;
@@ -77,7 +79,7 @@ export const FinalPodium: React.FC<FinalPodiumProps> = ({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `classifica_${quizTitle.toLowerCase().replace(/\s+/g, '_')}.csv`);
+    link.setAttribute('download', `${lobby.exportFile}_${quizTitle.toLowerCase().replace(/\s+/g, '_')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -105,7 +107,7 @@ export const FinalPodium: React.FC<FinalPodiumProps> = ({
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportData, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `classifica_${quizTitle.toLowerCase().replace(/\s+/g, '_')}.json`);
+    downloadAnchor.setAttribute('download', `${lobby.exportFile}_${quizTitle.toLowerCase().replace(/\s+/g, '_')}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();

@@ -1,4 +1,5 @@
 import type { ImageAttribution } from '../types/quiz';
+import { serviceText } from '../i18n/serviceMessages';
 
 export interface CommonsImage {
   id: number;
@@ -7,8 +8,8 @@ export interface CommonsImage {
 }
 
 export function imageFileError(file: Pick<File, 'type' | 'size'>): string | null {
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return 'Scegli un’immagine JPG, PNG o WebP.';
-  if (file.size > 15 * 1024 * 1024) return 'L’immagine è troppo grande. Il limite è 15 MB.';
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return serviceText('imageKind');
+  if (file.size > 15 * 1024 * 1024) return serviceText('imageTooLarge');
   return null;
 }
 
@@ -16,7 +17,7 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error('Impossibile leggere l’immagine.'));
+    reader.onerror = () => reject(new Error(serviceText('imageRead')));
     reader.readAsDataURL(blob);
   });
 }
@@ -29,7 +30,7 @@ export async function importImage(file: File): Promise<string> {
   const image = new Image();
   await new Promise<void>((resolve, reject) => {
     image.onload = () => resolve();
-    image.onerror = () => reject(new Error('Il file non contiene un’immagine leggibile.'));
+    image.onerror = () => reject(new Error(serviceText('imageUnreadable')));
     image.src = original;
   });
   const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
@@ -38,10 +39,10 @@ export async function importImage(file: File): Promise<string> {
   canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
   canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
   const context = canvas.getContext('2d');
-  if (!context) throw new Error('Impossibile preparare l’immagine.');
+  if (!context) throw new Error(serviceText('imagePrepare'));
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
   const data = canvas.toDataURL('image/webp', 0.85);
-  if (data.length > 3 * 1024 * 1024) throw new Error('L’immagine resta troppo pesante. Scegli un file più piccolo.');
+  if (data.length > 3 * 1024 * 1024) throw new Error(serviceText('imageStillLarge'));
   return data;
 }
 
@@ -83,15 +84,15 @@ export async function searchCommons(query: string, signal: AbortSignal): Promise
     iiextmetadatafilter: 'Artist|Credit|Attribution|LicenseShortName|LicenseUrl|UsageTerms',
   });
   const response = await fetch(`https://commons.wikimedia.org/w/api.php?${params}`, { signal });
-  if (!response.ok) throw new Error('Ricerca non disponibile. Controlla la connessione e riprova.');
+  if (!response.ok) throw new Error(serviceText('searchOffline'));
   const data = await response.json();
-  if (data.error) throw new Error('La ricerca non è riuscita. Prova con altre parole.');
+  if (data.error) throw new Error(serviceText('searchFailed'));
   return parseCommonsImages(data);
 }
 
 export async function importCommonsImage(image: CommonsImage, signal: AbortSignal): Promise<string> {
   const response = await fetch(image.url, { signal });
-  if (!response.ok) throw new Error('Immagine non scaricabile. Prova un altro risultato.');
+  if (!response.ok) throw new Error(serviceText('imageDownload'));
   const blob = await response.blob();
   const error = imageFileError(blob);
   if (error) throw new Error(error);

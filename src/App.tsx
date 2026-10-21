@@ -39,6 +39,7 @@ import { isPublicWebsite } from './services/appEnvironment';
 import { settingsTranslations } from './i18n/settings';
 import { SettingsScreen } from './components/settings/SettingsScreen';
 import { workspaceTranslations } from './i18n/workspace';
+import { lobbyTranslations, presenterRecoveryText } from './i18n/lobby';
 import { withOfficialQuizzes, OFFICIAL_QUIZZES } from './services/officialQuizzes';
 
 export default function App({ classroomOnly = false }: { classroomOnly?: boolean }) {
@@ -158,7 +159,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
       title: withVideo ? workspace.newVideoQuizTitle : t.untitledQuiz,
       description: withVideo ? workspace.newVideoQuizDescription : workspace.newQuizDescription,
       videoConfig: withVideo ? { videoUrl: '', videoTitle: '', videoType: 'html5', pauseMode: 'defined', checkpointMode: 'explicit', checkpoints: [] } : undefined,
-      category: 'Generale',
+      category: workspace.defaultCategory,
       ...DEFAULT_QUIZ_COVER,
       author: 'Maurizio Napolitano',
       createdAt: Date.now(),
@@ -170,17 +171,15 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
       questions: [
         {
           id: `q-${Date.now()}-1`,
-          text: 'Qual è la capitale d\'Italia?',
+          text: workspace.demoQuestion,
           type: 'multiple_choice',
           timeLimit: 20,
           points: 1000,
-          explanation: 'Roma è la capitale della Repubblica Italiana.',
-          options: [
-            { id: 'opt-1', text: 'Roma', isCorrect: true, color: 'red', shape: 'triangle' },
-            { id: 'opt-2', text: 'Milano', isCorrect: false, color: 'blue', shape: 'diamond' },
-            { id: 'opt-3', text: 'Napoli', isCorrect: false, color: 'yellow', shape: 'circle' },
-            { id: 'opt-4', text: 'Torino', isCorrect: false, color: 'green', shape: 'square' },
-          ],
+          explanation: workspace.demoExplanation,
+          options: workspace.demoOptions.split('|').map((text, index) => ({
+            id: `opt-${index + 1}`, text, isCorrect: index === 0,
+            color: (['red', 'blue', 'yellow', 'green'] as const)[index], shape: (['triangle', 'diamond', 'circle', 'square'] as const)[index],
+          })),
         },
       ],
     };
@@ -193,7 +192,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
     const duplicated: Quiz = {
       ...JSON.parse(JSON.stringify(quiz)),
       id: `quiz-${Date.now()}`,
-      title: `${quiz.title} (Copia)`,
+      title: `${quiz.title} ${workspace.copySuffix}`,
       createdAt: Date.now(),
     };
     saveQuizzes([duplicated, ...quizzes]).catch(error => setStorageError(error.message));
@@ -293,7 +292,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
   // The library and its cards are shared; only the surrounding frame depends on the environment.
   const alerts = <>
         {recoveryProblem && <div role="alert" className="rounded-xl border border-line bg-white p-4 text-petrolio">
-          <p>{recoveryProblem.message}</p>
+          <p>{presenterRecoveryText(lobbyTranslations[language], recoveryProblem.status) || recoveryProblem.message}</p>
           {['unavailable', 'context_missing'].includes(recoveryProblem.status) && <div className="flex gap-3 mt-3">
             <button className="btn-mandarino rounded-xl px-4 py-2" onClick={() => void recoverHost()}>{labels.retryRecovery}</button>
             <button className="underline" onClick={async () => { await gameSync.endRecoverableSession(); setRecoveryProblem(undefined); }}>{labels.endRecovery}</button>

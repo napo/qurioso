@@ -46,15 +46,15 @@ test('timeline model preserves legacy timestamps, explicit unassigned questions,
   assert.deepEqual(quizCheckpoints(changed).slice(0, 2).map(cp => cp.questionId), original.questions.slice(0, 2).map(q => q.id));
   changed = setQuestionCheckpoint(changed, original.questions[0].id, 13);
   assert.equal(quizCheckpoints(changed).filter(cp => cp.questionId === original.questions[0].id).length, 1);
-  assert.throws(() => setQuestionCheckpoint(changed, 'missing', 3), /non esiste/);
+  assert.throws(() => setQuestionCheckpoint(changed, 'missing', 3), /does not exist/);
   for (const timestamp of [-1, NaN, Infinity]) assert.throws(() => setQuestionCheckpoint(changed, original.questions[0].id, timestamp));
   assert.equal(checkpointProblems(changed, 10).length, 1);
-  assert.throws(() => prepareVideoQuiz(changed, 10), /durata/);
+  assert.throws(() => prepareVideoQuiz(changed, 10), /end of the video/);
   assert.doesNotThrow(() => prepareVideoQuiz(changed));
   const invalid = structuredClone(changed); invalid.videoConfig!.checkpoints.push({ questionId: 'missing', timestamp: 3 });
-  assert.throws(() => prepareVideoQuiz(editableVideoQuiz(invalid)), /inesistente/);
+  assert.throws(() => prepareVideoQuiz(editableVideoQuiz(invalid)), /question that does not exist/);
   const duplicate = structuredClone(changed); duplicate.videoConfig!.checkpoints.push(duplicate.videoConfig!.checkpoints[0]);
-  assert.throws(() => prepareVideoQuiz(duplicate), /più checkpoint/);
+  assert.throws(() => prepareVideoQuiz(duplicate), /several checkpoints/);
   assert.equal(formatVideoTime(parseVideoTime('01:02:03.5')), '1:02:03.5');
   assert.equal(parseVideoTime('125:12'), 7512);
   for (const text of ['', '-1:00', 'abc', '00:60', '1:61:00', '1.2:03']) assert.throws(() => parseVideoTime(text));
@@ -78,7 +78,12 @@ test('video asset identity, MIME and bytes survive question/timeline edits, draf
   assert.equal(await editorDraft('read'), undefined, 'late draft writes cannot resurrect a discarded draft');
   const orphan = await storeVideo(new Blob(['unused'], { type: 'video/mp4' }));
   assert.equal((await inspectVideoAssets()).find(asset => asset.id === orphan)!.referenced, false);
-  assert.equal(formatAssetSize(12), '12 B'); assert.equal(formatAssetSize(1500), '1,5 KB'); assert.equal(formatAssetSize(1_500_000), '1,5 MB'); assert.equal(formatAssetSize(1_500_000_000), '1,5 GB');
+  // Sizes follow the interface language (<html lang>), with English as the default.
+  assert.equal(formatAssetSize(12), '12 B'); assert.equal(formatAssetSize(1500), '1.5 KB'); assert.equal(formatAssetSize(1_500_000), '1.5 MB'); assert.equal(formatAssetSize(1_500_000_000), '1.5 GB');
+  const documentDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'document');
+  Object.defineProperty(globalThis, 'document', { value: { documentElement: { lang: 'it' } }, configurable: true, writable: true });
+  try { assert.equal(formatAssetSize(1500), '1,5 KB'); assert.equal(formatAssetSize(1_500_000_000), '1,5 GB'); }
+  finally { if (documentDescriptor) Object.defineProperty(globalThis, 'document', documentDescriptor); else Reflect.deleteProperty(globalThis, 'document'); }
 });
 
 test('real editor captures a timestamp, creates/associates/edits/removes checkpoints, previews ties and restores a draft', { timeout: 15000 }, async t => {

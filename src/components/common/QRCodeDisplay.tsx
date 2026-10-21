@@ -4,6 +4,8 @@ import { Copy, Check, ExternalLink, Wifi, Globe, Smartphone } from 'lucide-react
 import { getJoinBaseUrl, isLoopbackOrigin } from '../../utils/connectionUrl';
 import { gameSync, ServerInfo } from '../../services/gameSync';
 import { copyText } from '../../utils/clipboard';
+import { useLanguage } from '../../context/LanguageContext';
+import { lobbyTranslations } from '../../i18n/lobby';
 
 interface QRCodeDisplayProps {
   pin: string;
@@ -20,6 +22,7 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
   showDetails = true,
   baseUrl: suppliedBaseUrl,
 }) => {
+  const { t, language } = useLanguage(), lobby = lobbyTranslations[language];
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [copied, setCopied] = useState(false);
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
@@ -86,10 +89,10 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
                 ? 'bg-petrolio text-white shadow-sm'
                 : 'text-muted hover:text-muted'
             }`}
-            title="Usa URL del browser / Cloud"
+            title={lobby.useBrowserUrl}
           >
             <Globe className="w-3 h-3" />
-            <span>Web / Cloud</span>
+            <span>{lobby.webCloud}</span>
           </button>}
           <button
             onClick={() => setSelectedHostType('lan')}
@@ -98,25 +101,25 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
                 ? 'bg-mandarino text-ink shadow-sm'
                 : 'text-muted hover:text-muted'
             }`}
-            title="Usa indirizzo IP locale per Wi-Fi (stessa rete dei telefoni)"
+            title={lobby.useLanIp}
           >
             <Wifi className="w-3 h-3" />
-            <span>Wi-Fi Locale</span>
+            <span>{lobby.localWifi}</span>
           </button>
         </div>
       )}
 
-      {desktop && serverInfo && !serverInfo.localIps.length && <p role="status" className="text-sm text-petrolio">Collega il computer a una rete LAN o Wi-Fi per far partecipare gli studenti.</p>}
+      {desktop && serverInfo && !serverInfo.localIps.length && <p role="status" className="text-sm text-petrolio">{lobby.connectForStudents}</p>}
       {/* QR Canvas */}
       <div className="relative p-1 bg-white rounded-xl shadow-inner border border-line">
-        <canvas ref={canvasRef} aria-label="QR con PIN precompilato" hidden={!baseUrl || (suppliedBaseUrl === undefined && ((desktop && !serverInfo?.localIps.length) || selectedHostType === 'lan' && !serverInfo))} className="rounded-lg max-w-full h-auto block" />
+        <canvas ref={canvasRef} aria-label={lobby.qrLabel} hidden={!baseUrl || (suppliedBaseUrl === undefined && ((desktop && !serverInfo?.localIps.length) || selectedHostType === 'lan' && !serverInfo))} className="rounded-lg max-w-full h-auto block" />
       </div>
 
       {showDetails && (!desktop || Boolean(serverInfo?.localIps.length)) && (
         <div className="mt-3 w-full flex flex-col items-center text-center">
           <div className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-petrolio font-black">
             <Smartphone className="w-3.5 h-3.5 text-accent-ink" />
-            <span>Inquadra con lo smartphone</span>
+            <span>{lobby.scanPhone}</span>
           </div>
 
           <div className="text-[12px] text-muted font-semibold mt-1 truncate max-w-[240px] px-2 py-0.5 bg-surface-soft rounded-md">
@@ -127,15 +130,15 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
             <button
               onClick={copyToClipboard}
               className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 bg-surface-soft hover:bg-surface-hover text-muted text-xs font-bold rounded-lg transition active:scale-95 cursor-pointer border border-line"
-              title="Copia link diretto con PIN"
+              title={lobby.copyDirect}
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-muted" />}
-              <span>{copied ? 'Copiato!' : 'Copia Link'}</span>
+              <span>{copied ? t.copied : t.copyLink}</span>
             </button>
             <button
               onClick={openPlayerTab}
               className="flex items-center justify-center p-1.5 bg-mandarino/10 hover:bg-mandarino/20 text-accent-ink border border-mandarino/30 rounded-lg transition active:scale-95 cursor-pointer"
-              title="Apri vista giocatore in scheda di test"
+              title={lobby.openTestTab}
             >
               <ExternalLink className="w-3.5 h-3.5" />
             </button>

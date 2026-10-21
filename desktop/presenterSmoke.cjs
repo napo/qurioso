@@ -83,8 +83,11 @@ exports.run = async (host, port) => {
       const player = new BrowserWindow({ show: false, width: 1024, height: 768,
         webPreferences: { partition: `presenter-smoke-${Date.now()}-${direct}`, contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false } });
       participants.push(player);
-      await player.loadURL(direct ? `${entry.base}/?pin=${entry.pin}&role=player` : entry.base);
+      await player.loadURL(direct ? `${entry.base}/?pin=${entry.pin}&role=player&lang=it` : entry.base);
       if (!direct) {
+        // The bare base address is opened as a student types it; the Italian fixtures are then chosen like a saved user preference.
+        await execute(player, `if (location.search) throw new Error('Base entry has query parameters'); localStorage.setItem('qurioso_language', 'it');`);
+        await player.loadURL(entry.base);
         const navigated = new Promise(resolve => player.webContents.once('did-finish-load', resolve));
         await execute(player, `
           if (location.search) throw new Error('Base entry has query parameters');

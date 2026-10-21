@@ -1,4 +1,8 @@
 import type { Quiz } from '../types/quiz';
+import { serviceLanguage, serviceText } from '../i18n/serviceMessages';
+
+/** A referenced local video is no longer stored; recognised by type, since the message is localized. */
+export class MissingVideoError extends Error {}
 
 export function openLibrary(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -7,7 +11,7 @@ export function openLibrary(): Promise<IDBDatabase> {
       if (!request.result.objectStoreNames.contains('library')) request.result.createObjectStore('library');
       if (!request.result.objectStoreNames.contains('videos')) request.result.createObjectStore('videos');
     };
-    request.onerror = () => reject(new Error('Impossibile aprire l’archivio dei quiz.'));
+    request.onerror = () => reject(new Error(serviceText('libraryOpen')));
     request.onsuccess = () => resolve(request.result);
   });
 }
@@ -19,14 +23,14 @@ export async function loadQuizzes(): Promise<Quiz[] | null> {
       const transaction = database.transaction('library', 'readonly');
       const request = transaction.objectStore('library').get('quizzes');
       transaction.oncomplete = () => { database.close(); resolve(request.result); };
-      transaction.onerror = () => { database.close(); reject(new Error('Impossibile leggere i quiz salvati.')); };
+      transaction.onerror = () => { database.close(); reject(new Error(serviceText('libraryRead'))); };
     });
     if (saved) return saved;
   }
   const legacy = localStorage.getItem('qurioso_quizzes');
   if (!legacy) return null;
   const quizzes = JSON.parse(legacy);
-  if (!Array.isArray(quizzes)) throw new Error('L’archivio dei quiz non è leggibile.');
+  if (!Array.isArray(quizzes)) throw new Error(serviceText('libraryCorrupt'));
   // Keep the old copy as a migration backup.
   if (typeof indexedDB !== 'undefined') await storeQuizzes(quizzes);
   return quizzes;
@@ -35,42 +39,42 @@ export async function loadQuizzes(): Promise<Quiz[] | null> {
 export async function storeQuizzes(quizzes: Quiz[]): Promise<void> {
   if (typeof indexedDB === 'undefined') {
     try { localStorage.setItem('qurioso_quizzes', JSON.stringify(quizzes)); return; }
-    catch { throw new Error('Spazio insufficiente per salvare il quiz. Esporta il JSON prima di uscire.'); }
+    catch { throw new Error(serviceText('storageFull')); }
   }
   const database = await openLibrary();
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction('library', 'readwrite');
     transaction.objectStore('library').put(quizzes, 'quizzes');
     transaction.oncomplete = () => { database.close(); resolve(); };
-    transaction.onabort = () => { database.close(); reject(new Error('Salvataggio non riuscito: controlla lo spazio disponibile. Puoi esportare il quiz in JSON.')); };
+    transaction.onabort = () => { database.close(); reject(new Error(serviceText('saveFailed'))); };
     transaction.onerror = () => { /* onabort reports failed writes without discarding the draft. */ };
   });
 }
 
 /** Store the original video once, without base64 overhead in every quiz save. */
 export async function storeVideo(file: Blob): Promise<string> {
-  if (typeof indexedDB === 'undefined') throw new Error('L’archivio video non è disponibile in questo browser.');
+  if (typeof indexedDB === 'undefined') throw new Error(serviceText('videoStoreUnavailable'));
   const id = crypto.randomUUID?.() || Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
   const database = await openLibrary();
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction('videos', 'readwrite');
     transaction.objectStore('videos').put(file, id);
     transaction.oncomplete = () => { database.close(); resolve(); };
-    transaction.onabort = () => { database.close(); reject(new Error('Video non salvato. Controlla lo spazio disponibile.')); };
+    transaction.onabort = () => { database.close(); reject(new Error(serviceText('videoNotSaved'))); };
   });
   return id;
 }
 
 export async function loadVideo(id: string): Promise<Blob> {
-  if (typeof indexedDB === 'undefined') throw new Error('L’archivio video non è disponibile.');
+  if (typeof indexedDB === 'undefined') throw new Error(serviceText('videoStoreMissing'));
   const database = await openLibrary();
   const file = await new Promise<Blob | undefined>((resolve, reject) => {
     const transaction = database.transaction('videos', 'readonly');
     const request = transaction.objectStore('videos').get(id);
     transaction.oncomplete = () => { database.close(); resolve(request.result); };
-    transaction.onerror = () => { database.close(); reject(new Error('Impossibile leggere il video.')); };
+    transaction.onerror = () => { database.close(); reject(new Error(serviceText('videoRead'))); };
   });
-  if (!file) throw new Error('Video locale non trovato. Riapri l’editor e seleziona di nuovo il file.');
+  if (!file) throw new MissingVideoError(serviceText('videoMissing'));
   return file;
 }
 
@@ -84,7 +88,7 @@ export function formatAssetSize(bytes: number): string {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   let value = bytes, index = 0;
   while (value >= 1000 && index < units.length - 1) { value /= 1000; index++; }
-  return `${new Intl.NumberFormat('it-IT', { maximumFractionDigits: index ? 1 : 0 }).format(value)} ${units[index]}`;
+  return `${new Intl.NumberFormat({ it: 'it-IT', en: 'en-GB', de: 'de-DE' }[serviceLanguage()], { maximumFractionDigits: index ? 1 : 0 }).format(value)} ${units[index]}`;
 }
 
 /** Audit only: never delete assets that an open editor or a running session may need. */
@@ -109,7 +113,7 @@ export async function inspectVideoAssets(): Promise<(VideoAssetInfo & { referenc
       }
       resolve(assets.map(asset => ({ ...asset, referenced: used.has(asset.id) })));
     };
-    tx.onabort = () => { database.close(); reject(new Error('Impossibile verificare l’archivio video.')); };
+    tx.onabort = () => { database.close(); reject(new Error(serviceText('videoStoreCheck'))); };
   });
 }
 
@@ -124,7 +128,7 @@ export function editorDraft(action: 'read' | 'write' | 'delete', quiz?: Quiz): P
       const store = tx.objectStore('library'), key = 'editor:draft';
       const request = action === 'read' ? store.get(key) : action === 'delete' ? store.delete(key) : store.put({ quiz, updatedAt: Date.now() }, key);
       tx.oncomplete = () => { database.close(); resolve(action === 'read' ? request.result : undefined); };
-      tx.onabort = () => { database.close(); reject(new Error('Bozza non salvata. Mantieni aperta la pagina oppure esporta il quiz.')); };
+      tx.onabort = () => { database.close(); reject(new Error(serviceText('draftNotSaved'))); };
     });
   });
   draftQueue = operation;
@@ -139,7 +143,7 @@ export async function presenterQuiz(pin: string, action: 'read' | 'write' | 'del
     const store = transaction.objectStore('library'), key = `presenter:${pin}`;
     const request = action === 'read' ? store.get(key) : action === 'delete' ? store.delete(key) : store.put(quiz, key);
     transaction.oncomplete = () => { database.close(); resolve(action === 'read' ? request.result : undefined); };
-    transaction.onabort = () => { database.close(); reject(new Error('Archivio di recupero del presentatore non disponibile.')); };
+    transaction.onabort = () => { database.close(); reject(new Error(serviceText('presenterStore'))); };
   });
 }
 

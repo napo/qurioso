@@ -1,6 +1,6 @@
 import { BlobReader, BlobWriter, TextReader, ZipReader, ZipWriter, type FileEntry } from '@zip.js/zip.js';
 import type { Quiz, ImageAttribution } from '../types/quiz';
-import { commitLibraryRestore, inspectVideoAssets, readLibrarySnapshot, loadVideo } from './quizStorage';
+import { commitLibraryRestore, inspectVideoAssets, readLibrarySnapshot, loadVideo, MissingVideoError } from './quizStorage';
 import { blobToDataUrl } from './images';
 import packageInfo from '../../package.json';
 
@@ -114,7 +114,7 @@ export async function planBackup(quizzes: Quiz[], language?: 'it'|'en'|'de'): Pr
         id = uid(); videos.set(originalId,id);
         let blob: Blob | undefined;
         try { blob = await loadVideo(originalId); } catch(error) {
-          if(!(error instanceof Error) || !error.message.startsWith('Video locale non trovato.')) throw error;
+          if(!(error instanceof MissingVideoError)) throw error;
           // A genuinely missing reference remains explicit and relinkable.
         }
         manifest.assets.push({ id, kind:'video', name:v.videoFileName || v.missingVideo?.name || (blob && 'name' in blob ? String(blob.name) : undefined), size:blob?.size ?? v.missingVideo?.size ?? 0, sizeKnown:blob ? true : v.missingVideo ? v.missingVideo.sizeKnown !== false : false, mime:blob?.type || v.missingVideo?.mime || '', included:!!blob });

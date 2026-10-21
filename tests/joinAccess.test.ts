@@ -14,7 +14,7 @@ test('LAN address choices exclude loopback and retain every interface with the a
 });
 
 test('selected interface drives base-address copying and QR PIN; HTTP clipboard has a fallback', async t => {
-  const dom = new JSDOM('<div id="app"></div>', { url: 'http://localhost:52317' });
+  const dom = new JSDOM('<div id="app"></div>', { url: 'http://localhost:52317/?lang=it' });
   const saved = new Map<string, PropertyDescriptor | undefined>();
   const info = { port: 52317, localIps: ['192.168.1.25', '10.0.0.4'] };
   for (const [key, value] of Object.entries({ window: dom.window, document: dom.window.document, navigator: dom.window.navigator,
@@ -26,6 +26,7 @@ test('selected interface drives base-address copying and QR PIN; HTTP clipboard 
   const { createRoot } = await import('react-dom/client');
   const { JoinInstructions } = await import('../src/components/common/JoinInstructions');
   const { QRCodeDisplay } = await import('../src/components/common/QRCodeDisplay');
+  const { LanguageProvider } = await import('../src/context/LanguageContext');
   const root = createRoot(document.getElementById('app')!);
   t.after(async () => { await act(async () => root.unmount()); QRCode.toCanvas = originalCanvas; dom.window.close();
     for (const [key, value] of saved) { if (value) Object.defineProperty(globalThis, key, value); else Reflect.deleteProperty(globalThis, key); }
@@ -40,7 +41,7 @@ test('selected interface drives base-address copying and QR PIN; HTTP clipboard 
   Object.defineProperty(document, 'execCommand', { configurable: true, value: (command: string) => {
     assert.equal(command, 'copy'); copied = document.querySelector('textarea')!.value; return true;
   } });
-  await act(async () => root.render(React.createElement(Lobby)));
+  await act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(Lobby))));
   assert.equal(qrPayloads.at(-1), 'http://192.168.1.25:52317/?pin=123456&role=player');
   const select = document.querySelector('select')!;
   await act(async () => { select.value = 'http://10.0.0.4:52317'; select.dispatchEvent(new dom.window.Event('change', { bubbles: true })); });

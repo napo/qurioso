@@ -40,6 +40,8 @@ import { useLanguage } from '../../context/LanguageContext';
 import { QuriosoIcon, BRAND_COLORS } from '../common/QuriosoLogo';
 import { useInternetSharing } from './useInternetSharing';
 import { InternetSharingPanel } from './InternetSharingPanel';
+import { lobbyTranslations } from '../../i18n/lobby';
+import { fill } from '../../i18n/format';
 import { gameExperienceTranslations } from '../../i18n/gameExperience';
 import { sharingTranslations } from '../../i18n/internetSharing';
 
@@ -63,6 +65,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
   const lastVideoPublish = useRef(0);
   const writeVersion = useRef(0);
   const { t, language } = useLanguage();
+  const lobby = lobbyTranslations[language];
   // Session initialization
   const [pin] = useState<string>(() => recoveredSession?.pin || gameSync.generatePin());
   const [status, setStatus] = useState<GameSession['status']>(recoveredSession?.status || 'lobby');
@@ -128,9 +131,9 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
         setCurrentQuestionIndex(recovered.currentQuestionIndex); setQuestionStartTime(recovered.questionStartTime);
         setCurrentAnswers(recovered.answersForCurrentQuestion);
       }
-      setSyncError('Sessione non sincronizzata. Controlla la connessione e riprova.');
+      setSyncError(lobby.syncError);
     } else if (accepted) setSyncError('');
-    if (accepted && !gameSync.canRecoverPresenter(pin)) setRecoveryWarning('Le impostazioni di questo browser impediscono il recupero dopo refresh. Mantieni aperta questa pagina.');
+    if (accepted && !gameSync.canRecoverPresenter(pin)) setRecoveryWarning(lobby.recoveryBlocked);
     return accepted;
   };
 
@@ -397,7 +400,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                 {quiz.title}
               </span>
               <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-surface-soft text-petrolio border border-line">
-                {status === 'lobby' ? (isVideo ? 'Quiz video in rete · Lobby' : 'Quiz classico in rete · Lobby') : `${status === 'video' ? 'Video · ' : ''}${currentQuestionIndex + 1} / ${totalQuestions}`}
+                {status === 'lobby' ? (isVideo ? lobby.lobbyVideo : lobby.lobbyClassic) : `${status === 'video' ? lobby.videoPrefix : ''}${currentQuestionIndex + 1} / ${totalQuestions}`}
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs text-muted">
@@ -408,7 +411,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
               <span>•</span>
               <span className="flex items-center gap-1">
                 <Wifi className="w-3.5 h-3.5 text-emerald-700" />
-                <span className="text-emerald-700 font-medium">Server HTTP/WS Attivo</span>
+                <span className="text-emerald-700 font-medium">{lobby.serverActive}</span>
               </span>
             </div>
           </div>
@@ -458,7 +461,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
 
       {/* Main Stage View */}
       <main className="host-stage flex-1 flex flex-col items-center p-3 relative">
-        {recoveredSession && <p role="status" className="text-petrolio mb-4">Sessione recuperata · PIN {pin}. {isVideo ? 'Il video è in pausa: riprendi quando sei pronto.' : 'La partita continua dalla fase salvata sul server.'}</p>}
+        {recoveredSession && <p role="status" className="text-petrolio mb-4">{fill(lobby.recovered, { pin })} {isVideo ? lobby.recoveredVideo : lobby.recoveredGame}</p>}
         {recoveryWarning && <p role="status" className="text-muted mb-4">{recoveryWarning}</p>}
         {fullscreenError && <p role="status" className="text-petrolio">{gameExperienceTranslations[language].fullError}</p>}
         {syncError && <p role="alert" className="text-rose-700 mb-4">{syncError}</p>}
@@ -466,7 +469,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
           <HostVideoPlayer ref={videoControls} language={language} onToggleFullscreen={toggleFullscreen} isFullscreen={isFullscreen} quiz={quiz} status={status} openedQuestions={videoQuestionsOpened} initialPlayback={recoveredSession?.videoState} onReady={setVideoReady}
             onCheckpoint={handleStartQuestion} onFinish={async () => { if (!await settleCurrentRound()) return false; return handleFinishQuiz(); }}
             onSourceChange={async selection => {
-              if (!await gameSync.savePresenterVideoSource(pin, selection)) setRecoveryWarning('La nuova sorgente non è stata salvata per il recupero. Dopo un refresh potrebbe essere necessario selezionarla di nuovo.');
+              if (!await gameSync.savePresenterVideoSource(pin, selection)) setRecoveryWarning(lobby.sourceNotSaved);
               await broadcastCurrentSession({ videoState: { currentTime: 0, isPlaying: false, ended: false, activeCheckpointIndex: sessionRef.current.currentQuestionIndex } });
             }}
             onPlayback={(currentTime, isPlaying, ended = false, force = false) => {
@@ -499,25 +502,25 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                     }`}
                   >
                     <Play className="w-5 h-5 fill-current" />
-                    <span>{isVideo ? 'Inizia il quiz video!' : 'Inizia il Quiz!'}</span>
+                    <span>{isVideo ? lobby.startVideo : lobby.start}</span>
                   </button>
 
                   <button
                     onClick={handleAddBot}
                     className="btn-petrolio px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 transition cursor-pointer"
-                    title="Aggiungi partecipanti simulati per testare subito l'esperienza"
+                    title={lobby.botsTitle}
                   >
                     <Bot className="w-4 h-4 text-accent-ink" />
-                    <span>+ Aggiungi Bot di Test</span>
+                    <span>{lobby.addBots}</span>
                   </button>
                 </div>
               </div>
 
               {/* QR Code Presentation */}
               <div className="host-lobby-qr flex flex-col items-center justify-center gap-2">
-                <p className="font-bold text-petrolio">Oppure inquadra il QR</p>
+                <p className="font-bold text-petrolio">{lobby.orScan}</p>
                 <QRCodeDisplay pin={pin} baseUrl={joinAddress} size={190} showDetails={false} />
-                <p className="text-sm text-muted">PIN già compilato</p>
+                <p className="text-sm text-muted">{lobby.pinFilled}</p>
               </div>
             </div>
 
@@ -527,12 +530,12 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                 <div className="flex items-center gap-2">
                   <Users className="w-5 h-5 text-accent-ink" />
                   <h3 className="font-bold text-ink text-base">
-                    Partecipanti nella Lobby ({playerCount})
+                    {fill(lobby.lobbyPlayers, { count: playerCount })}
                   </h3>
                 </div>
                 {playerCount === 0 && (
                   <span className="text-xs text-muted animate-pulse">
-                    In attesa dei partecipanti…
+                    {lobby.waitingPlayers}
                   </span>
                 )}
               </div>
@@ -542,7 +545,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                   <div className="hidden">
                     <Smartphone className="w-8 h-8 text-accent-ink animate-bounce" />
                   </div>
-                  <p className="font-semibold text-ink">Nessun giocatore ancora connesso</p>
+                  <p className="font-semibold text-ink">{lobby.noPlayers}</p>
                   <p className="text-xs text-muted mt-1 max-w-sm">
                     {accessHelp}
                   </p>
@@ -564,12 +567,12 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
           </div>
         )}
 
-        {recoveredSession && status === 'countdown' && <button className="btn-mandarino rounded-xl px-6 py-3" onClick={handleStartCountdown}>Riprendi avvio del quiz</button>}
+        {recoveredSession && status === 'countdown' && <button className="btn-mandarino rounded-xl px-6 py-3" onClick={handleStartCountdown}>{lobby.resumeStart}</button>}
         {/* COUNTDOWN VIEW */}
         {status === 'countdown' && (
           <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
             <span className="text-sm font-black uppercase tracking-widest text-accent-ink mb-4">
-              Preparati! Il quiz sta per iniziare...
+              {lobby.getReady}
             </span>
             <div className="w-48 h-48 rounded-full bg-petrolio/30 border-4 border-mandarino flex items-center justify-center shadow-lg shadow-mandarino/30 animate-pulse">
               <span className="font-mono font-black text-8xl text-ink">
@@ -586,7 +589,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
             <div className="host-question-heading bg-white border border-line rounded-2xl p-4 shadow-lg flex flex-col md:flex-row items-center justify-between gap-3">
               <div className="flex-1">
                 <span className="text-xs uppercase font-extrabold text-accent-ink tracking-wider mb-2 block">
-                  Domanda {currentQuestionIndex + 1} di {totalQuestions}
+                  {fill(lobby.questionOfTotal, { n: currentQuestionIndex + 1, total: totalQuestions })}
                 </span>
                 <h2 className="text-2xl md:text-3xl font-black text-ink leading-snug">
                   {currentQuestion.text}
@@ -603,7 +606,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                   }`}
                 >
                   <span className="font-mono font-black text-4xl">{timeRemaining}</span>
-                  <span className="text-[10px] uppercase font-bold text-muted">sec</span>
+                  <span className="text-[10px] uppercase font-bold text-muted">{lobby.seconds}</span>
                 </div>
                 <div className="mt-2 text-xs text-muted font-semibold">
                   Risposte: <strong className="text-ink">{answersCount}</strong> / {playerCount}
@@ -651,7 +654,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-soft hover:bg-surface-hover text-xs font-bold text-muted hover:text-ink border border-line transition cursor-pointer"
               >
                 <SkipForward className="w-4 h-4 text-accent-ink" />
-                <span>Chiudi tempo e mostra risposte</span>
+                <span>{lobby.closeTime}</span>
               </button>
             </div>
           </div>
@@ -662,7 +665,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
           <div className="host-results w-full max-w-4xl flex flex-col gap-3">
             <div className="bg-white border border-line rounded-3xl p-6 md:p-8 shadow-lg backdrop-blur-md">
               <span className="text-xs uppercase font-extrabold text-accent-ink tracking-wider mb-2 block">
-                Risultati Domanda {currentQuestionIndex + 1}
+                {fill(lobby.resultsN, { n: currentQuestionIndex + 1 })}
               </span>
               <h2 className="text-xl md:text-2xl font-black text-ink mb-6">
                 {currentQuestion.text}
@@ -720,7 +723,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                   onClick={handleShowLeaderboard}
                   className="btn-mandarino px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md transition cursor-pointer"
                 >
-                  <span>Classifica Parziale</span>
+                  <span>{lobby.partialRanking}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -738,7 +741,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                     <Trophy className="w-6 h-6" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black text-ink">Classifica Giocatori</h2>
+                    <h2 className="text-2xl font-black text-ink">{lobby.playersRanking}</h2>
                     <p className="text-xs text-muted">
                       Dopo la domanda {currentQuestionIndex + 1} di {totalQuestions}
                     </p>
@@ -750,7 +753,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                   className="btn-mandarino px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg transition cursor-pointer"
                 >
                   <span>
-                    {isVideo ? 'Riprendi video' : currentQuestionIndex + 1 < totalQuestions ? 'Prossima Domanda' : 'Classifica Finale'}
+                    {isVideo ? lobby.resumeVideo : currentQuestionIndex + 1 < totalQuestions ? lobby.nextQuestion : lobby.finalRanking}
                   </span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
@@ -817,9 +820,9 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
       {/* Enlarged QR Code Modal */}
       {showQRModal && (
         <div className="fixed inset-0 bg-petrolio/15 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div role="dialog" aria-modal="true" aria-label="Come partecipare" className="host-join-modal bg-white border-2 border-line rounded-3xl p-5 max-w-2xl w-full flex flex-col gap-3 shadow-lg relative">
+          <div role="dialog" aria-modal="true" aria-label={lobby.howToJoin} className="host-join-modal bg-white border-2 border-line rounded-3xl p-5 max-w-2xl w-full flex flex-col gap-3 shadow-lg relative">
             <button
-              aria-label="Chiudi istruzioni di accesso" onClick={() => setShowQRModal(false)}
+              aria-label={lobby.closeJoin} onClick={() => setShowQRModal(false)}
               className="absolute top-4 right-4 p-2 rounded-xl bg-surface-soft text-muted hover:text-ink cursor-pointer"
             >
               ✕

@@ -2,6 +2,9 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import type { ImageAttribution } from '../../types/quiz';
 import { importImage, searchCommons, importCommonsImage, type CommonsImage } from '../../services/images';
 import { ImageCredit } from './ImageCredit';
+import { editorTranslations } from '../../i18n/editor';
+import { fill } from '../../i18n/format';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface ImagePickerProps {
   label: string;
@@ -11,6 +14,7 @@ interface ImagePickerProps {
 }
 
 export function ImagePicker({ label, value, attribution, onChange }: ImagePickerProps) {
+  const { language } = useLanguage(), ed = editorTranslations[language];
   const id = useId();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -37,7 +41,7 @@ export function ImagePicker({ label, value, attribution, onChange }: ImagePicker
       const images = await searchCommons(query, AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]));
       if (mounted.current && !controller.signal.aborted) { setResults(images); setSearched(true); }
     } catch (cause) {
-      if (mounted.current && !controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Ricerca non disponibile.');
+      if (mounted.current && !controller.signal.aborted) setError(cause instanceof Error ? cause.message : ed.searchUnavailable);
     } finally { if (mounted.current && request.current === controller) setBusy(false); }
   };
 
@@ -49,7 +53,7 @@ export function ImagePicker({ label, value, attribution, onChange }: ImagePicker
       const embedded = await importCommonsImage(image, AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]));
       if (mounted.current && !controller.signal.aborted) { onChange(embedded, image.attribution); setIsSearching(false); }
     } catch (cause) {
-      if (mounted.current && !controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Impossibile inserire l’immagine.');
+      if (mounted.current && !controller.signal.aborted) setError(cause instanceof Error ? cause.message : ed.insertFailed);
     } finally { if (mounted.current) setBusy(false); }
   };
 
@@ -57,14 +61,14 @@ export function ImagePicker({ label, value, attribution, onChange }: ImagePicker
     <section className="rounded-2xl border border-line bg-white p-4 space-y-3" aria-label={label}>
       <div className="flex items-center justify-between gap-2">
         <label htmlFor={`${id}-url`} className="text-xs font-bold text-petrolio">{label}</label>
-        {value && <button type="button" disabled={busy} onClick={() => { onChange(undefined); setError(''); }} className="text-xs text-rose-700 cursor-pointer">Rimuovi immagine</button>}
+        {value && <button type="button" disabled={busy} onClick={() => { onChange(undefined); setError(''); }} className="text-xs text-rose-700 cursor-pointer">{ed.removeImage}</button>}
       </div>
-      <input id={`${id}-url`} type="url" aria-label={`URL ${label}`} placeholder="Incolla l’URL oppure scegli un file qui sotto" value={value?.startsWith('data:') ? '' : value || ''} disabled={busy}
+      <input id={`${id}-url`} type="url" aria-label={`URL ${label}`} placeholder={ed.urlPlaceholder} value={value?.startsWith('data:') ? '' : value || ''} disabled={busy}
         onChange={event => { onChange(event.target.value || undefined); setError(''); }}
         className="w-full rounded-xl border border-line p-2 text-xs text-ink focus:border-petrolio" />
       <div className="flex flex-wrap items-center gap-3">
-        <label htmlFor={`${id}-file`} className="text-xs font-semibold text-ink">Dal computer:</label>
-        <input id={`${id}-file`} type="file" aria-label={`Carica ${label}`} accept="image/jpeg,image/png,image/webp" disabled={busy}
+        <label htmlFor={`${id}-file`} className="text-xs font-semibold text-ink">{ed.fromComputer}</label>
+        <input id={`${id}-file`} type="file" aria-label={fill(ed.uploadOf, { label })} accept="image/jpeg,image/png,image/webp" disabled={busy}
           className="max-w-full text-xs text-muted file:rounded-lg file:border-0 file:bg-petrolio file:text-white file:px-3 file:py-2 file:mr-2 file:cursor-pointer"
           onChange={async event => {
             const file = event.target.files?.[0];
@@ -72,18 +76,18 @@ export function ImagePicker({ label, value, attribution, onChange }: ImagePicker
             if (!file) return;
             setBusy(true); setError('');
             try { const data = await importImage(file); if (mounted.current) onChange(data); }
-            catch (cause) { if (mounted.current) setError(cause instanceof Error ? cause.message : 'Impossibile leggere l’immagine.'); }
+            catch (cause) { if (mounted.current) setError(cause instanceof Error ? cause.message : ed.readFailed); }
             finally { if (mounted.current) setBusy(false); }
           }} />
-        <button ref={triggerRef} type="button" disabled={busy} onClick={() => { setIsSearching(true); setError(''); }} className="rounded-xl border border-line bg-surface-soft px-3 py-2 text-xs font-bold text-petrolio cursor-pointer">Cerca su Commons</button>
+        <button ref={triggerRef} type="button" disabled={busy} onClick={() => { setIsSearching(true); setError(''); }} className="rounded-xl border border-line bg-surface-soft px-3 py-2 text-xs font-bold text-petrolio cursor-pointer">{ed.searchCommons}</button>
       </div>
-      <p className="text-[11px] text-muted">JPG, PNG o WebP, massimo 15 MB. Le immagini caricate vengono incluse nel quiz e nell’esportazione JSON.</p>
-      {busy && !isSearching && <p role="status" className="text-xs text-petrolio">Preparazione immagine…</p>}
+      <p className="text-[11px] text-muted">{ed.imageHint}</p>
+      {busy && !isSearching && <p role="status" className="text-xs text-petrolio">{ed.preparing}</p>}
       {error && !isSearching && <p role="alert" className="text-xs text-rose-700">{error}</p>}
       {value && <div className="space-y-2">
-        {value.startsWith('data:') && <p className="text-[11px] font-semibold text-petrolio">Immagine salvata in locale e inclusa nel quiz</p>}
-        {!previewError ? <img src={value} alt={`Anteprima ${label}`} onError={() => setPreviewError(true)} className="h-36 w-full object-contain rounded-xl bg-surface-soft" />
-          : <p role="alert" className="text-xs text-rose-700">L’immagine non può essere visualizzata. Controlla il link o scegli un file.</p>}
+        {value.startsWith('data:') && <p className="text-[11px] font-semibold text-petrolio">{ed.savedLocal}</p>}
+        {!previewError ? <img src={value} alt={fill(ed.previewOf, { label })} onError={() => setPreviewError(true)} className="h-36 w-full object-contain rounded-xl bg-surface-soft" />
+          : <p role="alert" className="text-xs text-rose-700">{ed.cannotDisplay}</p>}
         <ImageCredit attribution={attribution} />
       </div>}
       {isSearching && <div className="fixed inset-0 z-50 flex items-center justify-center bg-petrolio/15 p-4" onKeyDown={event => {
@@ -95,24 +99,24 @@ export function ImagePicker({ label, value, attribution, onChange }: ImagePicker
           else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
         }
       }}>
-        <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Cerca immagini su Wikimedia Commons" className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border border-line bg-white p-5 shadow-lg space-y-4">
+        <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={ed.commonsTitle} className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border border-line bg-white p-5 shadow-lg space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-bold text-petrolio">Cerca immagini su Wikimedia Commons</h2>
-            <button type="button" onClick={() => { request.current?.abort(); setBusy(false); setIsSearching(false); }} className="text-sm font-bold text-petrolio cursor-pointer">Chiudi</button>
+            <h2 className="font-bold text-petrolio">{ed.commonsTitle}</h2>
+            <button type="button" onClick={() => { request.current?.abort(); setBusy(false); setIsSearching(false); }} className="text-sm font-bold text-petrolio cursor-pointer">{ed.close}</button>
           </div>
-          <p className="text-xs text-muted">Cerca, controlla autore e licenza, poi scegli un’immagine. Verrà scaricata e inclusa nel quiz per l’uso offline, insieme alla licenza e al testo dell’attribuzione. La ricerca richiede Internet; prova anche parole in inglese.</p>
+          <p className="text-xs text-muted">{ed.commonsHint}</p>
           <div className="flex gap-2">
-            <input type="search" autoFocus aria-label="Cerca immagini" value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); findImages(); } }} placeholder="Es. Marte, Colosseo, vulcano" className="min-w-0 flex-1 rounded-xl border border-line p-3 text-sm" />
-            <button type="button" disabled={busy || !query.trim()} onClick={findImages} className="btn-petrolio rounded-xl px-4 text-sm font-bold cursor-pointer disabled:opacity-50">Cerca</button>
+            <input type="search" autoFocus aria-label={ed.searchImages} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); findImages(); } }} placeholder={ed.imagePlaceholder} className="min-w-0 flex-1 rounded-xl border border-line p-3 text-sm" />
+            <button type="button" disabled={busy || !query.trim()} onClick={findImages} className="btn-petrolio rounded-xl px-4 text-sm font-bold cursor-pointer disabled:opacity-50">{ed.search}</button>
           </div>
-          {busy && <p role="status" className="text-sm text-petrolio">Caricamento…</p>}
+          {busy && <p role="status" className="text-sm text-petrolio">{ed.loading}</p>}
           {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
-          {searched && !results.length && !busy && <p className="text-sm text-muted">Nessun risultato con crediti disponibili. Prova altre parole.</p>}
+          {searched && !results.length && !busy && <p className="text-sm text-muted">{ed.noResults}</p>}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {results.map(result => <div key={result.id} className="rounded-xl border border-line p-2 space-y-2">
               <img src={result.url} alt={result.attribution.title} loading="lazy" className="h-28 w-full object-contain bg-surface-soft rounded-lg" />
               <ImageCredit attribution={result.attribution} />
-              <button type="button" disabled={busy} onClick={() => selectImage(result)} className="w-full btn-mandarino rounded-lg py-2 text-xs font-bold cursor-pointer disabled:opacity-50">Usa questa immagine</button>
+              <button type="button" disabled={busy} onClick={() => selectImage(result)} className="w-full btn-mandarino rounded-lg py-2 text-xs font-bold cursor-pointer disabled:opacity-50">{ed.useImage}</button>
             </div>)}
           </div>
         </div>

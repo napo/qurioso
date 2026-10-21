@@ -32,7 +32,8 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
       const browserLanguage = window.navigator.language?.slice(0, 2).toLowerCase();
       if (supported(browserLanguage)) return browserLanguage;
     }
-    return 'it';
+    // Unsupported or unknown languages use English.
+    return 'en';
   });
 
   useEffect(() => {

@@ -22,7 +22,7 @@ These commands reach the renderer through `quriosoDesktop.menu` in `desktop/prel
 
 Active public sharing is the single advertised address for copying and both QR views. Interruption or stop restores LAN addresses. Existing LAN clients remain connected independently of the public tunnel.
 
-Interface text and the tutorial support Italian, English and German.
+Interface text, game screens (lobby, participant, editor, results) and the tutorial support Italian, English and German. The language comes from `?lang=`, then the saved choice, then the browser (or, on desktop, the system) language; any other language falls back to **English**. Messages raised by services read the same language from `<html lang>`.
 
 ### Desktop language
 

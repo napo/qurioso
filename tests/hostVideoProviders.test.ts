@@ -21,17 +21,18 @@ test('YouTube and Vimeo host adapters pause once per checkpoint and keep playbac
   dom.window.customElements.define('vimeo-video', class extends Media {});
   const { createRoot } = await import('react-dom/client');
   const { HostVideoPlayer } = await import('../src/components/video/HostVideoPlayer');
+  const { LanguageProvider } = await import('../src/context/LanguageContext');
   const root = createRoot(document.getElementById('app')!);
   t.after(async () => { await act(async () => root.unmount()); dom.window.close(); });
   for (const [provider, url] of [['youtube', 'https://www.youtube.com/watch?v=M7lc1UVf-VE'], ['vimeo', 'https://vimeo.com/76979871']] as const) {
     const quiz = structuredClone(DEFAULT_QUIZZES[0]); quiz.videoConfig!.videoUrl = url;
     let opened = 0;
     const ref = React.createRef<{ resume: () => Promise<void>; pause: () => void }>();
-    const render = async (status: GameSession['status']) => act(async () => root.render(React.createElement(HostVideoPlayer, {
+    const render = async (status: GameSession['status']) => act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(HostVideoPlayer, {
       key: provider, ref, quiz, status, openedQuestions: opened,
       onReady() {}, onPlayback() {}, onFinish: async () => true,
       onCheckpoint: async index => { assert.equal(index, opened); opened++; return true; },
-    })));
+    }))));
     await render('video');
     for (let n = 0; n < 100 && !document.querySelector(`${provider}-video`); n++) await act(async () => { await delay(20); });
     const media = document.querySelector(`${provider}-video`)! as Media;
