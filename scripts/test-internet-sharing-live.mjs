@@ -67,9 +67,30 @@ try {
   socket.send(JSON.stringify({ type: 'PLAYER_ANSWER', pin, ...answer })); await received;
   assert.equal((await remote(`/api/session/${pin}/answer`, 'POST', answer, credentials.playerToken)).status, 200);
   assert.equal((await remote(`/api/session/${pin}/player/technical-probe`, 'GET', undefined, credentials.playerToken)).status, 200);
+  // Consecutive games: releasing the first game keeps the tunnel open but shares nothing,
+  // then a second game reuses the same connector and address with its own PIN.
+  const socketClosed = once(socket, 'close');
+  assert.equal((await sharing.release()).phase, 'idle');
+  await socketClosed;
+  assert.equal(sharing.hasConnector(), true, 'the tunnel stays open between games');
+  assert.equal((await remote(`/api/session/${pin}`)).status, 403, 'a released game is not reachable from the Internet');
+  const secondPin = String((Number(pin) + 1) % 900000 + 100000);
+  const secondHost = (await (await local('/api/presenter-token', 'POST')).json()).hostToken;
+  assert.equal((await local('/api/session/create', 'POST', { session: { ...initial, pin: secondPin, quizId: 'temporary-internet-test-2' } }, secondHost)).status, 200);
+  const reused = await sharing.start(secondPin);
+  assert.deepEqual([reused.phase, reused.url, reused.pin], ['active', state.url, secondPin], 'the next game reuses the open tunnel');
+  let second;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    second = await remote(`/api/session/${secondPin}/join`, 'POST', { player: { id: 'technical-probe-2', nickname: 'Technical test 2', avatar: '🦊', score: 0, streak: 0 } }).catch(() => undefined);
+    if (second?.status === 200) break;
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  assert.equal(second?.status, 200, 'participants join the second game through the reused tunnel');
+  assert.equal((await remote(`/api/session/${pin}`)).status, 403, 'the previous game stays closed to the Internet');
   await sharing.stop();
+  assert.equal(sharing.hasConnector(), false);
   assert.equal((await local(`/api/session/${pin}`, 'GET', undefined, hostToken)).status, 200);
-  console.log('LIVE Cloudflare smoke passed: verified component, HTTPS participant entry, protected teacher API, WebSocket answer, HTTP retry, player recovery, shutdown and local teacher continuity.');
+  console.log('LIVE Cloudflare smoke passed: verified component, HTTPS participant entry, protected teacher API, WebSocket answer, HTTP retry, player recovery, tunnel released between games and reused by the next game, shutdown and local teacher continuity.');
 } finally {
   socket?.terminate(); await sharing?.stop(); backend.kill();
   await rm(scratch, { recursive: true, force: true });
