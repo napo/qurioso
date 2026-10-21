@@ -2,6 +2,7 @@ import React from 'react';
 import { Header } from '../common/Header';
 import { QuriosoIcon } from '../common/QuriosoLogo';
 import { OfflineIndicator } from '../common/OfflineIndicator';
+import { AuthorLink } from '../common/AuthorLink';
 import { useLanguage } from '../../context/LanguageContext';
 import { settingsTranslations } from '../../i18n/settings';
 import type { ServerInfo } from '../../services/gameSync';
@@ -27,17 +28,19 @@ export function WebShell({ classroomOnly, serverInfo, onOpenSettings, onJoinClic
 
       {/* Footer with Qurioso Q Icon, Author, and Affero GPL License */}
       <footer className="w-full border-t border-line bg-surface-soft py-6 px-4 md:px-8 text-center text-xs text-muted">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <QuriosoIcon size={26} variant="contained" />
-            <span className="font-extrabold text-ink">Qurioso</span>
-            <span>•</span>
-            <span>{t.authorLabel}</span>
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2.5">
+            <span className="flex items-center gap-2.5">
+              <QuriosoIcon size={26} variant="contained" />
+              <span className="font-extrabold text-ink">Qurioso</span>
+            </span>
+            <span aria-hidden="true" className="hidden sm:inline">•</span>
+            <span>{t.authorLabel}: <AuthorLink className="underline hover:text-ink" /></span>
           </div>
 
-          <div className="flex items-center gap-3 text-[11px] text-muted">
-            <span>{t.licenseLabel}</span>
-            <span>•</span>
+          <div className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-3 text-[11px] text-muted">
+            <span className="max-w-xs sm:max-w-none">{t.licenseLabel}</span>
+            <span aria-hidden="true" className="hidden sm:inline">•</span>
             <button
               onClick={onShowGuide}
               className="text-accent-ink hover:underline cursor-pointer font-semibold"

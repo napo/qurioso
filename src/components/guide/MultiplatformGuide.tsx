@@ -10,6 +10,7 @@ import {
   Scale,
   User
 } from 'lucide-react';
+import { AuthorLink } from '../common/AuthorLink';
 import { useLanguage } from '../../context/LanguageContext';
 import { AppVersion } from '../common/AppVersion';
 import { QuriosoIcon } from '../common/QuriosoLogo';
@@ -99,13 +100,7 @@ export const MultiplatformGuide: React.FC<MultiplatformGuideProps> = ({ onClose 
                   <User className="w-4 h-4 text-accent-ink mt-0.5 shrink-0" />
                   <div className="text-xs">
                     <span className="font-bold text-ink block">Autore / Author:</span>
-                    <span className="text-muted">Maurizio Napolitano</span>
-                    <a
-                      href="mailto:maurizio.napolitano@gmail.com"
-                      className="text-accent-ink hover:underline block text-[11px]"
-                    >
-                      maurizio.napolitano@gmail.com
-                    </a>
+                    <AuthorLink className="text-accent-ink hover:underline" />
                   </div>
                 </div>
 

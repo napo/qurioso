@@ -194,7 +194,7 @@ export const translations: Record<Language, Translations> = {
     appName: 'Qurioso',
     appTagline: 'Quiz Multigiocatore Interattivi e Quiz Video con Pause',
     appDescription: 'Piattaforma interattiva di quiz multiplayer con codice QR, modalità video a pause automatiche e classifiche in tempo reale.',
-    authorLabel: 'Autore: Maurizio Napolitano <maurizio.napolitano@gmail.com>',
+    authorLabel: 'Autore',
     licenseLabel: 'Rilasciato sotto licenza GNU Affero General Public License v3 (AGPL-3.0)',
 
     studioLiveBadge: 'Editor e Diretta',
@@ -373,7 +373,7 @@ export const translations: Record<Language, Translations> = {
     appName: 'Qurioso',
     appTagline: 'Interactive Multiplayer Quizzes & Video Quizzes with Pauses',
     appDescription: 'Interactive multiplayer quiz platform with QR code, automatic video pause checkpoints, and real-time leaderboards.',
-    authorLabel: 'Author: Maurizio Napolitano <maurizio.napolitano@gmail.com>',
+    authorLabel: 'Author',
     licenseLabel: 'Released under GNU Affero General Public License v3 (AGPL-3.0)',
 
     studioLiveBadge: 'Studio & Live',
@@ -552,7 +552,7 @@ export const translations: Record<Language, Translations> = {
     appName: 'Qurioso',
     appTagline: 'Interaktive Multiplayer-Quizze & Video-Quizze mit Pausen',
     appDescription: 'Interaktive Plattform für Multiplayer-Quizze mit QR-Code, automatischen Video-Pausen und Echtzeit-Ranglisten.',
-    authorLabel: 'Autor: Maurizio Napolitano <maurizio.napolitano@gmail.com>',
+    authorLabel: 'Autor',
     licenseLabel: 'Veröffentlicht unter der GNU Affero General Public License v3 (AGPL-3.0)',
 
     studioLiveBadge: 'Editor & Live-Modus',

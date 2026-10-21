@@ -50,6 +50,20 @@ test('the public website presents classroom activities and offers the desktop ap
     const credit = document.querySelector('a[href="https://commons.wikimedia.org/wiki/File:Fimmvorduhals_2010_03_27_dawn.jpg"]');
     assert.ok(credit?.closest('details[data-image-credits]'), 'image credits sit in the card disclosure');
     assert.equal(credit!.closest('details')!.querySelector('summary')!.getAttribute('aria-label'), 'Crediti dell’immagine');
+    // Compact list (below 640px): play button and "⋯" with secondary actions and credits.
+    const volcano = document.querySelector('[data-quiz-id="quiz-1792489106413"]')!;
+    assert.ok(volcano.querySelector('button[aria-label="Attività in classe con video"]'));
+    const more = volcano.querySelector<HTMLButtonElement>('button[aria-label="Altre azioni"]')!;
+    await act(async () => more.click());
+    assert.equal(more.getAttribute('aria-expanded'), 'true');
+    const panel = document.getElementById(more.getAttribute('aria-controls')!)!;
+    assert.deepEqual([...panel.querySelectorAll('button')].map(b => b.textContent), ['Modifica', 'Duplica'], 'included quizzes cannot be deleted');
+    assert.match(panel.textContent!, /Crediti dell’immagine.*Boaworm/);
+    await act(async () => { more.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    assert.equal(more.getAttribute('aria-expanded'), 'false');
+    // Author credit without a personal e-mail address.
+    assert.equal(document.querySelector('footer a[href="https://github.com/napo"]')?.textContent, 'Maurizio Napolitano');
+    assert.doesNotMatch(document.body.innerHTML, /gmail|mailto:/);
     assert.equal(requests.some(url => !url.startsWith('https://api.github.com/')), false);
   }
 

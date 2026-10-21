@@ -1,5 +1,6 @@
 import { loadQuizzes, storeQuizzes } from './services/quizStorage';
 import { ImageCreditDetails } from './components/common/ImageCredit';
+import { QuizCardMenu } from './components/library/QuizCardMenu';
 /**
  * Qurioso ⚡ — Interactive Multiplayer & Video Quiz Studio
  * @author Maurizio Napolitano <maurizio.napolitano@gmail.com>
@@ -314,19 +315,30 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
           </div>
 
           {/* Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
             {availableQuizzes.map((quiz) => {
               const included = OFFICIAL_QUIZZES.some(item => item.id === quiz.id);
               const personal = quizzes.some(item => item.id === quiz.id);
               const isVideoQuiz = !!quiz.videoConfig;
+              const needsCheckpoint = isVideoQuiz && !quizCheckpoints(quiz).length;
+              // One primary action, shown as a full button on cards and as a play button in the compact list.
+              const primary = networkMode
+                ? { label: isVideoQuiz ? labels.networkVideo : labels.networkClassic, disabled: !serverInfo || needsCheckpoint, run: () => handleStartHost(quiz) }
+                : { label: isVideoQuiz ? labels.classroomVideoAction : labels.classroomAction, disabled: false, run: () => { setSelectedQuiz(quiz); setView('classroom'); } };
+              const warning = networkMode && (needsCheckpoint || !serverInfo) ? (needsCheckpoint ? labels.addCheckpoint : labels.networkRequiresServer) : '';
+              const secondary = [
+                { label: t.editQuiz, icon: Edit3, onSelect: () => handleEditQuiz(quiz) },
+                { label: t.duplicateQuiz, icon: Copy, onSelect: () => handleDuplicateQuiz(quiz) },
+                ...(personal && !included ? [{ label: t.deleteQuiz, icon: Trash2, onSelect: () => handleDeleteQuiz(quiz.id), danger: true }] : []),
+              ];
 
               return (
                 <div
                   key={quiz.id} data-quiz-id={quiz.id}
-                  className="group rounded-3xl bg-white border border-line hover:border-mandarino/60 shadow-md overflow-hidden flex flex-col transition duration-200 hover:-translate-y-1"
+                  className="group relative flex items-center gap-3 rounded-2xl bg-white border border-line hover:border-mandarino/60 shadow-sm p-2 transition duration-200 sm:flex-col sm:items-stretch sm:gap-0 sm:p-0 sm:rounded-3xl sm:shadow-md sm:overflow-hidden sm:hover:-translate-y-1"
                 >
-                  {/* Card Cover Image */}
-                  <div className="relative h-44 w-full bg-surface-soft overflow-hidden">
+                  {/* Card Cover Image: a small square thumbnail in the compact list */}
+                  <div className="relative shrink-0 w-16 h-16 rounded-xl bg-surface-soft overflow-hidden sm:w-full sm:h-44 sm:rounded-none">
                     {quiz.coverImage ? (
                       <FallbackImage
                         src={quiz.coverImage}
@@ -339,57 +351,59 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
                     )}
 
                     {/* Category Tag */}
-                    <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-white backdrop-blur-md text-[11px] font-extrabold text-ink border border-line shadow-md">
+                    <span className="hidden sm:block absolute top-3 left-3 px-2.5 py-1 rounded-full bg-white backdrop-blur-md text-[11px] font-extrabold text-ink border border-line shadow-md">
                       {quiz.category}{included && ` · ${workspace.included}`}
                     </span>
 
                     {/* Mode Tag */}
                     {isVideoQuiz ? (
-                      <span className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-mandarino/90 backdrop-blur-md text-[11px] font-extrabold text-ink shadow-md">
+                      <span className="hidden sm:flex absolute top-3 right-3 items-center gap-1 px-2.5 py-1 rounded-full bg-mandarino/90 backdrop-blur-md text-[11px] font-extrabold text-ink shadow-md">
                         <Video className="w-3 h-3" />
                         {t.videoQuizBadge}
                       </span>
                     ) : (
-                      <span className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-petrolio/90 backdrop-blur-md text-[11px] font-extrabold text-white shadow-md">
+                      <span className="hidden sm:flex absolute top-3 right-3 items-center gap-1 px-2.5 py-1 rounded-full bg-petrolio/90 backdrop-blur-md text-[11px] font-extrabold text-white shadow-md">
                         <Users className="w-3 h-3" />
                         {publicSite || classroomOnly ? labels.classicQuiz : t.multiplayerLiveBadge}
                       </span>
                     )}
 
-                    <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-white/95 backdrop-blur-md text-[10px] font-bold text-muted">
+                    <div className="hidden sm:block absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-white/95 backdrop-blur-md text-[10px] font-bold text-muted">
                       {quiz.questions.length} {t.questionsCount}
                     </div>
                   </div>
 
                   {/* Card Body */}
-                  <div className="p-5 flex-1 flex flex-col justify-between">
+                  <div className="min-w-0 flex-1 sm:p-5 sm:flex sm:flex-col sm:justify-between">
                     <div>
-                      <h3 className="font-extrabold text-base text-ink group-hover:text-petrolio transition line-clamp-1">
+                      <h3 className="font-extrabold text-sm leading-snug sm:text-base text-ink group-hover:text-petrolio transition line-clamp-2 sm:line-clamp-1">
                         {quiz.title}
                       </h3>
-                      <p className="text-xs text-muted mt-1 line-clamp-2 leading-relaxed">
+                      <p className="sm:hidden text-xs text-muted">{quiz.questions.length} {t.questionsCount}</p>
+                      {warning && <p className="sm:hidden text-[11px] text-muted line-clamp-2">{warning}</p>}
+                      <p className="hidden sm:block text-xs text-muted mt-1 line-clamp-2 leading-relaxed">
                         {quiz.description}
                       </p>
                     </div>
 
                     {/* Card Actions */}
-                    <div className="mt-5 pt-4 border-t border-line space-y-2">
+                    <div className="hidden sm:block mt-5 pt-4 border-t border-line space-y-2">
                       {networkMode && <>
                       {/* Primary Play Button */}
                       <button
-                        disabled={!serverInfo || (isVideoQuiz && !quizCheckpoints(quiz).length)}
+                        disabled={primary.disabled}
                         title={!serverInfo ? labels.needsLocalServer : workspace.networkHint}
-                        onClick={() => handleStartHost(quiz)}
+                        onClick={primary.run}
                         className="w-full py-2.5 px-3 rounded-xl btn-petrolio font-bold text-xs shadow-md transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                       >
                         <Play className="w-3.5 h-3.5 fill-current text-white" />
-                        <span>{isVideoQuiz ? labels.networkVideo : labels.networkClassic}</span>
+                        <span>{primary.label}</span>
                       </button>
 
-                      {(isVideoQuiz && !quizCheckpoints(quiz).length || !serverInfo) && <p className="text-xs text-muted">{isVideoQuiz && !quizCheckpoints(quiz).length ? labels.addCheckpoint : labels.networkRequiresServer}</p>}
+                      {warning && <p className="text-xs text-muted">{warning}</p>}
                       </>}
 
-                      {!networkMode && <button type="button" onClick={() => { setSelectedQuiz(quiz); setView('classroom'); }} className="w-full py-3 px-3 rounded-xl btn-mandarino font-bold text-sm cursor-pointer">{isVideoQuiz ? labels.classroomVideoAction : labels.classroomAction}</button>}
+                      {!networkMode && <button type="button" onClick={primary.run} className="w-full py-3 px-3 rounded-xl btn-mandarino font-bold text-sm cursor-pointer">{primary.label}</button>}
                       {/* Manage Buttons */}
                       <div className="relative flex items-center justify-between pt-1">
                         <button
@@ -419,6 +433,15 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Compact list: play button and "⋯" for secondary actions */}
+                  <div className="sm:hidden flex shrink-0 items-center gap-1">
+                    <button type="button" aria-label={primary.label} title={primary.label} disabled={primary.disabled} onClick={primary.run}
+                      className={`grid place-items-center w-11 h-11 rounded-full ${networkMode ? 'btn-petrolio' : 'btn-mandarino'} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                      <Play className="w-4 h-4 fill-current" />
+                    </button>
+                    <QuizCardMenu label={workspace.moreActions} actions={secondary} attribution={quiz.coverAttribution} creditsLabel={workspace.imageCredits} />
                   </div>
                 </div>
               );
