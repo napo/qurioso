@@ -17,19 +17,24 @@ async function createUpdateController({ app, dialog, shell, window, canOpenInsta
     const next = value < 0 ? -1 : Math.floor(value * 100);
     if (next !== percent) { percent = next; window.setTitle?.(next < 0 ? originalTitle : `Scaricamento aggiornamento: ${next}% — Qurioso`); }
   };
-  const checkItem = { id: 'qurioso-check-updates', label: 'Verifica aggiornamenti…', click: () => check(true) };
-  const automaticItem = { id: 'qurioso-auto-updates', label: 'Controlla aggiornamenti all’avvio', type: 'checkbox', checked: settings.enabled, click: async item => {
+  const toggleAutomatic = async item => {
     if (settingBusy) { item.checked = settings.enabled; return; }
     settingBusy = true;
-    try { await updates.writeSettings(directory, item.checked); settings.enabled = item.checked; automaticItem.checked = item.checked; }
+    try { await updates.writeSettings(directory, item.checked); settings.enabled = item.checked; }
     catch { item.checked = settings.enabled; await ask({ type: 'error', message: 'Impossibile salvare la preferenza degli aggiornamenti.' }); }
     finally { settingBusy = false; }
-  } };
-  const cancelItem = { id: 'qurioso-cancel-update', label: 'Annulla controllo o download aggiornamento', click: () => abort?.abort() };
-  const folderItem = { id: 'qurioso-update-folder', label: 'Apri cartella aggiornamenti scaricati', click: async () => {
+  };
+  const openFolder = async () => {
     try { const folder = path.join(directory, 'updates'); await fs.mkdir(folder, { recursive: true, mode: 0o700 }); const error = await shell.openPath(folder); if (error) throw new Error(error); }
     catch { await ask({ type: 'error', message: 'Impossibile aprire la cartella degli aggiornamenti.' }); }
-  } };
+  };
+  // Fresh templates on every menu rebuild (language change) keep the saved checkbox state.
+  const menuItems = text => [
+    { id: 'qurioso-check-updates', label: text.checkUpdates, click: () => check(true) },
+    { id: 'qurioso-auto-updates', label: text.autoUpdates, type: 'checkbox', checked: settings.enabled, click: toggleAutomatic },
+    { id: 'qurioso-cancel-update', label: text.cancelUpdate, click: () => abort?.abort() },
+    { id: 'qurioso-update-folder', label: text.updateFolder, click: openFolder },
+  ];
 
   async function check(manual = false) {
     if (busy || stopped) return;
@@ -86,7 +91,7 @@ async function createUpdateController({ app, dialog, shell, window, canOpenInsta
   }
 
   return {
-    menuItems: [checkItem, automaticItem, cancelItem, folderItem], check,
+    menuItems, check,
     start() { if (automatic && settings.enabled && !stopped) { timer = setTimeout(() => { if (settings.enabled) void check(false); }, 2000); timer.unref?.(); } },
     stop() { stopped = true; clearTimeout(timer); abort?.abort(); },
   };

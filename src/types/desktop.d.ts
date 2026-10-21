@@ -12,9 +12,10 @@ export type DesktopMenuCommand = 'new-quiz' | 'new-video-quiz' | 'import-questio
 export interface DesktopMenuApi {
   onCommand: (callback: (command: DesktopMenuCommand) => void) => () => void;
   setLibraryVisible: (visible: boolean) => void;
+  setLanguage?: (language: string) => void;
 }
 declare global {
   interface Window {
-    quriosoDesktop?: Readonly<{ serverPort: number; internetSharing?: InternetSharingApi; menu?: DesktopMenuApi }>;
+    quriosoDesktop?: Readonly<{ serverPort: number; systemLanguage?: 'it' | 'en' | 'de'; internetSharing?: InternetSharingApi; menu?: DesktopMenuApi }>;
   }
 }

@@ -1,5 +1,6 @@
 const { app, BrowserWindow, dialog, net, session, shell, utilityProcess, Menu, ipcMain } = require('electron');
 const { randomBytes } = require('node:crypto');
+const { MENU_TEXT, menuLanguage } = require('./menuText.cjs');
 const path = require('node:path');
 const fs = require('node:fs');
 const ORIGIN = 'http://qurioso.localhost';
@@ -12,6 +13,8 @@ let quitting = false;
 let backendPort;
 let updater;
 let sharing;
+// Menu and default interface language: the system language when supported, English otherwise.
+let menuLanguageCode;
 const sharingToken = randomBytes(32).toString('hex');
 
 app.setName('Qurioso');
@@ -34,6 +37,7 @@ function fail(error) {
 }
 
 async function start() {
+  menuLanguageCode = menuLanguage(app.getPreferredSystemLanguages?.()[0] || app.getLocale());
   const root = app.isPackaged ? process.resourcesPath : app.getAppPath();
   const serverFile = app.isPackaged ? path.join(root, 'server.mjs') : path.join(root, 'build/desktop/server.mjs');
   fs.mkdirSync(app.getPath('userData'), { recursive: true });
@@ -76,7 +80,7 @@ async function start() {
     webPreferences: {
       session: browserSession,
       preload: path.join(app.getAppPath(), 'desktop/preload.cjs'),
-      additionalArguments: [`--qurioso-server-port=${backendPort}`],
+      additionalArguments: [`--qurioso-server-port=${backendPort}`, `--qurioso-language=${menuLanguageCode}`],
       contextIsolation: true, nodeIntegration: false, sandbox: true,
     },
   });
@@ -125,34 +129,56 @@ async function start() {
     },
   });
   // File and Help commands are handled by the renderer; they stay disabled until the library reports it is visible.
-  const command = (name, label, accelerator) => ({ id: `qurioso-${name}`, label, accelerator, enabled: false,
-    click: () => { if (window && !window.isDestroyed()) window.webContents.send('qurioso:menu:command', name); } });
+  // Labels follow menuLanguage (system language at start, then the language chosen in the app).
   const libraryCommands = ['new-quiz', 'new-video-quiz', 'import-questions', 'backup', 'guide', 'about'];
-  Menu.setApplicationMenu(Menu.buildFromTemplate([
-    ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
-    { label: 'Qurioso', submenu: [
-      { label: 'Quiz in Rete', click: () => window?.loadURL(`${ORIGIN}/?app=network`) },
-      { label: 'Attività in classe', click: () => window?.loadURL(`${ORIGIN}/?app=classroom`) },
-      { type: 'separator' }, ...updater.menuItems,
-      { type: 'separator' }, { role: 'quit' },
-    ] },
-    { label: 'File', submenu: [
-      command('new-quiz', 'Nuovo quiz', 'CmdOrCtrl+N'),
-      command('new-video-quiz', 'Nuovo quiz video', 'CmdOrCtrl+Shift+N'),
-      { type: 'separator' },
-      command('import-questions', 'Importa domande…'),
-      command('backup', 'Backup e ripristino…'),
-    ] },
-    { role: 'editMenu' }, { role: 'viewMenu' },
-    { label: 'Aiuto', role: 'help', submenu: [
-      command('guide', 'Guida', 'F1'),
-      command('about', 'Informazioni su Qurioso'),
-    ] },
-  ]));
-  ipcMain.on('qurioso:menu:state', (event, visible) => {
-    if (!trustedCaller(event)) return;
+  let libraryVisible = false;
+  const buildMenu = () => {
+    const text = MENU_TEXT[menuLanguageCode];
+    const command = (name, label, accelerator) => ({ id: `qurioso-${name}`, label, accelerator, enabled: libraryVisible,
+      click: () => { if (window && !window.isDestroyed()) window.webContents.send('qurioso:menu:command', name); } });
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+      ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
+      { label: 'Qurioso', submenu: [
+        { label: text.networkQuiz, click: () => window?.loadURL(`${ORIGIN}/?app=network`) },
+        { label: text.classroom, click: () => window?.loadURL(`${ORIGIN}/?app=classroom`) },
+        { type: 'separator' }, ...updater.menuItems(text),
+        { type: 'separator' }, { role: 'quit', label: text.quit },
+      ] },
+      { id: 'qurioso-file-menu', label: text.file, submenu: [
+        command('new-quiz', text.newQuiz, 'CmdOrCtrl+N'),
+        command('new-video-quiz', text.newVideoQuiz, 'CmdOrCtrl+Shift+N'),
+        { type: 'separator' },
+        command('import-questions', text.importQuestions),
+        command('backup', text.backup),
+      ] },
+      { label: text.edit, submenu: [
+        { role: 'undo', label: text.undo }, { role: 'redo', label: text.redo }, { type: 'separator' },
+        { role: 'cut', label: text.cut }, { role: 'copy', label: text.copy }, { role: 'paste', label: text.paste }, { role: 'selectAll', label: text.selectAll },
+      ] },
+      { label: text.view, submenu: [
+        { role: 'reload', label: text.reload }, { role: 'forceReload', label: text.forceReload }, { role: 'toggleDevTools', label: text.toggleDevTools }, { type: 'separator' },
+        { role: 'resetZoom', label: text.resetZoom }, { role: 'zoomIn', label: text.zoomIn }, { role: 'zoomOut', label: text.zoomOut }, { type: 'separator' },
+        { role: 'togglefullscreen', label: text.toggleFullscreen },
+      ] },
+      { label: text.help, role: 'help', submenu: [
+        command('guide', text.guide, 'F1'),
+        command('about', text.about),
+      ] },
+    ]));
+  };
+  buildMenu();
+  const setLibraryVisible = visible => {
+    libraryVisible = visible;
     const menu = Menu.getApplicationMenu();
-    for (const name of libraryCommands) { const item = menu?.getMenuItemById(`qurioso-${name}`); if (item) item.enabled = visible === true; }
+    for (const name of libraryCommands) { const item = menu?.getMenuItemById(`qurioso-${name}`); if (item) item.enabled = libraryVisible; }
+  };
+  ipcMain.on('qurioso:menu:state', (event, visible) => { if (trustedCaller(event)) setLibraryVisible(visible === true); });
+  // A new page starts with the commands disabled until its library reports it is ready.
+  window.webContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => { if (isMainFrame && !isInPlace) setLibraryVisible(false); });
+  ipcMain.on('qurioso:menu:language', (event, language) => {
+    if (!trustedCaller(event) || typeof language !== 'string' || !Object.hasOwn(MENU_TEXT, language) || language === menuLanguageCode) return;
+    menuLanguageCode = language;
+    buildMenu();
   });
   if (captureGuide) {
     window.webContents.setBackgroundThrottling(false);

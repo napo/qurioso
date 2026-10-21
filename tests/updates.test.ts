@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 const require = createRequire(import.meta.url);
 const u = require('../desktop/updates.cjs');
 const { createUpdateController } = require('../desktop/updateController.cjs');
+const { MENU_TEXT, menuLanguage } = require('../desktop/menuText.cjs');
 const bytes = Buffer.from('test installer bytes: never executed');
 const digest = `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 const asset = (name = 'Qurioso-1.1.0-win-x64.exe', tag = 'v1.1.0') => ({ name, size: bytes.length, digest, browser_download_url: `https://github.com/napo/qurioso/releases/download/${tag}/${name}` });
@@ -109,7 +110,7 @@ test('native updater asks before download, supports postpone/errors/cancel and p
   const count = messages.length; offline = true;
   await controller.check(false); assert.equal(messages.length, count, 'automatic offline check stays silent');
   await controller.check(true); assert.equal(messages.at(-1).message, 'Aggiornamento non riuscito.');
-  const automaticItem = controller.menuItems.find((item: any) => item.id === 'qurioso-auto-updates');
+  const automaticItem = controller.menuItems(MENU_TEXT.it).find((item: any) => item.id === 'qurioso-auto-updates');
   await automaticItem.click({ checked: false }); assert.equal((await u.readSettings(dir)).enabled, false);
   controller.stop(); const previous = requests.length; await controller.check(true); assert.equal(requests.length, previous);
 });
@@ -123,7 +124,7 @@ test('no native checks in development; updater preferences survive a new launch'
   const controller = await createUpdateController({ app: { isPackaged: false, getPath: () => dir }, window: { isDestroyed: () => false },
     dialog: { showMessageBox: async (_: any, options: any) => { messages.push(options); return { response: 0 }; } }, shell: {},
     fetchImpl: () => { throw new Error('development must not contact GitHub'); } });
-  assert.equal(controller.menuItems[1].checked, false);
+  assert.equal(controller.menuItems(MENU_TEXT.it)[1].checked, false);
   controller.start(); await controller.check(false); assert.equal(messages.length, 0);
   await controller.check(true); assert.ok(messages[0].message.includes('applicazione installata'));
   controller.stop();
@@ -154,13 +155,13 @@ test('automatic startup check honors preferences and cancellation never leaves a
   });
   controller.start(); t.mock.timers.tick(1999); assert.equal(requests, 0);
   // Turn off automatic checking before its scheduled invocation.
-  await controller.menuItems[1].click({ checked: false });
+  await controller.menuItems(MENU_TEXT.it)[1].click({ checked: false });
   t.mock.timers.tick(1); assert.equal(requests, 0);
   const running = controller.check(true);
   await downloadReady;
   assert.ok(downloadStarted);
   await controller.check(true); assert.equal(requests, 2, 'concurrent checks must not duplicate downloads');
-  controller.menuItems.find((item: any) => item.id === 'qurioso-cancel-update').click();
+  controller.menuItems(MENU_TEXT.it).find((item: any) => item.id === 'qurioso-cancel-update').click();
   await running;
   assert.equal(dialogs, 1, 'cancel is not a failure dialog');
   assert.deepEqual(await readdir(path.join(dir, 'updates')), []);
@@ -180,4 +181,19 @@ test('release build rejects tags that differ from the application version', () =
   assert.equal(spawnSync(process.execPath, [script.pathname, `v${pkg.version}`]).status, 0);
   const mismatch = spawnSync(process.execPath, [script.pathname, 'v99.0.0'], { encoding: 'utf8' });
   assert.notEqual(mismatch.status, 0); assert.match(mismatch.stderr, /non corrisponde/);
+});
+
+test('native menu follows supported system languages, falls back to English and keeps the update preference across rebuilds', async t => {
+  assert.equal(menuLanguage('it-IT'), 'it'); assert.equal(menuLanguage('de_AT'), 'de'); assert.equal(menuLanguage('en-GB'), 'en');
+  assert.equal(menuLanguage('fr-FR'), 'en'); assert.equal(menuLanguage(''), 'en'); assert.equal(menuLanguage(undefined), 'en');
+  const keys = Object.keys(MENU_TEXT.it).sort();
+  for (const language of ['en', 'de']) assert.deepEqual(Object.keys(MENU_TEXT[language]).sort(), keys, language);
+  const dir = await mkdtemp(path.join(tmpdir(), 'qurioso-menu-language-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const controller = await createUpdateController({ app: { isPackaged: false, getPath: () => dir }, window: { isDestroyed: () => false },
+    dialog: { showMessageBox: async () => ({ response: 0 }) }, shell: {}, fetchImpl: () => { throw new Error('no network'); } });
+  assert.deepEqual(controller.menuItems(MENU_TEXT.de).map((item: any) => item.label), [MENU_TEXT.de.checkUpdates, MENU_TEXT.de.autoUpdates, MENU_TEXT.de.cancelUpdate, MENU_TEXT.de.updateFolder]);
+  await controller.menuItems(MENU_TEXT.de)[1].click({ checked: false });
+  assert.equal(controller.menuItems(MENU_TEXT.en)[1].checked, false, 'a rebuilt menu shows the saved preference');
+  controller.stop();
 });

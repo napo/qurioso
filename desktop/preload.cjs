@@ -1,8 +1,11 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const argument = process.argv.find(value => value.startsWith('--qurioso-server-port='));
 const port = Number(argument?.split('=')[1]);
+const language = process.argv.find(value => value.startsWith('--qurioso-language='))?.split('=')[1];
 if (Number.isInteger(port) && port > 0 && port < 65536) {
   contextBridge.exposeInMainWorld('quriosoDesktop', Object.freeze({ serverPort: port,
+    // Default interface language when the user has not chosen one: the system language, or English.
+    systemLanguage: ['it', 'en', 'de'].includes(language) ? language : 'en',
     internetSharing: Object.freeze({
       status: () => ipcRenderer.invoke('qurioso:sharing:status'),
       start: pin => ipcRenderer.invoke('qurioso:sharing:start', pin),
@@ -23,6 +26,7 @@ if (Number.isInteger(port) && port > 0 && port < 65536) {
         return () => ipcRenderer.removeListener('qurioso:menu:command', listener);
       },
       setLibraryVisible: visible => ipcRenderer.send('qurioso:menu:state', visible === true),
+      setLanguage: value => ipcRenderer.send('qurioso:menu:language', String(value)),
     }),
   }));
 }

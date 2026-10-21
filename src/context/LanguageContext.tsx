@@ -26,6 +26,9 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         const saved = window.localStorage.getItem('qurioso_language');
         if (supported(saved)) return saved;
       } catch {}
+      // Desktop: the system language passed by Electron, already falling back to English.
+      const systemLanguage = window.quriosoDesktop?.systemLanguage;
+      if (supported(systemLanguage)) return systemLanguage;
       const browserLanguage = window.navigator.language?.slice(0, 2).toLowerCase();
       if (supported(browserLanguage)) return browserLanguage;
     }
@@ -35,6 +38,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
   useEffect(() => {
     document.documentElement.lang = language;
     try { window.localStorage.setItem('qurioso_language', language); } catch {}
+    window.quriosoDesktop?.menu?.setLanguage?.(language);
   }, [language]);
 
   const setLanguage = (lang: Language) => {
