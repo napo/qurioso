@@ -91,7 +91,11 @@ test('Cloudflare connection timeout produces a retriable network error and close
   const controller = createInternetSharing({ directory: await directory(t), port: 4444, hostHeader: 'secret', asset, connectionTimeout: 30,
     configure: async () => {}, fetchImpl: async () => new Response(bytes), spawnImpl: () => { child = new Child(); return child; } });
   t.after(() => controller.shutdown());
-  const running = controller.start('123456'); await delay(80); await running;
+  const running = controller.start('123456');
+  // The mocked connector has no process handle to keep Node alive. Poll the
+  // outcome while the controller's intentionally unref'ed timeout is pending.
+  await wait(() => controller.snapshot().phase === 'error');
+  await running;
   assert.equal(controller.snapshot().error, 'network'); assert.ok(child!.killed);
 });
 
