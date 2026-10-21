@@ -97,6 +97,7 @@ exports.run = async (window, port) => {
   await require('./questionImportSmoke.cjs').run(window);
   await require('./backupSmoke.cjs').run(window);
   await require('./internetSharingSmoke.cjs').run(window);
+  await require('./shellSmoke.cjs').run(window);
   await require('./guideSmoke.cjs').run(window);
   return result;
 };

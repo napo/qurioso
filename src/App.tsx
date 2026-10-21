@@ -6,7 +6,8 @@ import { ImageCredit } from './components/common/ImageCredit';
  * @license AGPL-3.0-or-later
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import type { DesktopMenuCommand } from './types/desktop';
 import {
   Play,
   Video,
@@ -20,9 +21,8 @@ import {
 } from 'lucide-react';
 import { Quiz, GameSession } from './types/quiz';
 import { DEFAULT_QUIZZES, DEFAULT_QUIZ_COVER } from './data/defaultQuizzes';
-import { Header } from './components/common/Header';
-import { QuriosoIcon } from './components/common/QuriosoLogo';
-import { OfflineIndicator } from './components/common/OfflineIndicator';
+import { WebShell } from './components/shell/WebShell';
+import { DesktopShell, ActivityModeSwitch } from './components/shell/DesktopShell';
 import { ClassroomScreen } from './components/classroom/ClassroomScreen';
 import { FallbackImage, ImagePlaceholder } from './components/common/FallbackImage';
 import { HostScreen } from './components/host/HostScreen';
@@ -99,6 +99,8 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
 
   // Guide modal
   const [showGuide, setShowGuide] = useState<boolean>(false);
+  const [settingsFocus, setSettingsFocus] = useState<'backup' | 'about'>();
+  const openSettings = (focus?: 'backup' | 'about') => { setSettingsFocus(focus); setView('settings'); };
 
   // Discover a local server only outside the official static site.
 
@@ -220,6 +222,24 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
     setView('dashboard');
   };
 
+  // Native menu (desktop): commands act only from the library or Settings, never during a game or in the editor.
+  const libraryVisible = view === 'dashboard' || view === 'settings';
+  const menuCommand = useRef<(command: DesktopMenuCommand) => void>(() => {});
+  menuCommand.current = command => {
+    if (!libraryVisible) return;
+    if (command === 'new-quiz' || command === 'new-video-quiz') handleCreateNewQuiz(command === 'new-video-quiz');
+    else if (command === 'import-questions') setImportingQuestions(true);
+    else if (command === 'backup' || command === 'about') openSettings(command);
+    else if (command === 'guide') window.location.assign(`?app=guide&lang=${language}`);
+  };
+  useEffect(() => window.quriosoDesktop?.menu?.onCommand(command => menuCommand.current(command)), []);
+  useEffect(() => { window.quriosoDesktop?.menu?.setLibraryVisible(libraryVisible); }, [libraryVisible]);
+  // The window title names the open quiz.
+  useEffect(() => {
+    if (!desktop) return;
+    document.title = ['editor', 'classroom', 'host'].includes(view) ? `${selectedQuiz.title} — Qurioso` : 'Qurioso';
+  }, [desktop, view, selectedQuiz.title]);
+
   const importDialog = importingQuestions && <QuestionImportDialog quizzes={quizzes} onCancel={() => setImportingQuestions(false)} onConfirm={quiz => { setSelectedQuiz(quiz); setImportingQuestions(false); setView('editor'); }} />;
   const guide = showGuide && <MultiplatformGuide onClose={() => setShowGuide(false)} />;
 
@@ -266,28 +286,11 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
     );
   }
 
-  if (view === 'settings') return <>{importDialog}{guide}<SettingsScreen quizzes={quizzes} onRestored={updated => { setQuizzes(updated); setStorageError(''); }} onEditor={handleEditQuiz} onQuestions={() => setImportingQuestions(true)} onCreate={() => handleCreateNewQuiz()} onCreateVideo={() => handleCreateNewQuiz(true)} onBack={() => setView('dashboard')} onGuide={() => setShowGuide(true)} environment={environmentText} /></>;
+  if (view === 'settings') return <>{importDialog}{guide}<SettingsScreen quizzes={quizzes} onRestored={updated => { setQuizzes(updated); setStorageError(''); }} onEditor={handleEditQuiz} onQuestions={() => setImportingQuestions(true)} onCreate={() => handleCreateNewQuiz()} onCreateVideo={() => handleCreateNewQuiz(true)} onBack={() => { setSettingsFocus(undefined); setView('dashboard'); }} onGuide={() => setShowGuide(true)} environment={environmentText} focus={settingsFocus} /></>;
 
   // DEFAULT VIEW: MAIN DASHBOARD & QUIZ HUB
-  return (
-    <div data-qurioso-dashboard className="min-h-screen bg-qurioso-canvas text-ink flex flex-col select-none">
-      {importDialog}
-      <Header
-        classroomOnly={!networkMode}
-        serverInfo={publicSite ? null : serverInfo}
-        onOpenSettings={() => setView('settings')}
-        onJoinClick={() => {
-          setPlayerPin('');
-          setView('player');
-        }}
-        onCreateQuiz={() => handleCreateNewQuiz()}
-      />
-
-      <OfflineIndicator />
-
-      {/* Main Content */}
-      <main className="flex-1 w-full p-4 md:p-8 space-y-8">
-        {!desktop && <a href="./" className="inline-block text-sm font-bold text-petrolio underline">{labels.backHome}</a>}
+  // The library and its cards are shared; only the surrounding frame depends on the environment.
+  const alerts = <>
         {recoveryProblem && <div role="alert" className="rounded-xl border border-line bg-white p-4 text-petrolio">
           <p>{recoveryProblem.message}</p>
           {['unavailable', 'context_missing'].includes(recoveryProblem.status) && <div className="flex gap-3 mt-3">
@@ -296,46 +299,27 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
           </div>}
         </div>}
         {storageError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{storageError}</p>}
-        <section data-workspace className="space-y-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="space-y-2 max-w-3xl">
-              <p aria-label={labels.runtimeLabel} className="text-sm font-black text-petrolio">{publicSite ? workspace.web : desktop ? workspace.desktop : serverInfo ? workspace.local : workspace.web}</p>
-              <h2 className="text-2xl md:text-3xl font-black text-ink">{desktop || serverInfo ? workspace.title : workspace.webTitle}</h2>
-              <p className="text-muted">{workspace.intro}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => handleCreateNewQuiz()} className="btn-mandarino rounded-xl px-4 py-3 font-bold inline-flex gap-2 items-center"><Plus size={18} />{t.createNewQuizBtn}</button>
-              <button onClick={() => handleCreateNewQuiz(true)} className="rounded-xl border border-line bg-white px-4 py-3 font-bold text-petrolio inline-flex gap-2 items-center"><Video size={18} />{labels.createVideoQuiz}</button>
-            </div>
-          </div>
-          {!publicSite && (desktop || serverInfo) ? <div role="group" aria-label={workspace.mode} className="grid sm:grid-cols-2 gap-3">
-            {(['classroom', 'network'] as const).map(mode => <button key={mode} type="button" data-activity-mode={mode} aria-pressed={activityMode === mode} onClick={() => changeActivityMode(mode)} className={`rounded-2xl border-2 p-4 text-left transition ${activityMode === mode ? 'border-petrolio bg-petrolio text-white shadow-md' : 'border-line bg-white text-petrolio hover:bg-surface-soft'}`}>
-              <span className="flex items-center justify-between gap-2 font-black">{mode === 'classroom' ? workspace.classroom : workspace.network}{activityMode === mode && <CheckCircle size={20} aria-label={workspace.selected} />}</span>
-              <span className="block mt-2 text-sm">{mode === 'classroom' ? workspace.classroomHint : workspace.networkHint}</span>
-            </button>)}
-          </div> : <p className="rounded-2xl bg-white border border-line p-4 text-petrolio">{workspace.classroomHint}</p>}
-          {networkMode && <p role="status" className="text-sm text-petrolio">{serverInfo ? workspace.networkReady : workspace.networkWaiting} <a className="underline font-bold" href={`?app=guide&topic=network&lang=${language}`}>{workspace.docs}</a></p>}
-          {publicSite && <aside data-device-download className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-3"><p className="font-bold text-petrolio">{workspace.devicesTitle}</p><a href={downloadsUrl} className="inline-flex items-center gap-2 btn-petrolio rounded-xl px-4 py-2.5 font-bold"><Download size={18} />{workspace.devicesDownload}</a></aside>}
-        </section>
-        {/* Quizzes Collection Section */}
+  </>;
+  // Quizzes Collection Section
+  const library = (
         <div>
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-xl md:text-2xl font-black text-ink">
                 {workspace.library}
               </h2>
-              <p className="text-xs text-muted">
+              {!desktop && <p className="text-xs text-muted">
                 {networkMode ? workspace.networkHint : workspace.classroomHint}
-              </p>
+              </p>}
             </div>
 
-            <button
+            {!desktop && <button
               onClick={() => handleCreateNewQuiz()}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-soft hover:bg-surface-hover text-xs font-semibold text-muted rounded-xl border border-line transition cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5 text-accent-ink" />
               <span>{t.newQuizBtn}</span>
-            </button>
+            </button>}
           </div>
 
           {/* Cards Grid */}
@@ -457,33 +441,54 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
             })}
           </div>
         </div>
-      </main>
+  );
 
-      {/* Footer with Qurioso Q Icon, Author, and Affero GPL License */}
-      <footer className="w-full border-t border-line bg-surface-soft py-6 px-4 md:px-8 text-center text-xs text-muted">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <QuriosoIcon size={26} variant="contained" />
-            <span className="font-extrabold text-ink">Qurioso</span>
-            <span>•</span>
-            <span>{t.authorLabel}</span>
+  if (desktop) return (
+    <DesktopShell serverInfo={serverInfo} onCreateQuiz={handleCreateNewQuiz} onOpenSettings={() => openSettings()}>
+      {importDialog}
+      {alerts}
+      <ActivityModeSwitch mode={activityMode} onChange={changeActivityMode} />
+      {library}
+    </DesktopShell>
+  );
+
+  return (
+    <WebShell
+      classroomOnly={!networkMode}
+      serverInfo={publicSite ? null : serverInfo}
+      onOpenSettings={() => openSettings()}
+      onJoinClick={() => {
+        setPlayerPin('');
+        setView('player');
+      }}
+      onCreateQuiz={() => handleCreateNewQuiz()}
+      onShowGuide={() => setShowGuide(true)}
+    >
+      {importDialog}
+      {alerts}
+        <section data-workspace className="space-y-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-2 max-w-3xl">
+              <p aria-label={labels.runtimeLabel} className="text-sm font-black text-petrolio">{publicSite ? workspace.web : desktop ? workspace.desktop : serverInfo ? workspace.local : workspace.web}</p>
+              <h2 className="text-2xl md:text-3xl font-black text-ink">{desktop || serverInfo ? workspace.title : workspace.webTitle}</h2>
+              <p className="text-muted">{workspace.intro}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => handleCreateNewQuiz()} className="btn-mandarino rounded-xl px-4 py-3 font-bold inline-flex gap-2 items-center"><Plus size={18} />{t.createNewQuizBtn}</button>
+              <button onClick={() => handleCreateNewQuiz(true)} className="rounded-xl border border-line bg-white px-4 py-3 font-bold text-petrolio inline-flex gap-2 items-center"><Video size={18} />{labels.createVideoQuiz}</button>
+            </div>
           </div>
-
-          <div className="flex items-center gap-3 text-[11px] text-muted">
-            <span>{t.licenseLabel}</span>
-            <span>•</span>
-            <button
-              onClick={() => setShowGuide(true)}
-              className="text-accent-ink hover:underline cursor-pointer font-semibold"
-            >
-              {t.buildAndGitHub}
-            </button>
-          </div>
-        </div>
-      </footer>
-
-      {/* Multiplatform & GitHub Guide Modal */}
-      {showGuide && <MultiplatformGuide onClose={() => setShowGuide(false)} />}
-    </div>
+          {!publicSite && (desktop || serverInfo) ? <div role="group" aria-label={workspace.mode} className="grid sm:grid-cols-2 gap-3">
+            {(['classroom', 'network'] as const).map(mode => <button key={mode} type="button" data-activity-mode={mode} aria-pressed={activityMode === mode} onClick={() => changeActivityMode(mode)} className={`rounded-2xl border-2 p-4 text-left transition ${activityMode === mode ? 'border-petrolio bg-petrolio text-white shadow-md' : 'border-line bg-white text-petrolio hover:bg-surface-soft'}`}>
+              <span className="flex items-center justify-between gap-2 font-black">{mode === 'classroom' ? workspace.classroom : workspace.network}{activityMode === mode && <CheckCircle size={20} aria-label={workspace.selected} />}</span>
+              <span className="block mt-2 text-sm">{mode === 'classroom' ? workspace.classroomHint : workspace.networkHint}</span>
+            </button>)}
+          </div> : <p className="rounded-2xl bg-white border border-line p-4 text-petrolio">{workspace.classroomHint}</p>}
+          {networkMode && <p role="status" className="text-sm text-petrolio">{serverInfo ? workspace.networkReady : workspace.networkWaiting} <a className="underline font-bold" href={`?app=guide&topic=network&lang=${language}`}>{workspace.docs}</a></p>}
+          {publicSite && <aside data-device-download className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-3"><p className="font-bold text-petrolio">{workspace.devicesTitle}</p><a href={downloadsUrl} className="inline-flex items-center gap-2 btn-petrolio rounded-xl px-4 py-2.5 font-bold"><Download size={18} />{workspace.devicesDownload}</a></aside>}
+        </section>
+      {library}
+      {guide}
+    </WebShell>
   );
 }

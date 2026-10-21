@@ -48,7 +48,7 @@ exports.run = async (host, port) => {
   try {
     await host.loadURL('http://qurioso.localhost/?app=network&lang=it');
     await execute(host, `
-      await wait(() => button('Crea Nuovo Quiz'), 'library');
+      await wait(() => document.querySelector('[data-shell="desktop"]'), 'library');
       const options = ['Risposta corretta con un testo leggibile', 'Seconda risposta di lunghezza ordinaria', 'Terza risposta della domanda', 'Quarta risposta della domanda', 'Quinta opzione da visualizzare', 'Sesta opzione da visualizzare'].map((text, index) => ({
         id: 'option-' + index, text, isCorrect: index === 0, color: ['red','blue','yellow','green','purple','orange'][index], shape: ['triangle','diamond','circle','square','star','hexagon'][index]
       }));

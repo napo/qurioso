@@ -108,9 +108,9 @@ async function start() {
     },
     onChange: state => { if (window && !window.isDestroyed()) window.webContents.send('qurioso:sharing:changed', state); },
   });
-  const trustedSharingCaller = event => event.sender === window?.webContents && event.senderFrame === event.sender.mainFrame && new URL(event.senderFrame.url).origin === ORIGIN;
+  const trustedCaller = event => event.sender === window?.webContents && event.senderFrame === event.sender.mainFrame && new URL(event.senderFrame.url).origin === ORIGIN;
   for (const action of ['status', 'start', 'stop']) ipcMain.handle(`qurioso:sharing:${action}`, (event, pin) => {
-    if (!trustedSharingCaller(event)) throw new Error('Native sharing unavailable');
+    if (!trustedCaller(event)) throw new Error('Native sharing unavailable');
     return action === 'status' ? sharing.snapshot() : action === 'start' ? sharing.start(typeof pin === 'string' ? pin : '') : sharing.stop();
   });
   window.webContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => { if (isMainFrame && !isInPlace && sharing.snapshot().phase !== 'idle') void sharing.stop(); });
@@ -124,6 +124,10 @@ async function start() {
       } catch { return false; }
     },
   });
+  // File and Help commands are handled by the renderer; they stay disabled until the library reports it is visible.
+  const command = (name, label, accelerator) => ({ id: `qurioso-${name}`, label, accelerator, enabled: false,
+    click: () => { if (window && !window.isDestroyed()) window.webContents.send('qurioso:menu:command', name); } });
+  const libraryCommands = ['new-quiz', 'new-video-quiz', 'import-questions', 'backup', 'guide', 'about'];
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
     { label: 'Qurioso', submenu: [
@@ -132,8 +136,24 @@ async function start() {
       { type: 'separator' }, ...updater.menuItems,
       { type: 'separator' }, { role: 'quit' },
     ] },
+    { label: 'File', submenu: [
+      command('new-quiz', 'Nuovo quiz', 'CmdOrCtrl+N'),
+      command('new-video-quiz', 'Nuovo quiz video', 'CmdOrCtrl+Shift+N'),
+      { type: 'separator' },
+      command('import-questions', 'Importa domande…'),
+      command('backup', 'Backup e ripristino…'),
+    ] },
     { role: 'editMenu' }, { role: 'viewMenu' },
+    { label: 'Aiuto', role: 'help', submenu: [
+      command('guide', 'Guida', 'F1'),
+      command('about', 'Informazioni su Qurioso'),
+    ] },
   ]));
+  ipcMain.on('qurioso:menu:state', (event, visible) => {
+    if (!trustedCaller(event)) return;
+    const menu = Menu.getApplicationMenu();
+    for (const name of libraryCommands) { const item = menu?.getMenuItemById(`qurioso-${name}`); if (item) item.enabled = visible === true; }
+  });
   if (captureGuide) {
     window.webContents.setBackgroundThrottling(false);
   }

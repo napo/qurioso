@@ -8,8 +8,13 @@ export interface InternetSharingApi {
   stop: () => Promise<InternetSharingState>;
   onChange: (callback: (state: InternetSharingState) => void) => () => void;
 }
+export type DesktopMenuCommand = 'new-quiz' | 'new-video-quiz' | 'import-questions' | 'backup' | 'guide' | 'about';
+export interface DesktopMenuApi {
+  onCommand: (callback: (command: DesktopMenuCommand) => void) => () => void;
+  setLibraryVisible: (visible: boolean) => void;
+}
 declare global {
   interface Window {
-    quriosoDesktop?: Readonly<{ serverPort: number; internetSharing?: InternetSharingApi }>;
+    quriosoDesktop?: Readonly<{ serverPort: number; internetSharing?: InternetSharingApi; menu?: DesktopMenuApi }>;
   }
 }

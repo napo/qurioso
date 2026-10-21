@@ -14,5 +14,15 @@ if (Number.isInteger(port) && port > 0 && port < 65536) {
         return () => ipcRenderer.removeListener('qurioso:sharing:changed', listener);
       },
     }),
+    // Native File/Help menu commands; items are enabled only while the library is visible.
+    menu: Object.freeze({
+      onCommand: callback => {
+        if (typeof callback !== 'function') return () => {};
+        const listener = (_event, command) => callback(command);
+        ipcRenderer.on('qurioso:menu:command', listener);
+        return () => ipcRenderer.removeListener('qurioso:menu:command', listener);
+      },
+      setLibraryVisible: visible => ipcRenderer.send('qurioso:menu:state', visible === true),
+    }),
   }));
 }
