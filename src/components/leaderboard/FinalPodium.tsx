@@ -10,7 +10,7 @@ import { QuriosoIcon } from '../common/QuriosoLogo';
 interface FinalPodiumProps {
   players: Player[] | Record<string, Player>;
   quizTitle?: string;
-  totalQuestions?: number;
+  totalQuestions: number;
   onPlayAgain?: () => void;
   onRestart?: () => void;
   onExit: () => void;
@@ -19,7 +19,7 @@ interface FinalPodiumProps {
 export const FinalPodium: React.FC<FinalPodiumProps> = ({
   players,
   quizTitle = 'Qurioso Quiz',
-  totalQuestions = 10,
+  totalQuestions,
   onPlayAgain,
   onRestart,
   onExit,

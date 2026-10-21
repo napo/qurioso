@@ -804,6 +804,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
           <div className="w-full max-w-4xl">
             <FinalPodium
               players={players}
+              totalQuestions={totalQuestions}
               onRestart={() => {
                 setStatus('lobby');
                 setCurrentQuestionIndex(0);
