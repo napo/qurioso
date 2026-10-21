@@ -10,7 +10,6 @@ export interface Translations {
   // Header
   studioLiveBadge: string;
   joinWithPin: string;
-  createQuiz: string;
   buildAndGitHub: string;
   muteAudio: string;
   unmuteAudio: string;
@@ -21,12 +20,10 @@ export interface Translations {
   heroBadge: string;
   heroTitle: string;
   heroDescription: string;
-  createNewQuizBtn: string;
   tryVideoQuizBtn: string;
   buildPlatformsBtn: string;
   libraryTitle: string;
   librarySubtitle: string;
-  newQuizBtn: string;
   multiplayerLiveBadge: string;
   videoQuizBadge: string;
   questionsCount: string;
@@ -202,7 +199,6 @@ export const translations: Record<Language, Translations> = {
 
     studioLiveBadge: 'Editor e Diretta',
     joinWithPin: 'Partecipa con PIN',
-    createQuiz: 'Crea Quiz',
     buildAndGitHub: 'Compilazione e GitHub',
     muteAudio: 'Disattiva Audio',
     unmuteAudio: 'Riattiva Audio',
@@ -212,12 +208,10 @@ export const translations: Record<Language, Translations> = {
     heroBadge: 'Editor di Quiz e Piattaforma Multigiocatore in Diretta',
     heroTitle: 'Crea, Condividi & Sfida in Tempo Reale',
     heroDescription: 'Costruisci quiz interattivi dinamici. Genera il QR Code per consentire ai partecipanti di rispondere istantaneamente dal proprio dispositivo, sfrutta la Modalità Quiz Video con pause automatiche e consulta le classifiche dettagliate!',
-    createNewQuizBtn: 'Crea Nuovo Quiz',
     tryVideoQuizBtn: 'Prova Quiz Video',
     buildPlatformsBtn: 'Compila per Linux / Win / Mac / Android',
     libraryTitle: 'Libreria Quiz Disponibili',
     librarySubtitle: 'Seleziona un quiz per proiettarlo ai partecipanti o avviare la modalità video',
-    newQuizBtn: 'Nuovo',
     multiplayerLiveBadge: 'Multigiocatore in Diretta',
     videoQuizBadge: 'Quiz Video',
     questionsCount: 'domande',
@@ -384,7 +378,6 @@ export const translations: Record<Language, Translations> = {
 
     studioLiveBadge: 'Studio & Live',
     joinWithPin: 'Join with PIN',
-    createQuiz: 'Create Quiz',
     buildAndGitHub: 'Build & GitHub',
     muteAudio: 'Mute Audio',
     unmuteAudio: 'Unmute Audio',
@@ -394,12 +387,10 @@ export const translations: Record<Language, Translations> = {
     heroBadge: 'Quiz Studio & Live Multiplayer Platform',
     heroTitle: 'Create, Share & Compete in Real-Time',
     heroDescription: 'Build fast-paced interactive quizzes. Generate a QR Code for instant smartphone participation, experience Video Quiz mode with automatic pause checkpoints, and track detailed live leaderboards!',
-    createNewQuizBtn: 'Create New Quiz',
     tryVideoQuizBtn: 'Try Video Quiz',
     buildPlatformsBtn: 'Build Linux / Win / Mac / Android',
     libraryTitle: 'Available Quizzes Library',
     librarySubtitle: 'Select a quiz to present live to participants or launch video quiz mode',
-    newQuizBtn: 'New',
     multiplayerLiveBadge: 'Live Multiplayer',
     videoQuizBadge: 'Video Quiz',
     questionsCount: 'questions',
@@ -566,7 +557,6 @@ export const translations: Record<Language, Translations> = {
 
     studioLiveBadge: 'Editor & Live-Modus',
     joinWithPin: 'Mit PIN beitreten',
-    createQuiz: 'Quiz erstellen',
     buildAndGitHub: 'Kompilierung & GitHub',
     muteAudio: 'Ton stumm',
     unmuteAudio: 'Ton an',
@@ -576,12 +566,10 @@ export const translations: Record<Language, Translations> = {
     heroBadge: 'Quiz-Editor & Live-Mehrspieler-Plattform',
     heroTitle: 'Erstellen, Teilen & in Echtzeit Messen',
     heroDescription: 'Erstelle dynamische interaktive Quizze. Generiere den QR-Code, damit Teilnehmer direkt mit ihrem Smartphone antworten können, nutze den Video-Quiz-Modus mit automatischen Pausen und verfolge detaillierte Ranglisten!',
-    createNewQuizBtn: 'Neues Quiz erstellen',
     tryVideoQuizBtn: 'Video-Quiz testen',
     buildPlatformsBtn: 'Für Linux / Win / Mac / Android kompilieren',
     libraryTitle: 'Verfügbare Quiz-Bibliothek',
     librarySubtitle: 'Wähle ein Quiz aus, um es live zu präsentieren oder den Video-Modus zu starten',
-    newQuizBtn: 'Neu',
     multiplayerLiveBadge: 'Live-Mehrspieler',
     videoQuizBadge: 'Video-Quiz',
     questionsCount: 'Fragen',

@@ -29,7 +29,7 @@ test('the official hosted app offers classroom and downloads, never a quiz serve
   assert.equal([...document.querySelectorAll('button')].some(b => b.textContent === 'Quiz classico in rete'), false);
   assert.equal(document.querySelector('header')!.textContent!.includes(' Live'), false);
   assert.equal(document.querySelector('.library-data'), null);
-  assert.ok([...document.querySelectorAll('button')].some(b => b.textContent?.includes('Crea')));
+  assert.equal([...document.querySelectorAll('button[aria-haspopup="menu"]')].map(b => b.textContent).join(), 'Nuovo quiz', 'a single creation control in the library');
   await act(async () => document.querySelector<HTMLButtonElement>('button[aria-label="Impostazioni"]')!.click());
   assert.ok(document.querySelector('[data-qurioso-settings] .library-data'));
   assert.equal(document.querySelector('[data-internet-setup]'), null, 'the public website cannot configure native Cloudflare');

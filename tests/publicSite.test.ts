@@ -40,6 +40,16 @@ test('the public website presents classroom activities and offers the desktop ap
     assert.match(box?.textContent || '', /Vuoi che ogni studente risponda dal proprio dispositivo\?/);
     assert.equal(box?.querySelector('a')?.getAttribute('href'), './?lang=it#quiz-in-rete');
     assert.doesNotMatch(document.body.textContent!, /\b(port[ae]?|server|LAN|Cloudflare|WebSocket|tunnel)\b/i);
+    // Simplified library: one creation menu, compact cards, credits behind an ⓘ disclosure.
+    assert.equal(document.querySelectorAll('button[aria-haspopup="menu"]').length, 1);
+    const count = (needle: string) => document.body.textContent!.split(needle).length - 1;
+    assert.equal(count('Proietta il quiz e scegli la risposta insieme alla classe'), 1, 'the mode description is not repeated under the library title or on cards');
+    assert.equal(count('Qurioso Web'), 1, 'the environment name appears only in the header');
+    assert.equal(count('di Maurizio Napolitano'), 0);
+    assert.doesNotMatch(document.body.textContent!, /Quiz Live:|Video Quiz:/);
+    const credit = document.querySelector('a[href="https://commons.wikimedia.org/wiki/File:Fimmvorduhals_2010_03_27_dawn.jpg"]');
+    assert.ok(credit?.closest('details[data-image-credits]'), 'image credits sit in the card disclosure');
+    assert.equal(credit!.closest('details')!.querySelector('summary')!.getAttribute('aria-label'), 'Crediti dell’immagine');
     assert.equal(requests.some(url => !url.startsWith('https://api.github.com/')), false);
   }
 

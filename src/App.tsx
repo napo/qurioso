@@ -1,5 +1,5 @@
 import { loadQuizzes, storeQuizzes } from './services/quizStorage';
-import { ImageCredit } from './components/common/ImageCredit';
+import { ImageCreditDetails } from './components/common/ImageCredit';
 /**
  * Qurioso ⚡ — Interactive Multiplayer & Video Quiz Studio
  * @author Maurizio Napolitano <maurizio.napolitano@gmail.com>
@@ -22,7 +22,7 @@ import {
 import { Quiz, GameSession } from './types/quiz';
 import { DEFAULT_QUIZZES, DEFAULT_QUIZ_COVER } from './data/defaultQuizzes';
 import { WebShell } from './components/shell/WebShell';
-import { DesktopShell, ActivityModeSwitch } from './components/shell/DesktopShell';
+import { DesktopShell, ActivityModeSwitch, NewQuizMenu } from './components/shell/DesktopShell';
 import { ClassroomScreen } from './components/classroom/ClassroomScreen';
 import { FallbackImage, ImagePlaceholder } from './components/common/FallbackImage';
 import { HostScreen } from './components/host/HostScreen';
@@ -308,18 +308,9 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
               <h2 className="text-xl md:text-2xl font-black text-ink">
                 {workspace.library}
               </h2>
-              {!desktop && <p className="text-xs text-muted">
-                {networkMode ? workspace.networkHint : workspace.classroomHint}
-              </p>}
             </div>
 
-            {!desktop && <button
-              onClick={() => handleCreateNewQuiz()}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-soft hover:bg-surface-hover text-xs font-semibold text-muted rounded-xl border border-line transition cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 text-accent-ink" />
-              <span>{t.newQuizBtn}</span>
-            </button>}
+            {!desktop && <NewQuizMenu w={workspace} onCreateQuiz={handleCreateNewQuiz} />}
           </div>
 
           {/* Cards Grid */}
@@ -379,14 +370,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
                       <p className="text-xs text-muted mt-1 line-clamp-2 leading-relaxed">
                         {quiz.description}
                       </p>
-                      {quiz.author && (
-                        <p className="text-[10px] text-muted mt-2">
-                          di {quiz.author}
-                        </p>
-                      )}
                     </div>
-
-                    <ImageCredit attribution={quiz.coverAttribution} />
 
                     {/* Card Actions */}
                     <div className="mt-5 pt-4 border-t border-line space-y-2">
@@ -402,13 +386,12 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
                         <span>{isVideoQuiz ? labels.networkVideo : labels.networkClassic}</span>
                       </button>
 
-                      <p className="text-xs text-muted">{isVideoQuiz && !quizCheckpoints(quiz).length ? labels.addCheckpoint : serverInfo ? labels.networkDeviceHint : labels.networkRequiresServer}</p>
+                      {(isVideoQuiz && !quizCheckpoints(quiz).length || !serverInfo) && <p className="text-xs text-muted">{isVideoQuiz && !quizCheckpoints(quiz).length ? labels.addCheckpoint : labels.networkRequiresServer}</p>}
                       </>}
 
                       {!networkMode && <button type="button" onClick={() => { setSelectedQuiz(quiz); setView('classroom'); }} className="w-full py-3 px-3 rounded-xl btn-mandarino font-bold text-sm cursor-pointer">{isVideoQuiz ? labels.classroomVideoAction : labels.classroomAction}</button>}
-                      {!networkMode && <p className="text-xs text-muted">{labels.classroomActionHint}</p>}
                       {/* Manage Buttons */}
-                      <div className="flex items-center justify-between pt-1">
+                      <div className="relative flex items-center justify-between pt-1">
                         <button
                           onClick={() => handleEditQuiz(quiz)}
                           className="flex items-center gap-1 text-[11px] font-semibold text-muted hover:text-ink transition cursor-pointer"
@@ -418,6 +401,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
                         </button>
 
                         <div className="flex items-center gap-2">
+                          <ImageCreditDetails attribution={quiz.coverAttribution} label={workspace.imageCredits} />
                           <button
                             onClick={() => handleDuplicateQuiz(quiz)}
                             className="p-1.5 rounded-lg hover:bg-surface-hover text-muted hover:text-ink transition cursor-pointer"
@@ -461,7 +445,6 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
         setPlayerPin('');
         setView('player');
       }}
-      onCreateQuiz={() => handleCreateNewQuiz()}
       onShowGuide={() => setShowGuide(true)}
     >
       {importDialog}
@@ -469,16 +452,11 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
         <section data-workspace className="space-y-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-2 max-w-3xl">
-              <p aria-label={labels.runtimeLabel} className="text-sm font-black text-petrolio">{publicSite ? workspace.web : desktop ? workspace.desktop : serverInfo ? workspace.local : workspace.web}</p>
-              <h2 className="text-2xl md:text-3xl font-black text-ink">{desktop || serverInfo ? workspace.title : workspace.webTitle}</h2>
+              <h2 className="text-2xl md:text-3xl font-black text-ink">{serverInfo ? workspace.title : workspace.webTitle}</h2>
               <p className="text-muted">{workspace.intro}</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => handleCreateNewQuiz()} className="btn-mandarino rounded-xl px-4 py-3 font-bold inline-flex gap-2 items-center"><Plus size={18} />{t.createNewQuizBtn}</button>
-              <button onClick={() => handleCreateNewQuiz(true)} className="rounded-xl border border-line bg-white px-4 py-3 font-bold text-petrolio inline-flex gap-2 items-center"><Video size={18} />{labels.createVideoQuiz}</button>
-            </div>
           </div>
-          {!publicSite && (desktop || serverInfo) ? <div role="group" aria-label={workspace.mode} className="grid sm:grid-cols-2 gap-3">
+          {!publicSite && serverInfo ? <div role="group" aria-label={workspace.mode} className="grid sm:grid-cols-2 gap-3">
             {(['classroom', 'network'] as const).map(mode => <button key={mode} type="button" data-activity-mode={mode} aria-pressed={activityMode === mode} onClick={() => changeActivityMode(mode)} className={`rounded-2xl border-2 p-4 text-left transition ${activityMode === mode ? 'border-petrolio bg-petrolio text-white shadow-md' : 'border-line bg-white text-petrolio hover:bg-surface-soft'}`}>
               <span className="flex items-center justify-between gap-2 font-black">{mode === 'classroom' ? workspace.classroom : workspace.network}{activityMode === mode && <CheckCircle size={20} aria-label={workspace.selected} />}</span>
               <span className="block mt-2 text-sm">{mode === 'classroom' ? workspace.classroomHint : workspace.networkHint}</span>

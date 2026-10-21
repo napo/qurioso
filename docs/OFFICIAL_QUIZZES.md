@@ -26,9 +26,9 @@ The sample quizzes in [src/data/defaultQuizzes.ts](../src/data/defaultQuizzes.ts
 
 ### Image credits
 
-- `earth.webp` (Video Quiz: Viaggio nello Spazio & Scienze): “The Earth seen from Apollo 17.jpg”, NASA / Apollo 17 crew, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:The_Earth_seen_from_Apollo_17.jpg), public domain.
-- `manarola.webp` (Quiz Live: Cultura Generale & Italia, and the default cover for new quizzes): “Manarola, Cinque Terre (Italy).jpg”, Davcio, own work, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Manarola,_Cinque_Terre_(Italy).jpg), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
-- `colosseum.webp` (Pantheon question in Quiz Live: Cultura Generale & Italia): “Colosseum in Rome, Italy - April 2007.jpg”, Diliff, own work, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Colosseum_in_Rome,_Italy_-_April_2007.jpg), [CC BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+- `earth.webp` (Viaggio nello Spazio & Scienze): “The Earth seen from Apollo 17.jpg”, NASA / Apollo 17 crew, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:The_Earth_seen_from_Apollo_17.jpg), public domain.
+- `manarola.webp` (Cultura Generale & Italia, and the default cover for new quizzes): “Manarola, Cinque Terre (Italy).jpg”, Davcio, own work, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Manarola,_Cinque_Terre_(Italy).jpg), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
+- `colosseum.webp` (Pantheon question in Cultura Generale & Italia): “Colosseum in Rome, Italy - April 2007.jpg”, Diliff, own work, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Colosseum_in_Rome,_Italy_-_April_2007.jpg), [CC BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 - `moraine-lake.webp` (Quiz Panoramico: Meraviglie del Mondo): “Moraine Lake 17092005.jpg”, Gorgo, own work, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Moraine_Lake_17092005.jpg), public domain.
 
 The included images are resized from the originals. The resized CC BY-SA images are distributed under the same licenses as the originals. Credits, license and source links remain in the quiz data and are displayed in the app.

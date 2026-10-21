@@ -7,15 +7,15 @@ import { settingsTranslations } from '../../i18n/settings';
 import type { ServerInfo } from '../../services/gameSync';
 
 /** Website frame: page header, link back to the landing page and project footer. */
-export function WebShell({ classroomOnly, serverInfo, onOpenSettings, onJoinClick, onCreateQuiz, onShowGuide, children }: {
+export function WebShell({ classroomOnly, serverInfo, onOpenSettings, onJoinClick, onShowGuide, children }: {
   classroomOnly: boolean; serverInfo: ServerInfo | null;
-  onOpenSettings: () => void; onJoinClick: () => void; onCreateQuiz: () => void; onShowGuide: () => void; children: React.ReactNode;
+  onOpenSettings: () => void; onJoinClick: () => void; onShowGuide: () => void; children: React.ReactNode;
 }) {
   const { t, language } = useLanguage();
   const labels = settingsTranslations[language];
   return (
     <div data-qurioso-dashboard data-shell="web" className="min-h-screen bg-qurioso-canvas text-ink flex flex-col select-none">
-      <Header classroomOnly={classroomOnly} serverInfo={serverInfo} onOpenSettings={onOpenSettings} onJoinClick={onJoinClick} onCreateQuiz={onCreateQuiz} />
+      <Header classroomOnly={classroomOnly} serverInfo={serverInfo} onOpenSettings={onOpenSettings} onJoinClick={onJoinClick} />
 
       <OfflineIndicator />
 

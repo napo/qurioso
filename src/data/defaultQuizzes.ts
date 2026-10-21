@@ -28,7 +28,7 @@ export const DEFAULT_QUIZ_COVER: Pick<Quiz, 'coverImage' | 'coverAttribution'> =
 export const DEFAULT_QUIZZES: Quiz[] = [
   {
     id: 'quiz-video-space',
-    title: 'Video Quiz: Viaggio nello Spazio & Scienze',
+    title: 'Viaggio nello Spazio & Scienze',
     description: 'Il video avanza e si blocca a intervalli determinati o casuali per farti rispondere a quesiti scientifici!',
     category: 'Video Quiz & Scienza',
     coverImage: 'quizzes/covers/earth.webp',
@@ -110,7 +110,7 @@ export const DEFAULT_QUIZZES: Quiz[] = [
   },
   {
     id: 'quiz-general-italy',
-    title: 'Quiz Live: Cultura Generale & Italia',
+    title: 'Cultura Generale & Italia',
     description: 'Quiz dal ritmo incalzante con 4 risposte colorate per sfidarsi live via QR Code!',
     category: 'Cultura Generale',
     ...DEFAULT_QUIZ_COVER,

@@ -36,7 +36,7 @@ function ServerBadge({ serverInfo, w }: { serverInfo: ServerInfo | null; w: Work
   </span>;
 }
 
-function NewQuizMenu({ w, onCreateQuiz }: { w: Workspace; onCreateQuiz: (withVideo: boolean) => void }) {
+export function NewQuizMenu({ w, onCreateQuiz }: { w: Workspace; onCreateQuiz: (withVideo: boolean) => void }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null), items = useRef<(HTMLButtonElement | null)[]>([]);
   useEffect(() => {

@@ -256,8 +256,9 @@ test('real host and player components exchange correct answers across rounds wit
   const { default: App } = await import('../src/App');
   root = createRoot(document.getElementById('app')!);
   await act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(App))));
-  await waitFor(() => document.body.textContent?.includes('Crea quiz video'), 'dashboard exposes video quiz creation');
-  await click('Crea quiz video');
+  await waitFor(() => document.querySelector('button[aria-haspopup="menu"]'), 'dashboard exposes quiz creation');
+  await act(async () => document.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!.click());
+  await act(async () => [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].find(b => b.textContent === 'Quiz video')!.click());
   assert.ok(document.querySelector('section[aria-label="Tipo di quiz"]'));
   assert.equal(document.querySelector('button[aria-pressed="true"]')?.textContent?.includes('Quiz con video'), true);
   assert.ok(document.querySelector('section[aria-label="Sorgente video"] input[type="url"]'));

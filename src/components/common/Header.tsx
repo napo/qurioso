@@ -5,7 +5,6 @@ import {
   Volume2,
   VolumeX,
   Smartphone,
-  Plus,
 } from 'lucide-react';
 import { AppVersion } from './AppVersion';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -23,7 +22,6 @@ interface HeaderProps {
   serverInfo?: ServerInfo | null;
   onOpenSettings: () => void;
   onJoinClick: () => void;
-  onCreateQuiz: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -31,7 +29,6 @@ export const Header: React.FC<HeaderProps> = ({
   serverInfo,
   onOpenSettings,
   onJoinClick,
-  onCreateQuiz,
 }) => {
   const { t, language } = useLanguage();
   const labels = settingsTranslations[language];
@@ -81,15 +78,6 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="hidden sm:inline">{t.joinWithPin}</span>
           <span className="sm:hidden">PIN</span>
         </button>}
-
-        {/* Create Quiz Button (Mandarino primary brand action) */}
-        <button
-          onClick={onCreateQuiz}
-          className="hidden md:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl btn-mandarino text-xs font-bold transition active:scale-95 cursor-pointer"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>{t.createQuiz}</span>
-        </button>
 
         {/* Sound Toggle */}
         <button
