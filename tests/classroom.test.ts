@@ -5,18 +5,19 @@ import { JSDOM } from 'jsdom';
 import { DEFAULT_QUIZZES } from '../src/data/defaultQuizzes';
 
 test('classroom collects a collective answer, reveals feedback and summarizes without a server', async t => {
-  const dom = new JSDOM('<div id="app"></div>', { url: 'https://example.org/qurioso/' });
+  const dom = new JSDOM('<div id="app"></div>', { url: 'https://example.org/qurioso/?lang=it' });
   const saved = new Map<string, PropertyDescriptor | undefined>();
   for (const [key, value] of Object.entries({ window: dom.window, document: dom.window.document, navigator: dom.window.navigator, IS_REACT_ACT_ENVIRONMENT: true,
     fetch: () => { throw new Error('Classroom must not contact the server'); },
   })) { saved.set(key, Object.getOwnPropertyDescriptor(globalThis, key)); Object.defineProperty(globalThis, key, { value, configurable: true, writable: true }); }
   const { createRoot } = await import('react-dom/client');
   const { ClassroomScreen } = await import('../src/components/classroom/ClassroomScreen');
+  const { LanguageProvider } = await import('../src/context/LanguageContext');
   const root = createRoot(document.getElementById('app')!);
   t.after(async () => { await act(async () => root.unmount()); dom.window.close(); for (const [key, descriptor] of saved) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } });
   const original = DEFAULT_QUIZZES[0];
   const quiz = { ...original, questions: original.questions.slice(0, 2) };
-  await act(async () => root.render(React.createElement(ClassroomScreen, { quiz, onExit() {} })));
+  await act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(ClassroomScreen, { quiz, onExit() {} }))));
   const click = async (label: string) => {
     const button = [...document.querySelectorAll('button')].find(b => b.textContent === label); assert.ok(button, label);
     await act(async () => button.click());

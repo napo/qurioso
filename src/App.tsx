@@ -476,7 +476,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
               onClick={() => setShowGuide(true)}
               className="text-accent-ink hover:underline cursor-pointer font-semibold"
             >
-              GitHub & Builds
+              {t.buildAndGitHub}
             </button>
           </div>
         </div>
