@@ -6,6 +6,8 @@ export interface InternetSharingApi {
   status: () => Promise<InternetSharingState>;
   start: (pin: string) => Promise<InternetSharingState>;
   stop: () => Promise<InternetSharingState>;
+  /** Stops sharing the current game but keeps an open tunnel for the next one. */
+  release?: () => Promise<InternetSharingState>;
   onChange: (callback: (state: InternetSharingState) => void) => () => void;
 }
 export type DesktopMenuCommand = 'new-quiz' | 'new-video-quiz' | 'import-questions' | 'backup' | 'guide' | 'about';

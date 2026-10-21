@@ -217,7 +217,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
     endingRef.current = true;
     videoControls.current?.pause();
     setEnding(true);
-    await sharing.stop();
+    await sharing.release();
     await gameSync.removeSession(pin);
     onExit();
   };

@@ -113,11 +113,11 @@ async function start() {
     onChange: state => { if (window && !window.isDestroyed()) window.webContents.send('qurioso:sharing:changed', state); },
   });
   const trustedCaller = event => event.sender === window?.webContents && event.senderFrame === event.sender.mainFrame && new URL(event.senderFrame.url).origin === ORIGIN;
-  for (const action of ['status', 'start', 'stop']) ipcMain.handle(`qurioso:sharing:${action}`, (event, pin) => {
+  for (const action of ['status', 'start', 'stop', 'release']) ipcMain.handle(`qurioso:sharing:${action}`, (event, pin) => {
     if (!trustedCaller(event)) throw new Error('Native sharing unavailable');
-    return action === 'status' ? sharing.snapshot() : action === 'start' ? sharing.start(typeof pin === 'string' ? pin : '') : sharing.stop();
+    return action === 'status' ? sharing.snapshot() : action === 'start' ? sharing.start(typeof pin === 'string' ? pin : '') : action === 'release' ? sharing.release() : sharing.stop();
   });
-  window.webContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => { if (isMainFrame && !isInPlace && sharing.snapshot().phase !== 'idle') void sharing.stop(); });
+  window.webContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => { if (isMainFrame && !isInPlace && sharing.hasConnector()) void sharing.stop(); });
   window.webContents.on('render-process-gone', () => sharing.shutdown());
   updater = await require('./updateController.cjs').createUpdateController({ app, dialog, shell, window, automatic: app.isPackaged && !smoke,
     canOpenInstaller: async () => {

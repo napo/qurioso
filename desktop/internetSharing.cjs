@@ -119,6 +119,14 @@ function createInternetSharing({ directory, port, hostHeader, configure, onChang
     // closed (its process has exited) before the new one starts. The same game keeps its tunnel.
     if (stopping) await stopping;
     if (operation?.pin === pin) return snapshot();
+    // One tunnel serves consecutive games: an open, healthy connector is pointed at the new PIN.
+    if (operation?.ready && ['active', 'idle'].includes(state.phase)) {
+      const current = operation;
+      try { await configure({ origin: current.url, pin }); }
+      catch { if (operation === current) { operation = undefined; await detach(current); publish({ phase: 'error', error: 'local' }); } return snapshot(); }
+      if (operation === current) { current.pin = pin; publish({ phase: 'active', url: current.url, pin }); }
+      return snapshot();
+    }
     if (operation) await stop();
     if (operation || stopping) return snapshot();
     if (!asset) { publish({ phase: 'error', error: 'unsupported' }); return snapshot(); }
@@ -143,9 +151,9 @@ function createInternetSharing({ directory, port, hostHeader, configure, onChang
           if (!url || !connected || !metrics || completing || !active()) return;
           completing = true;
           try {
-            await configure({ origin: url, pin });
+            await configure({ origin: url, pin: current.pin });
             if (!active()) return;
-            ready = true; clearTimeout(timer); current.abort.signal.removeEventListener('abort', aborted);
+            ready = true; current.ready = true; current.url = url; clearTimeout(timer); current.abort.signal.removeEventListener('abort', aborted);
             current.healthTimer = setInterval(async () => {
               if (!active() || !metrics || checking) return;
               checking = true;
@@ -154,12 +162,15 @@ function createInternetSharing({ directory, port, hostHeader, configure, onChang
                 await response.body?.cancel();
                 if (!response.ok) throw new Error('not ready');
                 failures = 0;
-                if (active() && state.phase === 'reconnecting') publish({ phase: 'active', url, pin });
+                if (active() && current.pin && state.phase === 'reconnecting') publish({ phase: 'active', url, pin: current.pin });
               } catch {
-                if (active() && ++failures >= 2 && state.phase !== 'reconnecting') publish({ phase: 'reconnecting', pin, error: 'interrupted' });
+                if (!active() || ++failures < 2) return;
+                // Nothing is shared between games: a broken idle tunnel is simply closed.
+                if (!current.pin) { operation = undefined; void detach(current); return; }
+                if (state.phase !== 'reconnecting') publish({ phase: 'reconnecting', pin: current.pin, error: 'interrupted' });
               } finally { checking = false; }
             }, healthInterval); current.healthTimer.unref();
-            publish({ phase: 'active', url, pin }); resolve();
+            publish({ phase: 'active', url, pin: current.pin }); resolve();
           } catch { reject(new SharingError('local')); }
         };
         const read = data => {
@@ -179,7 +190,8 @@ function createInternetSharing({ directory, port, hostHeader, configure, onChang
           clearTimeout(timer); current.abort.signal.removeEventListener('abort', aborted);
           if (ready && active()) {
             operation = undefined;
-            void configure(null).catch(() => {}).then(() => { if (current.id === generation) publish({ phase: 'error', error: 'interrupted', detail: `exit=${Number.isInteger(code) ? code : 'signal'}` }); });
+            const shared = Boolean(current.pin);
+            void configure(null).catch(() => {}).then(() => { if (shared && current.id === generation) publish({ phase: 'error', error: 'interrupted', detail: `exit=${Number.isInteger(code) ? code : 'signal'}` }); });
           } else reject(new SharingError(/Incorrect Usage|flag provided but not defined/.test(tail) ? 'launch' : 'network', `exit=${Number.isInteger(code) ? code : 'signal'}`));
         });
       });
@@ -191,6 +203,17 @@ function createInternetSharing({ directory, port, hostHeader, configure, onChang
     }
     return snapshot();
   };
-  return { start, stop, snapshot, shutdown() { generation++; const current = operation; operation = undefined; current?.abort.abort(); clearInterval(current?.healthTimer); current?.child?.kill(); publish({ phase: 'idle' }); void configure(null).catch(() => {}); } };
+  // The game ends: stop sharing it but keep a connected tunnel open for the next game.
+  const release = async () => {
+    const current = operation;
+    if (!current) return snapshot();
+    if (!current.ready) return stop();
+    current.pin = undefined;
+    await configure(null).catch(() => {});
+    if (operation === current) publish({ phase: 'idle' });
+    return snapshot();
+  };
+  const hasConnector = () => Boolean(operation);
+  return { start, stop, release, snapshot, hasConnector, shutdown() { generation++; const current = operation; operation = undefined; current?.abort.abort(); clearInterval(current?.healthTimer); current?.child?.kill(); publish({ phase: 'idle' }); void configure(null).catch(() => {}); } };
 }
 module.exports = { createInternetSharing, ensureBinary, unpack, allowedDownload, SharingError };

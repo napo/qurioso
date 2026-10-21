@@ -9,7 +9,8 @@ export function useInternetSharing(pin: string) {
     let alive = true, changes = 0;
     const unsubscribe = api.onChange(next => { changes++; if (alive) setState(next); });
     void api.status().then(next => { if (alive && !changes) setState(next); }).catch(() => { if (alive) setState({ phase: 'error', error: 'local' }); });
-    return () => { alive = false; unsubscribe(); void api.stop().catch(() => {}); };
+    // Leaving the game keeps the tunnel for the next one; the OFF switch closes it.
+    return () => { alive = false; unsubscribe(); void (api.release ?? api.stop)().catch(() => {}); };
   }, [api, pin]);
   const start = useCallback(async () => {
     if (!api) return;
@@ -21,5 +22,9 @@ export function useInternetSharing(pin: string) {
     try { if (api) setState(await api.stop()); }
     catch { setState({ phase: 'error', error: 'local' }); }
   }, [api]);
-  return { available: Boolean(api), state, start, stop };
+  const release = useCallback(async () => {
+    try { if (api) setState(await (api.release ?? api.stop)()); }
+    catch { setState({ phase: 'error', error: 'local' }); }
+  }, [api]);
+  return { available: Boolean(api), state, start, stop, release };
 }

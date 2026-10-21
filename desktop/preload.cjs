@@ -10,6 +10,7 @@ if (Number.isInteger(port) && port > 0 && port < 65536) {
       status: () => ipcRenderer.invoke('qurioso:sharing:status'),
       start: pin => ipcRenderer.invoke('qurioso:sharing:start', pin),
       stop: () => ipcRenderer.invoke('qurioso:sharing:stop'),
+      release: () => ipcRenderer.invoke('qurioso:sharing:release'),
       onChange: callback => {
         if (typeof callback !== 'function') return () => {};
         const listener = (_event, state) => callback(state);

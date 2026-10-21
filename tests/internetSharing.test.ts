@@ -150,9 +150,9 @@ test('public Cloudflare ingress supports participant HTTP/WS while blocking teac
   assert.equal((await request(roomPath, 'GET', undefined, hostToken)).status, 200, 'local teacher remains functional after Internet sharing stops');
 });
 
-test('a new game closes the previous Cloudflare connector before starting its own; the same game keeps its tunnel', async t => {
+test('one Cloudflare tunnel serves consecutive games: released between games, reused instantly, closed by the switch', async t => {
   const events: string[] = [], children: Child[] = [], configurations: any[] = [];
-  let slowExit = false;
+  let slowExit = false, ready = true;
   class TrackedChild extends Child {
     constructor(readonly n: number) { super(); }
     kill() {
@@ -163,36 +163,57 @@ test('a new game closes the previous Cloudflare connector before starting its ow
       return true;
     }
   }
-  const controller = createInternetSharing({ directory: await directory(t), port: 4444, hostHeader: 'secret', asset, healthInterval: 10_000,
+  const controller = createInternetSharing({ directory: await directory(t), port: 4444, hostHeader: 'secret', asset, healthInterval: 10,
     configure: async (share: any) => { configurations.push(share); },
-    fetchImpl: async (url: string) => url.startsWith('http:') ? new Response('', { status: 200 }) : new Response(bytes),
+    fetchImpl: async (url: string) => url.startsWith('http:') ? new Response('', { status: ready ? 200 : 503 }) : new Response(bytes),
     spawnImpl: () => { const child = new TrackedChild(children.length + 1); children.push(child); events.push(`spawn ${child.n}`); return child; },
   });
   t.after(() => controller.shutdown());
   const connect = async (pin: string) => {
     const running = controller.start(pin), before = children.length;
     await wait(() => children.length > before);
-    children.at(-1)!.stderr.write(`https://game-${pin}.trycloudflare.com\nStarting metrics server on 127.0.0.1:4445/metrics\nRegistered tunnel connection\n`);
+    children.at(-1)!.stderr.write(`https://lesson-${children.length}.trycloudflare.com\nStarting metrics server on 127.0.0.1:4445/metrics\nRegistered tunnel connection\n`);
     return running;
   };
+  const alive = () => children.filter(child => child.exitCode === null).length;
 
   await connect('111111');
-  assert.equal(controller.snapshot().pin, '111111');
-  assert.equal((await controller.start('111111')).url, 'https://game-111111.trycloudflare.com', 'the same game reuses its tunnel');
-  assert.equal(children.length, 1);
-  assert.equal((await controller.start('bad')).phase, 'active', 'an invalid request never closes a working tunnel');
+  assert.equal((await controller.start('111111')).url, 'https://lesson-1.trycloudflare.com', 'the same game keeps its tunnel');
+  assert.equal((await controller.start('bad')).phase, 'active', 'an invalid request never touches a working tunnel');
 
-  await connect('222222');
-  assert.deepEqual(events, ['spawn 1', 'kill 1', 'exit 1', 'spawn 2'], 'the previous process has exited before the next one starts');
-  assert.deepEqual(configurations, [{ origin: 'https://game-111111.trycloudflare.com', pin: '111111' }, null, { origin: 'https://game-222222.trycloudflare.com', pin: '222222' }]);
-  assert.equal(controller.snapshot().pin, '222222'); assert.equal(children.filter(child => child.exitCode === null).length, 1);
+  // Next game while still shared: the open tunnel is pointed at the new PIN, no new process.
+  const second = await controller.start('222222');
+  assert.deepEqual([second.phase, second.pin, second.url], ['active', '222222', 'https://lesson-1.trycloudflare.com']);
+  assert.deepEqual(events, ['spawn 1']);
+  assert.deepEqual(configurations, [{ origin: 'https://lesson-1.trycloudflare.com', pin: '111111' }, { origin: 'https://lesson-1.trycloudflare.com', pin: '222222' }]);
 
-  // Starting while the previous connector is still closing waits for it instead of being ignored.
+  // Leaving a game shares nothing, but the tunnel stays connected for the next one.
+  assert.equal((await controller.release()).phase, 'idle');
+  assert.equal(configurations.at(-1), null); assert.equal(alive(), 1); assert.equal(controller.hasConnector(), true);
+  const third = await controller.start('333333');
+  assert.deepEqual([third.phase, third.pin], ['active', '333333']); assert.deepEqual(events, ['spawn 1'], 'instant reuse');
+
+  // The switch (stop) closes it; a start during a slow stop waits for the process to exit.
   slowExit = true;
   const closing = controller.stop();
-  const next = connect('333333');
+  const next = connect('444444');
   await closing; await next;
-  assert.deepEqual(events.slice(-3), ['kill 2', 'exit 2', 'spawn 3']);
-  assert.equal(controller.snapshot().phase, 'active'); assert.equal(controller.snapshot().pin, '333333');
-  assert.equal(children.filter(child => child.exitCode === null).length, 1, 'never more than one connector');
+  assert.deepEqual(events, ['spawn 1', 'kill 1', 'exit 1', 'spawn 2']);
+  assert.equal(controller.snapshot().pin, '444444'); assert.equal(alive(), 1, 'never more than one connector');
+  slowExit = false;
+
+  // An idle tunnel that breaks is closed quietly: no error for a game that is not shared.
+  await controller.release();
+  ready = false;
+  await wait(() => !controller.hasConnector());
+  assert.equal(controller.snapshot().phase, 'idle'); assert.equal(alive(), 0);
+  ready = true;
+
+  // A tunnel still connecting for another game is replaced, not reused.
+  const pending = controller.start('555555');
+  await wait(() => children.length === 3);
+  const replacing = connect('666666');
+  await pending; await replacing;
+  assert.deepEqual(events.slice(-3), ['kill 3', 'exit 3', 'spawn 4']);
+  assert.equal(controller.snapshot().pin, '666666'); assert.equal(alive(), 1);
 });
