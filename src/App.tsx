@@ -161,7 +161,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
       videoConfig: withVideo ? { videoUrl: '', videoTitle: '', videoType: 'html5', pauseMode: 'defined', checkpointMode: 'explicit', checkpoints: [] } : undefined,
       category: workspace.defaultCategory,
       ...DEFAULT_QUIZ_COVER,
-      author: 'Maurizio Napolitano',
+      author: 'Qurioso',
       createdAt: Date.now(),
       settings: {
         pointsMultiplier: 1,

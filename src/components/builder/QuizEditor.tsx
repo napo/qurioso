@@ -58,7 +58,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
       description: '',
       category: ed.defaultCategory,
       ...DEFAULT_QUIZ_COVER,
-      author: 'Maurizio Napolitano',
+      author: 'Qurioso',
       createdAt: Date.now(),
       settings: {
         pointsMultiplier: 1,
