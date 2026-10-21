@@ -16,14 +16,14 @@ import {
   Trash2,
   Edit3,
   CheckCircle,
-  Layers,
 } from 'lucide-react';
 import { Quiz, GameSession } from './types/quiz';
-import { DEFAULT_QUIZZES } from './data/defaultQuizzes';
+import { DEFAULT_QUIZZES, DEFAULT_QUIZ_COVER } from './data/defaultQuizzes';
 import { Header } from './components/common/Header';
 import { QuriosoIcon } from './components/common/QuriosoLogo';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
 import { ClassroomScreen } from './components/classroom/ClassroomScreen';
+import { FallbackImage, ImagePlaceholder } from './components/common/FallbackImage';
 import { HostScreen } from './components/host/HostScreen';
 import { PlayerScreen } from './components/player/PlayerScreen';
 import { VideoQuizPlayer } from './components/video/VideoQuizPlayer';
@@ -155,7 +155,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
       description: withVideo ? 'Quiz con video e domande ai checkpoint' : 'Quiz interattivo multiplayer',
       videoConfig: withVideo ? { videoUrl: '', videoTitle: '', videoType: 'html5', pauseMode: 'defined', checkpointMode: 'explicit', checkpoints: [] } : undefined,
       category: 'Generale',
-      coverImage: 'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?w=800&auto=format&fit=crop&q=80',
+      ...DEFAULT_QUIZ_COVER,
       author: 'Maurizio Napolitano',
       createdAt: Date.now(),
       settings: {
@@ -352,15 +352,14 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
                   {/* Card Cover Image */}
                   <div className="relative h-44 w-full bg-surface-soft overflow-hidden">
                     {quiz.coverImage ? (
-                      <img
+                      <FallbackImage
                         src={quiz.coverImage}
                         alt={quiz.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                        placeholderClassName="w-full h-full"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-tr from-surface-soft to-surface-soft text-petrolio">
-                        <Layers className="w-12 h-12" />
-                      </div>
+                      <ImagePlaceholder className="w-full h-full" />
                     )}
 
                     {/* Category Tag */}

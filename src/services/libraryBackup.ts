@@ -34,7 +34,7 @@ function credit(v: any): ImageAttribution | undefined {
   object(v); return { title: text(v.title), creator: text(v.creator), license: text(v.license), sourceUrl: safeUrl(text(v.sourceUrl)), licenseUrl: v.licenseUrl === undefined ? undefined : safeUrl(text(v.licenseUrl)), attributionText: optional(v.attributionText), credit: optional(v.credit) };
 }
 function safeUrl(url: string): string {
-  if (!url || /^https?:\/\//i.test(url) || /^data:(image|video)\//i.test(url) || /^qurioso-asset:[a-zA-Z0-9_-]+$/.test(url)) return url;
+  if (!url || /^https?:\/\//i.test(url) || /^data:(image|video)\//i.test(url) || /^qurioso-asset:[a-zA-Z0-9_-]+$/.test(url) || /^quizzes\/covers\/[a-z0-9-]+\.webp$/.test(url)) return url;
   fail('backupFragile');
 }
 /** Whitelist at every level: runtime keys/credentials in permissive legacy imports cannot enter backups. */

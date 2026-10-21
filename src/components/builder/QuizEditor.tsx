@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Quiz, Question, QuestionOption } from '../../types/quiz';
 import { OPTION_COLORS, SHAPE_ICONS } from '../../utils/quizStyles';
+import { DEFAULT_QUIZ_COVER } from '../../data/defaultQuizzes';
 import { VideoTimelineEditor } from './VideoTimelineEditor';
 import { VideoQuizPlayer } from '../video/VideoQuizPlayer';
 import { editorDraft, type EditorDraft } from '../../services/quizStorage';
@@ -53,7 +54,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
       title: t.untitledQuiz,
       description: '',
       category: 'Cultura Generale',
-      coverImage: 'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?w=800&auto=format&fit=crop&q=80',
+      ...DEFAULT_QUIZ_COVER,
       author: 'Maurizio Napolitano',
       createdAt: Date.now(),
       settings: {

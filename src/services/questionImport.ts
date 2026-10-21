@@ -169,8 +169,9 @@ function validateQuestion(raw: Record<string, any>, config: ImportConfig, canoni
   if (raw.mediaUrl !== undefined && raw.mediaUrl !== '') {
     if (typeof raw.mediaUrl !== 'string' || raw.mediaUrl.length > 2 * 1024 ** 2) fail('asset');
     const embedded = /^data:(image\/(png|jpeg|webp|gif)|video\/(mp4|webm));base64,[A-Za-z0-9+/]+={0,2}$/.test(raw.mediaUrl);
-    if (!embedded && !httpUrl(raw.mediaUrl)) fail('asset');
-    if (!embedded) warnings.push(problem('externalAsset'));
+    const bundled = /^quizzes\/covers\/[a-z0-9-]+\.webp$/.test(raw.mediaUrl);
+    if (!embedded && !bundled && !httpUrl(raw.mediaUrl)) fail('asset');
+    if (!embedded && !bundled) warnings.push(problem('externalAsset'));
     question.mediaUrl = raw.mediaUrl; question.mediaType = raw.mediaType || (raw.mediaUrl.startsWith('data:video/') ? 'video' : 'image');
   }
   if (raw.mediaAttribution !== undefined) {

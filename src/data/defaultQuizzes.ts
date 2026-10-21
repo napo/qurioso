@@ -11,13 +11,35 @@ export const SAMPLE_VIDEOS = [
   },
 ];
 
+/** Bundled cover shared by the Italy sample quiz and new quizzes. */
+export const DEFAULT_QUIZ_COVER: Pick<Quiz, 'coverImage' | 'coverAttribution'> = {
+  coverImage: 'quizzes/covers/manarola.webp',
+  coverAttribution: {
+    title: 'Manarola, Cinque Terre (Italy).jpg',
+    creator: 'Davcio',
+    license: 'CC BY-SA 3.0',
+    sourceUrl: 'https://commons.wikimedia.org/wiki/File:Manarola,_Cinque_Terre_(Italy).jpg',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+    credit: 'Own work',
+    attributionText: 'Davcio / Wikimedia Commons — CC BY-SA 3.0. Immagine ridimensionata rispetto all’originale.',
+  },
+};
+
 export const DEFAULT_QUIZZES: Quiz[] = [
   {
     id: 'quiz-video-space',
     title: 'Video Quiz: Viaggio nello Spazio & Scienze',
     description: 'Il video avanza e si blocca a intervalli determinati o casuali per farti rispondere a quesiti scientifici!',
     category: 'Video Quiz & Scienza',
-    coverImage: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=80',
+    coverImage: 'quizzes/covers/earth.webp',
+    coverAttribution: {
+      title: 'The Earth seen from Apollo 17.jpg',
+      creator: 'NASA / Apollo 17 crew',
+      license: 'Public domain',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:The_Earth_seen_from_Apollo_17.jpg',
+      credit: 'NASA',
+      attributionText: 'NASA / Apollo 17 crew / Wikimedia Commons — Pubblico dominio. Immagine ridimensionata rispetto all’originale.',
+    },
     author: 'Maurizio Napolitano',
     createdAt: Date.now() - 3600000,
     settings: {
@@ -91,7 +113,7 @@ export const DEFAULT_QUIZZES: Quiz[] = [
     title: 'Quiz Live: Cultura Generale & Italia',
     description: 'Quiz dal ritmo incalzante con 4 risposte colorate per sfidarsi live via QR Code!',
     category: 'Cultura Generale',
-    coverImage: 'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?w=800&auto=format&fit=crop&q=80',
+    ...DEFAULT_QUIZ_COVER,
     author: 'Maurizio Napolitano',
     createdAt: Date.now() - 7200000,
     settings: {
@@ -107,7 +129,16 @@ export const DEFAULT_QUIZZES: Quiz[] = [
         timeLimit: 20,
         points: 1000,
         explanation: 'Il Pantheon ha una cupola in calcestruzzo con al centro un oculus di 9 metri di diametro.',
-        mediaUrl: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=800&auto=format&fit=crop&q=80',
+        mediaUrl: 'quizzes/covers/colosseum.webp',
+        mediaAttribution: {
+          title: 'Colosseum in Rome, Italy - April 2007.jpg',
+          creator: 'Diliff',
+          license: 'CC BY-SA 2.5',
+          sourceUrl: 'https://commons.wikimedia.org/wiki/File:Colosseum_in_Rome,_Italy_-_April_2007.jpg',
+          licenseUrl: 'https://creativecommons.org/licenses/by-sa/2.5',
+          credit: 'Own work',
+          attributionText: 'Diliff / Wikimedia Commons — CC BY-SA 2.5. Immagine ridimensionata rispetto all’originale.',
+        },
         options: [
           { id: 'q1-1-a', text: 'Colosseo', isCorrect: false, color: 'red', shape: 'triangle' },
           { id: 'q1-1-b', text: 'Pantheon', isCorrect: true, color: 'blue', shape: 'diamond' },
@@ -162,7 +193,15 @@ export const DEFAULT_QUIZZES: Quiz[] = [
     title: 'Quiz Panoramico: Meraviglie del Mondo',
     description: 'Riconosci luoghi, capitali e meraviglie naturali dalle descrizioni e immagini panoramiche.',
     category: 'Geografia & Viaggi',
-    coverImage: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80',
+    coverImage: 'quizzes/covers/moraine-lake.webp',
+    coverAttribution: {
+      title: 'Moraine Lake 17092005.jpg',
+      creator: 'Gorgo',
+      license: 'Public domain',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File:Moraine_Lake_17092005.jpg',
+      credit: 'Own work',
+      attributionText: 'Gorgo / Wikimedia Commons — Pubblico dominio. Immagine ridimensionata rispetto all’originale.',
+    },
     author: 'Maurizio Napolitano',
     createdAt: Date.now() - 86400000,
     settings: {

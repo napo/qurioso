@@ -12,7 +12,7 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['icon.svg', 'logo.svg', 'apple-touch-icon.png'],
+        includeAssets: ['icon.svg', 'logo.svg', 'apple-touch-icon.png', 'quizzes/covers/*.webp'],
         manifest: {
           id: './',
           name: 'Qurioso - Interactive Multiplayer & Video Quiz Studio',

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Quiz } from '../../types/quiz';
+import { FallbackImage } from '../common/FallbackImage';
 import { ImageCredit } from '../common/ImageCredit';
 import { QuriosoIcon } from '../common/QuriosoLogo';
 import { useLanguage } from '../../context/LanguageContext';
@@ -26,7 +27,7 @@ export function ClassroomScreen({ quiz, onExit }: { quiz: Quiz; onExit: () => vo
     </section> : <section className="mx-auto max-w-5xl space-y-5">
       <p className="text-sm text-muted">{t.progress.replace('{current}', String(index + 1)).replace('{total}', String(quiz.questions.length))}</p>
       <h2 className="text-2xl md:text-4xl font-bold">{question.text}</h2>
-      {question.mediaUrl && <><img src={question.mediaUrl} alt={t.image} className="max-h-72 mx-auto object-contain" /><ImageCredit attribution={question.mediaAttribution} /></>}
+      {question.mediaUrl && <><FallbackImage src={question.mediaUrl} alt={t.image} className="max-h-72 mx-auto object-contain" placeholderClassName="h-48 max-w-md mx-auto rounded-2xl" /><ImageCredit attribution={question.mediaAttribution} /></>}
       <p className="text-muted">{t.discuss}</p>
       <div className="grid gap-4 sm:grid-cols-2">{question.options.map(option => <button key={option.id} type="button" disabled={selected !== undefined} onClick={() => setAnswers(previous => ({ ...previous, [index]: option.id }))}
         className={`rounded-2xl border-2 p-6 text-left text-xl font-bold ${selected !== undefined && option.isCorrect ? 'border-petrolio bg-petrolio/10' : selected === option.id ? 'border-mandarino bg-mandarino/15' : 'border-line bg-white'}`}>

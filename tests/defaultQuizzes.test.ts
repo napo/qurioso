@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { DEFAULT_QUIZZES } from '../src/data/defaultQuizzes';
 import { checkpointProblems, prepareVideoQuiz, quizCheckpoints } from '../src/services/videoQuiz';
 import { portableQuiz } from '../src/services/libraryBackup';
+import { jsonImportSource, previewQuestionImport } from '../src/services/questionImport';
 
 test('the official volcano quiz is also a portable offline-cover JSON with valid video checkpoints', () => {
   const downloadable = JSON.parse(readFileSync(new URL('../public/quizzes/tipi-di-vulcani.json', import.meta.url), 'utf8'));
@@ -33,4 +34,25 @@ test('the official volcano quiz is also a portable offline-cover JSON with valid
   assert.ok(quiz.coverAttribution?.licenseUrl?.startsWith('https://creativecommons.org/licenses/by/3.0'));
   assert.match(quiz.coverAttribution?.attributionText || '', /ridimensionata/);
   assert.deepEqual(portableQuiz(quiz).coverAttribution, quiz.coverAttribution, 'backup retains the complete cover attribution');
+});
+
+test('sample quiz images are bundled 800px WebP files with Commons credits that survive backup and import', () => {
+  const images = DEFAULT_QUIZZES.flatMap(quiz => [
+    { url: quiz.coverImage, credit: quiz.coverAttribution },
+    ...quiz.questions.filter(item => item.mediaUrl).map(item => ({ url: item.mediaUrl, credit: item.mediaAttribution })),
+  ]).filter(image => image.url && !image.url.startsWith('data:'));
+  assert.equal(images.length, 4);
+  for (const { url, credit } of images) {
+    assert.match(url!, /^quizzes\/covers\/[a-z0-9-]+\.webp$/, 'no hotlinked sample images');
+    const bytes = readFileSync(new URL(`../public/${url}`, import.meta.url));
+    assert.equal(bytes.subarray(0, 4).toString(), 'RIFF'); assert.equal(bytes.subarray(8, 16).toString(), 'WEBPVP8 ');
+    assert.ok((bytes.readUInt16LE(26) & 0x3fff) <= 800, url);
+    assert.match(credit?.sourceUrl || '', /^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
+    assert.ok(credit?.creator && credit.license && credit.title, url);
+  }
+  for (const quiz of DEFAULT_QUIZZES) assert.deepEqual(portableQuiz(quiz).coverImage, quiz.coverImage, 'backup keeps bundled paths');
+  const pantheon = DEFAULT_QUIZZES.flatMap(quiz => quiz.questions).find(item => item.mediaUrl?.startsWith('quizzes/'))!;
+  const [row] = previewQuestionImport(jsonImportSource(JSON.stringify([pantheon])), { mapping: {}, defaultType: 'multiple_choice', correctMode: 'letters' });
+  assert.deepEqual(row.errors, []); assert.deepEqual(row.warnings.filter(issue => issue.key === 'externalAsset'), []);
+  assert.equal(row.question?.mediaUrl, pantheon.mediaUrl);
 });
