@@ -20,6 +20,20 @@ The source is [quizzes/tipi-di-vulcani.json](../public/quizzes/tipi-di-vulcani.j
 
 Question IDs and checkpoints are retained from the author's quiz. The Marsili question uses the question and answer options supplied by the author, with C as the single correct answer at 9:00. Its explanation references the low-explosivity eruption scenario discussed by [INGVvulcani, May 10, 2024](https://ingvvulcani.com/2024/05/10/nuovi-studi-sul-marsili-il-piu-grande-vulcano-del-mediterraneo/). A duplicate distractor in the basalt plateau question was also replaced without changing its correct answer.
 
+## Parmigiana di melanzane
+
+- Quiz author: Maurizio Napolitano.
+- Category: Cucina.
+- 6 questions, each with one correct answer.
+- Video: https://www.youtube.com/watch?v=JYHHt6YUfYo
+- Checkpoints: 0:31, 1:02, 1:48, 2:23, 2:45 and 2:54.
+
+The source is [quizzes/parmigiana-di-melanzane.json](../public/quizzes/parmigiana-di-melanzane.json). The quiz is included in new and existing libraries for classroom activities and network video quizzes, without replacing a personal quiz with the same ID. Questions, answers, explanations and checkpoints are retained from the author's file. The cover is embedded for offline use; the YouTube video requires Internet access.
+
+### Cover credits
+
+“Melanzane alla Parmigiana.jpg”, Blue Lotus, [original Flickr photo](https://www.flickr.com/photos/bluelotus/244367048), [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Melanzane_alla_Parmigiana.jpg), [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/). Credits, license and source links remain in the quiz and are displayed in the app.
+
 ## Sample quizzes
 
 The sample quizzes in [src/data/defaultQuizzes.ts](../src/data/defaultQuizzes.ts) are in Italian, plus **Discover the United Kingdom** in English and **Deutschland entdecken** in German (five classic questions each, with explanations). They are shown to new libraries regardless of the interface language. They use covers and question images bundled in [public/quizzes/covers/](../public/quizzes/covers/), so they display offline, in the PWA and on filtered networks. The images are resized to a maximum width of 800 px and converted to WebP. They are precached by the service worker. New quizzes use the Manarola image as their default cover. If an image cannot be loaded, the library card and question screens show a placeholder.

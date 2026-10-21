@@ -1,7 +1,8 @@
 import volcanoQuiz from '../../public/quizzes/tipi-di-vulcani.json';
+import parmigianaQuiz from '../../public/quizzes/parmigiana-di-melanzane.json';
 import type { Quiz } from '../types/quiz';
 
-export const OFFICIAL_QUIZZES = [volcanoQuiz as Quiz];
+export const OFFICIAL_QUIZZES = [volcanoQuiz as Quiz, parmigianaQuiz as Quiz];
 /** Keep included lessons available after upgrades without rewriting a personal library. */
 export function withOfficialQuizzes(personal: Quiz[]): Quiz[] {
   const ids = new Set(personal.map(quiz => quiz.id));
