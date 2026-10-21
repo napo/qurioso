@@ -155,8 +155,8 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
   const handleCreateNewQuiz = (withVideo = false) => {
     const newQuiz: Quiz = {
       id: `quiz-${Date.now()}`,
-      title: withVideo ? 'Nuovo quiz video' : 'Nuovo Quiz Senza Titolo',
-      description: withVideo ? 'Quiz con video e domande ai checkpoint' : 'Quiz interattivo multiplayer',
+      title: withVideo ? workspace.newVideoQuizTitle : t.untitledQuiz,
+      description: withVideo ? workspace.newVideoQuizDescription : workspace.newQuizDescription,
       videoConfig: withVideo ? { videoUrl: '', videoTitle: '', videoType: 'html5', pauseMode: 'defined', checkpointMode: 'explicit', checkpoints: [] } : undefined,
       category: 'Generale',
       ...DEFAULT_QUIZ_COVER,
@@ -224,7 +224,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
   };
 
   // Native menu (desktop): commands act only from the library or Settings, never during a game or in the editor.
-  const libraryVisible = view === 'dashboard' || view === 'settings';
+  const libraryVisible = (view === 'dashboard' || view === 'settings') && libraryReady && !checkingRecovery;
   const menuCommand = useRef<(command: DesktopMenuCommand) => void>(() => {});
   menuCommand.current = command => {
     if (!libraryVisible) return;
@@ -392,7 +392,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
                       {/* Primary Play Button */}
                       <button
                         disabled={primary.disabled}
-                        title={!serverInfo ? labels.needsLocalServer : workspace.networkHint}
+                        title={!serverInfo ? labels.needsLocalServer : undefined}
                         onClick={primary.run}
                         className="w-full py-2.5 px-3 rounded-xl btn-petrolio font-bold text-xs shadow-md transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                       >

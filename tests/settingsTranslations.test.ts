@@ -38,6 +38,7 @@ test('settings, runtime notices and web installation work in every supported lan
     await mount(c.language, `website-${c.language}`, React.createElement(App));
     assert.equal(document.documentElement.lang, c.language);
     assert.ok(document.body.textContent!.includes(c.title));
+    assert.equal(document.body.textContent!.includes('Attribuzione:'), c.language === 'it', 'image credit labels follow the interface language');
     assert.ok([...document.querySelectorAll('a')].some(a => a.textContent!.startsWith(c.download) && a.href.includes(`lang=${c.language}`)));
     await act(async () => document.querySelector<HTMLButtonElement>(`button[aria-label="${c.settings}"]`)!.click());
     assert.equal(document.querySelector('h1')!.textContent, c.settings);

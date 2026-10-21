@@ -6,7 +6,7 @@
 crearne uno classico/video, assegnando titolo, moltiplicatore punti, spiegazioni e
 bonus serie. La conferma apre il risultato nell'editor: **Salva Quiz** lo scrive
 nella biblioteca. Un nuovo quiz non contiene la domanda dimostrativa del normale
-comando Crea quiz.
+comando **Nuovo quiz**.
 
 **Editor → Importa domande** usa come destinazione il quiz aperto, comprese le
 modifiche non salvate. Il flusso è: scegli file, configura colonne se necessario,

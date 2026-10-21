@@ -38,9 +38,10 @@ export function ClassroomScreen({ quiz, onExit }: { quiz: Quiz; onExit: () => vo
   const restart = () => { setIndex(0); setAnswers({}); setChoice(undefined); setFinished(false); focusNext.current = 'question'; };
 
   // Move focus to the next control so Enter/Space also work natively on the focused button.
+  // Focusing "Confirm" never scrolls, so the question stays visible on small screens.
   useEffect(() => {
     const target = focusNext.current; focusNext.current = undefined;
-    ({ question: heading, confirm: confirmButton, next: nextButton })[target!]?.current?.focus();
+    ({ question: heading, confirm: confirmButton, next: nextButton })[target!]?.current?.focus({ preventScroll: target === 'confirm' });
   });
 
   const onKey = useRef<(event: KeyboardEvent) => void>(() => {});
@@ -118,12 +119,15 @@ export function ClassroomScreen({ quiz, onExit }: { quiz: Quiz; onExit: () => vo
       </div>
       {!confirmed && <button ref={confirmButton} type="button" disabled={choice === undefined} onClick={confirm}
         className="btn-petrolio rounded-xl px-6 py-3 text-[clamp(1rem,1.3vw,1.5rem)] font-bold disabled:opacity-50 disabled:cursor-not-allowed">{t.confirm}</button>}
-      <div role="status" aria-live="polite">
-        {confirmed ? <div className="space-y-4 rounded-2xl bg-surface-soft p-5 text-[clamp(1rem,1.4vw,1.75rem)]">
-          <p className="font-bold text-petrolio">{question.options.some(o => o.id === selected && o.isCorrect) ? t.correct : t.review}</p>
-          {quiz.settings.showExplanation && question.explanation && <p>{question.explanation}</p>}
-          <button ref={nextButton} type="button" onClick={advance} className="btn-petrolio rounded-xl px-5 py-3">{index + 1 < quiz.questions.length ? t.next : t.summary}</button>
-        </div> : choice !== undefined && <p className="sr-only">{t.selected.replace('{letter}', letters[question.options.findIndex(o => o.id === choice)])}</p>}
+      {/* Only the outcome and explanation are announced; the "Next" control stays outside the live region. */}
+      <div className={confirmed ? 'space-y-4 rounded-2xl bg-surface-soft p-5 text-[clamp(1rem,1.4vw,1.75rem)]' : ''}>
+        <div role="status" aria-live="polite" className="space-y-4">
+          {confirmed ? <>
+            <p className="font-bold text-petrolio">{question.options.some(o => o.id === selected && o.isCorrect) ? t.correct : t.review}</p>
+            {quiz.settings.showExplanation && question.explanation && <p>{question.explanation}</p>}
+          </> : choice !== undefined && <p className="sr-only">{t.selected.replace('{letter}', letters[question.options.findIndex(o => o.id === choice)])}</p>}
+        </div>
+        {confirmed && <button ref={nextButton} type="button" onClick={advance} className="mt-4 btn-petrolio rounded-xl px-5 py-3">{index + 1 < quiz.questions.length ? t.next : t.summary}</button>}
       </div>
       <p className="text-xs text-muted">{shortcuts}</p>
     </section>}

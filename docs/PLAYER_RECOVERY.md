@@ -28,9 +28,11 @@ rimane separato in `sessionStorage`; il recupero del docente non cambia.
 
 ## Percorso
 
-Aprendo il link della partita, oppure scegliendo **Partecipa con PIN** sulla
-stessa origine, il client tenta automaticamente il recupero del PIN richiesto o
-dell'ultima partita. Dopo un ingresso manuale, l'URL della scheda conserva
+Aprendo il link della partita, oppure scegliendo **Partecipa con PIN** nella pagina
+iniziale servita dal computer del docente, il client tenta automaticamente il
+recupero del PIN richiesto o dell'ultima partita. Il comando non compare su
+qurioso.it, dove un PIN non raggiunge il server della partita, né nella barra
+dell'app desktop, che è lo strumento del docente. Dopo un ingresso manuale, l'URL della scheda conserva
 soltanto PIN e ruolo pubblici per rendere affidabile il refresh.
 
 `GET /api/session/:pin/player/:playerId` richiede il bearer del partecipante

@@ -1,6 +1,6 @@
 # In-app tutorial guide
 
-The **Guide** link in the home navigation opens an interactive manual at `?app=guide&lang=en`. The library header and Settings also link to it. It is separate from the existing technical build/project information dialog.
+The **Guide** link in the home navigation opens an interactive manual at `?app=guide&lang=en`. On the website the library header and Settings also link to it; in the desktop app it is in Settings and in **Help → Guide** (F1). It is separate from the existing technical build/project information dialog.
 
 The guide supports Italian, English and German and contains eleven tutorials:
 

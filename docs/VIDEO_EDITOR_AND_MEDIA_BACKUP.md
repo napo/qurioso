@@ -2,7 +2,8 @@
 
 ## Uso del docente
 
-Aprire **Modifica** su un quiz video, oppure **Crea quiz video**. Il layout desktop
+Aprire **Modifica** su un quiz video, oppure **Nuovo quiz → Quiz video** nella biblioteca
+(o **Crea quiz video** in Impostazioni). Il layout desktop
 è organizzato in video/timeline a sinistra, domanda selezionata al centro ed
 elenco delle domande a destra; la schermata di riferimento è 1366×768 al 100%.
 Su finestre più strette i pannelli si dispongono verticalmente e scorrono.

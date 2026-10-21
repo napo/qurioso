@@ -614,7 +614,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
             {currentQuestion.mediaUrl && (
               <figure className="host-question-image space-y-1">
                 <div className="w-full max-h-64 rounded-2xl overflow-hidden border border-line shadow-lg flex items-center justify-center bg-white">
-                  <FallbackImage src={currentQuestion.mediaUrl} alt="Immagine della domanda" className="max-h-64 w-auto object-contain" placeholderClassName="h-48 w-full" />
+                  <FallbackImage src={currentQuestion.mediaUrl} alt={gameExperienceTranslations[language].questionImage} className="max-h-64 w-auto object-contain" placeholderClassName="h-48 w-full" />
                 </div>
                 <figcaption><ImageCredit attribution={currentQuestion.mediaAttribution} /></figcaption>
               </figure>

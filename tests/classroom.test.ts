@@ -36,6 +36,7 @@ test('classroom collects a collective answer, reveals feedback and summarizes wi
   assert.equal(answer(first.options[wrongFirst].text).getAttribute('aria-pressed'), 'true');
   assert.equal(document.body.textContent!.includes('Discutiamo la soluzione'), false);
   assert.equal(document.body.textContent!.includes('✓'), false);
+  assert.equal(document.body.textContent!.includes('Prossima domanda'), false, 'no way forward before the class answer is confirmed');
   assert.equal(document.activeElement?.textContent, 'Conferma risposta della classe');
   await press(String(rightFirst + 1));
   assert.equal(answer(first.options[rightFirst].text).getAttribute('aria-pressed'), 'true');
@@ -45,7 +46,9 @@ test('classroom collects a collective answer, reveals feedback and summarizes wi
   assert.equal(exits, 0);
   await press('Enter');
   assert.match(document.body.textContent!, /Risposta corretta!/);
-  assert.equal(document.querySelector('[role="status"][aria-live="polite"]')?.textContent?.includes('Risposta corretta!'), true);
+  const live = document.querySelector('[role="status"][aria-live="polite"]')!;
+  assert.equal(live.textContent!.includes('Risposta corretta!'), true);
+  assert.equal(live.querySelector('button'), null, 'controls stay outside the announced region');
   assert.equal(buttons().filter(b => b.disabled).length, first.options.length);
   assert.equal(document.activeElement?.textContent, 'Prossima domanda');
   await press('ArrowRight');

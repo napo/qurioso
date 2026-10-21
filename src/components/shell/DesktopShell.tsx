@@ -59,7 +59,7 @@ export function NewQuizMenu({ w, onCreateQuiz }: { w: Workspace; onCreateQuiz: (
   return <div ref={root} className="relative">
     <button ref={trigger} type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}
       onKeyDown={event => { if (event.key === 'ArrowDown') { event.preventDefault(); setOpen(true); } }}
-      className="btn-mandarino inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold">
+      className="btn-mandarino inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-bold">
       <Plus className="w-4 h-4" />{w.newQuiz}<ChevronDown className="w-4 h-4" />
     </button>
     {open && <div role="menu" aria-label={w.newQuiz} onKeyDown={onMenuKey} className="absolute right-0 z-40 mt-1.5 min-w-48 rounded-xl border border-line bg-white p-1 shadow-lg">
@@ -77,7 +77,7 @@ export function ActivityModeSwitch({ mode, onChange }: { mode: 'classroom' | 'ne
   const { language } = useLanguage(), w = workspaceTranslations[language];
   return <div role="group" aria-label={w.mode} className="inline-flex rounded-xl border border-line bg-white p-1">
     {(['classroom', 'network'] as const).map(option => <button key={option} type="button" data-activity-mode={option} aria-pressed={mode === option} onClick={() => onChange(option)}
-      className={`rounded-lg px-4 py-1.5 text-sm font-bold ${mode === option ? 'bg-petrolio text-white shadow-sm' : 'text-petrolio hover:bg-surface-soft'}`}>
+      className={`whitespace-nowrap rounded-lg px-4 py-1.5 text-sm font-bold ${mode === option ? 'bg-petrolio text-white shadow-sm' : 'text-petrolio hover:bg-surface-soft'}`}>
       {option === 'classroom' ? w.classroom : w.network}
     </button>)}
   </div>;

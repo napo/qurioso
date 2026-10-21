@@ -11,7 +11,8 @@ const it = {
   networkWaiting: 'In attesa del server locale…',
   docs: 'Come funzionano LAN e Internet',
   devicesTitle: 'Vuoi che ogni studente risponda dal proprio dispositivo?', devicesDownload: 'Scarica Qurioso per il computer',
-  imageCredits: 'Crediti dell’immagine', moreActions: 'Altre azioni', newQuiz: 'Nuovo quiz', classicQuiz: 'Quiz classico', videoQuiz: 'Quiz video', serverStatus: 'Stato del server',
+  newVideoQuizTitle: 'Nuovo quiz video', newVideoQuizDescription: 'Quiz con video e domande ai checkpoint', newQuizDescription: 'Quiz interattivo',
+  imageCredits: 'Crediti dell’immagine', creditSource: 'Attribuzione', creditLicense: 'Licenza', creditCredit: 'Crediti', moreActions: 'Altre azioni', newQuiz: 'Nuovo quiz', classicQuiz: 'Quiz classico', videoQuiz: 'Quiz video', serverStatus: 'Stato del server',
   serverLan: 'LAN', internetActive: 'Internet attivo', internetInterrupted: 'Internet interrotto', serverStarting: 'Server in avvio…', serverPort: 'Porta {port}',
 };
 type Text = Record<keyof typeof it, string>;
@@ -26,7 +27,8 @@ const en: Text = {
   networkReady: 'The server is ready. Open a quiz, then choose in the game whether to use the LAN only or start the Internet tunnel.',
   networkWaiting: 'Waiting for the local server…', docs: 'How LAN and Internet access work',
   devicesTitle: 'Want every student to answer on their own device?', devicesDownload: 'Download Qurioso for your computer',
-  imageCredits: 'Image credits', moreActions: 'More actions', newQuiz: 'New quiz', classicQuiz: 'Classic quiz', videoQuiz: 'Video quiz', serverStatus: 'Server status',
+  newVideoQuizTitle: 'New video quiz', newVideoQuizDescription: 'Quiz with a video and questions at checkpoints', newQuizDescription: 'Interactive quiz',
+  imageCredits: 'Image credits', creditSource: 'Attribution', creditLicense: 'License', creditCredit: 'Credit', moreActions: 'More actions', newQuiz: 'New quiz', classicQuiz: 'Classic quiz', videoQuiz: 'Video quiz', serverStatus: 'Server status',
   serverLan: 'LAN', internetActive: 'Internet active', internetInterrupted: 'Internet interrupted', serverStarting: 'Server starting…', serverPort: 'Port {port}',
 };
 const de: Text = {
@@ -40,7 +42,8 @@ const de: Text = {
   networkReady: 'Der Server ist bereit. Öffne ein Quiz und wähle im Spiel zwischen LAN und Internet-Tunnel.',
   networkWaiting: 'Warten auf den lokalen Server…', docs: 'So funktionieren LAN und Internet',
   devicesTitle: 'Soll jede Schülerin und jeder Schüler auf dem eigenen Gerät antworten?', devicesDownload: 'Qurioso für den Computer herunterladen',
-  imageCredits: 'Bildnachweis', moreActions: 'Weitere Aktionen', newQuiz: 'Neues Quiz', classicQuiz: 'Klassisches Quiz', videoQuiz: 'Videoquiz', serverStatus: 'Serverstatus',
+  newVideoQuizTitle: 'Neues Videoquiz', newVideoQuizDescription: 'Quiz mit Video und Fragen an Checkpoints', newQuizDescription: 'Interaktives Quiz',
+  imageCredits: 'Bildnachweis', creditSource: 'Quelle', creditLicense: 'Lizenz', creditCredit: 'Nachweis', moreActions: 'Weitere Aktionen', newQuiz: 'Neues Quiz', classicQuiz: 'Klassisches Quiz', videoQuiz: 'Videoquiz', serverStatus: 'Serverstatus',
   serverLan: 'LAN', internetActive: 'Internet aktiv', internetInterrupted: 'Internet unterbrochen', serverStarting: 'Server startet…', serverPort: 'Port {port}',
 };
 export const workspaceTranslations: Record<Language, Text> = { it, en, de };

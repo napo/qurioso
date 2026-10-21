@@ -50,6 +50,15 @@ test('the public website presents classroom activities and offers the desktop ap
     const credit = document.querySelector('a[href="https://commons.wikimedia.org/wiki/File:Fimmvorduhals_2010_03_27_dawn.jpg"]');
     assert.ok(credit?.closest('details[data-image-credits]'), 'image credits sit in the card disclosure');
     assert.equal(credit!.closest('details')!.querySelector('summary')!.getAttribute('aria-label'), 'Crediti dell’immagine');
+    const details = credit!.closest('details')!;
+    await act(async () => details.querySelector('summary')!.click());
+    assert.equal(details.open, true);
+    await act(async () => { details.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    assert.equal(details.open, false, 'Escape closes the credits');
+    await act(async () => { details.querySelector('summary')!.click(); await new Promise(resolve => setTimeout(resolve, 0)); });
+    assert.equal(details.open, true);
+    await act(async () => { document.body.dispatchEvent(new dom.window.Event('pointerdown', { bubbles: true })); });
+    assert.equal(details.open, false, 'an outside click closes the credits');
     // Compact list (below 640px): play button and "⋯" with secondary actions and credits.
     const volcano = document.querySelector('[data-quiz-id="quiz-1792489106413"]')!;
     assert.ok(volcano.querySelector('button[aria-label="Attività in classe con video"]'));

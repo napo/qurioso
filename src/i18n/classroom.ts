@@ -30,7 +30,7 @@ const de: Text = {
   finished: 'Aktivität abgeschlossen', score: 'Richtige Antworten der Klasse: {correct} von {total}.',
   classAnswer: 'Antwort der Klasse: {answer}', notCollected: 'Nicht erfasst', solution: 'Lösung: {answer}', restart: 'Neu starten',
   progress: 'Frage {current} von {total} · ohne Zeitlimit', image: 'Bild zur Frage',
-  discuss: 'Besprecht euch gemeinsam und wähle dann die Antwort der Klasse.',
+  discuss: 'Besprecht euch gemeinsam und wählt dann die Antwort der Klasse.',
   correct: 'Richtige Antwort!', review: 'Besprechen wir die Lösung.', next: 'Nächste Frage', summary: 'Zusammenfassung anzeigen',
   confirm: 'Antwort der Klasse bestätigen', selected: 'Ausgewählte Antwort: {letter}. Ihr könnt sie noch ändern.',
   shortcuts: 'Tastatur: {numbers} oder {letters} zum Auswählen · Eingabe zum Bestätigen · Eingabe, Leertaste oder → zum Weitergehen',

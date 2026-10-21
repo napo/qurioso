@@ -37,6 +37,8 @@ test('the desktop library uses a compact workspace shell, native menu commands a
   await act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(App))));
   await settle(() => Boolean(document.querySelector('[data-shell="desktop"]')) && document.querySelector('[data-server-badge]')?.getAttribute('data-server-badge') === 'lan');
 
+  assert.equal(menuStates[0], false, 'native library commands stay disabled while the library loads');
+  assert.equal(menuStates.at(-1), true);
   // Website elements are gone from the desktop frame.
   assert.ok(document.querySelector('[data-shell="desktop"]'));
   assert.equal(document.querySelector('footer'), null);

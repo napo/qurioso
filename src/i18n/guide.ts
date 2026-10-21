@@ -204,7 +204,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       "steps": [
         {
           "title": "Crea oppure modifica",
-          "body": "Premi Crea quiz per partire da un nuovo quiz, oppure Modifica nella scheda di un quiz esistente. Per mantenere una copia dell’originale, duplicalo prima.",
+          "body": "Premi Nuovo quiz e scegli Quiz classico per partire da un nuovo quiz, oppure Modifica nella scheda di un quiz esistente. Per mantenere una copia dell’originale, duplicalo prima.",
           "action": "library"
         },
         {
@@ -233,7 +233,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       "steps": [
         {
           "title": "Crea un quiz video",
-          "body": "Premi Crea quiz video nella biblioteca. Dai al quiz un titolo riconoscibile e scegli il file o il link del filmato. Attendi il caricamento prima di impostare i tempi."
+          "body": "Nella biblioteca premi Nuovo quiz e scegli Quiz video. Dai al quiz un titolo riconoscibile e scegli il file o il link del filmato. Attendi il caricamento prima di impostare i tempi."
         },
         {
           "title": "Prepara le domande",
@@ -494,7 +494,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       "steps": [
         {
           "title": "Create or edit",
-          "body": "Press Create quiz for a new quiz, or Edit on an existing quiz card. Duplicate an existing quiz first if you want to keep the original.",
+          "body": "Press New quiz and choose Classic quiz for a new quiz, or Edit on an existing quiz card. Duplicate an existing quiz first if you want to keep the original.",
           "action": "library"
         },
         {
@@ -523,7 +523,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       "steps": [
         {
           "title": "Create a video quiz",
-          "body": "Press Create video quiz in the library. Give it a recognizable title and choose the video file or link. Wait for loading before setting times."
+          "body": "In the library press New quiz and choose Video quiz. Give it a recognizable title and choose the video file or link. Wait for loading before setting times."
         },
         {
           "title": "Prepare the questions",
@@ -784,7 +784,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       "steps": [
         {
           "title": "Erstellen oder bearbeiten",
-          "body": "Wähle Quiz erstellen für ein neues Quiz oder Bearbeiten auf einer vorhandenen Quizkarte. Dupliziere ein vorhandenes Quiz zuerst, wenn du das Original behalten möchtest.",
+          "body": "Wähle Neues Quiz und dann Klassisches Quiz für ein neues Quiz oder Bearbeiten auf einer vorhandenen Quizkarte. Dupliziere ein vorhandenes Quiz zuerst, wenn du das Original behalten möchtest.",
           "action": "library"
         },
         {
@@ -813,7 +813,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       "steps": [
         {
           "title": "Videoquiz erstellen",
-          "body": "Wähle Videoquiz erstellen in der Bibliothek. Vergib einen erkennbaren Titel und wähle die Videodatei oder den Link. Warte auf das Laden, bevor du Zeiten festlegst."
+          "body": "Wähle in der Bibliothek Neues Quiz und dann Videoquiz. Vergib einen erkennbaren Titel und wähle die Videodatei oder den Link. Warte auf das Laden, bevor du Zeiten festlegst."
         },
         {
           "title": "Fragen vorbereiten",
