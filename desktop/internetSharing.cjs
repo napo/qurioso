@@ -85,7 +85,7 @@ async function ensureBinary(directory, asset, { fetchImpl = fetch, signal, onPro
 
 function createInternetSharing({ directory, port, hostHeader, configure, onChange = () => {}, platform = process.platform, arch = process.arch,
   fetchImpl = fetch, spawnImpl = spawn, asset = ASSETS[`${platform}-${arch}`], connectionTimeout = 60000, healthInterval = 3000 }) {
-  let state = { phase: 'idle', version: VERSION }, operation, generation = 0;
+  let state = { phase: 'idle', version: VERSION }, operation, generation = 0, stopping;
   const publish = update => { state = { phase: 'idle', version: VERSION, ...update }; onChange({ ...state }); };
   const snapshot = () => ({ ...state });
   const detach = async current => {
@@ -107,15 +107,22 @@ function createInternetSharing({ directory, port, hostHeader, configure, onChang
   };
   const stop = async () => {
     const current = operation; operation = undefined; const id = ++generation;
-    publish({ phase: 'stopping' }); await detach(current);
+    publish({ phase: 'stopping' });
+    const closing = detach(current); stopping = closing;
+    try { await closing; } finally { if (stopping === closing) stopping = undefined; }
     if (id === generation) publish({ phase: 'idle' });
     return snapshot();
   };
   const start = async pin => {
-    if (operation || state.phase === 'stopping') return snapshot();
-    if (!/^\d{6}$/.test(pin)) { publish({ phase: 'error', error: 'local' }); return snapshot(); }
+    if (!/^\d{6}$/.test(pin)) { if (!operation) publish({ phase: 'error', error: 'local' }); return snapshot(); }
+    // At most one connector: a tunnel still closing finishes first, and a tunnel for another game is
+    // closed (its process has exited) before the new one starts. The same game keeps its tunnel.
+    if (stopping) await stopping;
+    if (operation?.pin === pin) return snapshot();
+    if (operation) await stop();
+    if (operation || stopping) return snapshot();
     if (!asset) { publish({ phase: 'error', error: 'unsupported' }); return snapshot(); }
-    const current = { abort: new AbortController(), id: ++generation, child: null }; operation = current;
+    const current = { abort: new AbortController(), id: ++generation, child: null, pin }; operation = current;
     const active = () => operation === current && current.id === generation && !current.abort.signal.aborted;
     try {
       publish({ phase: 'downloading', progress: 0, pin });

@@ -17,6 +17,9 @@ Start a network quiz and use **Start sharing** in its Cloudflare modal, or close
 5. Once the tunnel connects, its public address is selected for the game link and QR code. The public address is the only advertised choice while sharing is active. On interruption or stop, the link and both QR views return to LAN addresses.
 6. Outside fullscreen, the Cloudflare ON/OFF switch stops sharing and directly reactivates an already authorized tunnel. The first activation in a game opens the service information; errors can reopen the controls for retry. The switch is hidden during fullscreen. Leaving the game, navigating to another desktop screen, reloading the page or closing the app also stops sharing. Sharing must be enabled again after a reload.
 
+
+Each game gets its own tunnel and a new `trycloudflare.com` address. At most one Cloudflare connector runs at a time: starting sharing for another game first stops the previous connector and waits for its process to exit, a request made while a connector is still closing waits for it, and repeating the request for the same game keeps the existing tunnel.
+
 The teacher continues to use their library in the local app. The public link opens the participant page. Sharing applies only to the selected game; teacher APIs and other games are inaccessible through the tunnel.
 
 ## External service and limits
