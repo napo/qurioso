@@ -7,6 +7,10 @@ const it = {
   progress: 'Domanda {current} di {total} · senza limite di tempo', image: 'Immagine della domanda',
   discuss: 'Discutete insieme, poi seleziona la risposta della classe.',
   correct: 'Risposta corretta!', review: 'Discutiamo la soluzione.', next: 'Prossima domanda', summary: 'Mostra riepilogo',
+  confirm: 'Conferma risposta della classe', selected: 'Risposta selezionata: {letter}. Potete ancora cambiarla.',
+  shortcuts: 'Tastiera: {numbers} o {letters} per scegliere · Invio per confermare · Invio, Spazio o → per proseguire',
+  trueLetter: 'V', falseLetter: 'F',
+  fullscreen: 'Schermo intero', exitFullscreen: 'Esci da schermo intero', fullscreenError: 'Il browser non ha attivato lo schermo intero. L’attività continua normalmente.',
 };
 type Text = Record<keyof typeof it, string>;
 const en: Text = {
@@ -16,6 +20,10 @@ const en: Text = {
   progress: 'Question {current} of {total} · no time limit', image: 'Question image',
   discuss: 'Discuss together, then select the class answer.',
   correct: 'Correct answer!', review: 'Let’s discuss the solution.', next: 'Next question', summary: 'Show summary',
+  confirm: 'Confirm class answer', selected: 'Selected answer: {letter}. You can still change it.',
+  shortcuts: 'Keyboard: {numbers} or {letters} to choose · Enter to confirm · Enter, Space or → to continue',
+  trueLetter: 'T', falseLetter: 'F',
+  fullscreen: 'Fullscreen', exitFullscreen: 'Exit fullscreen', fullscreenError: 'The browser did not enter fullscreen. The activity continues normally.',
 };
 const de: Text = {
   subtitle: 'Aktivität im Klassenraum · ein einziges Gerät', exit: 'Beenden',
@@ -24,5 +32,9 @@ const de: Text = {
   progress: 'Frage {current} von {total} · ohne Zeitlimit', image: 'Bild zur Frage',
   discuss: 'Besprecht euch gemeinsam und wähle dann die Antwort der Klasse.',
   correct: 'Richtige Antwort!', review: 'Besprechen wir die Lösung.', next: 'Nächste Frage', summary: 'Zusammenfassung anzeigen',
+  confirm: 'Antwort der Klasse bestätigen', selected: 'Ausgewählte Antwort: {letter}. Ihr könnt sie noch ändern.',
+  shortcuts: 'Tastatur: {numbers} oder {letters} zum Auswählen · Eingabe zum Bestätigen · Eingabe, Leertaste oder → zum Weitergehen',
+  trueLetter: 'W', falseLetter: 'F',
+  fullscreen: 'Vollbild', exitFullscreen: 'Vollbild beenden', fullscreenError: 'Der Browser hat das Vollbild nicht aktiviert. Die Aktivität läuft normal weiter.',
 };
 export const classroomTranslations: Record<Language, Text> = { it, en, de };
