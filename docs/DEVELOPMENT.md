@@ -68,6 +68,7 @@ The entire landing page is available in **[Italian](https://napo.github.io/qurio
 The landing page offers two entry points:
 
 - `?app=classroom` opens the browser-only classroom library, without multiplayer connections, PIN controls or installation prompts.
+- `?app=classroom&quiz=<slug>` opens one quiz directly in the classroom activity, for demos and shared lessons. See [Linking a quiz](OFFICIAL_QUIZZES.md#linking-a-quiz).
 - `#quiz-in-rete` opens the network quiz download section and LAN instructions.
 
 The [Pages workflow](../.github/workflows/pages.yml) runs checks, builds `dist` and deploys it on pushes to `main`, or when started manually. In **Settings → Pages → Build and deployment**, select **GitHub Actions** as the source. Relative asset paths support deployment under `/qurioso/`.

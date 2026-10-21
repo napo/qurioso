@@ -41,6 +41,7 @@ import { SettingsScreen } from './components/settings/SettingsScreen';
 import { workspaceTranslations } from './i18n/workspace';
 import { lobbyTranslations, presenterRecoveryText } from './i18n/lobby';
 import { withOfficialQuizzes, OFFICIAL_QUIZZES } from './services/officialQuizzes';
+import { resolveQuizLink } from './services/quizLink';
 
 export default function App({ classroomOnly = false }: { classroomOnly?: boolean }) {
   const { t, language } = useLanguage();
@@ -82,8 +83,28 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
   // Selected quiz for playing / hosting / editing
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz>(DEFAULT_QUIZZES[0]);
 
+  // A shared link opens one quiz directly in the classroom activity.
+  const [quizLink, setQuizLink] = useState(() => new URLSearchParams(window.location.search).get('quiz'));
+  const clearQuizLink = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('quiz');
+    window.history.replaceState({}, '', url);
+    setQuizLink(null);
+  };
+  useEffect(() => {
+    if (!libraryReady || !quizLink) return;
+    let mounted = true;
+    resolveQuizLink(quizLink, availableQuizzes).then(quiz => {
+      if (!mounted) return;
+      // The address keeps a found quiz, so reloading or copying it reopens the same activity.
+      if (quiz) { setSelectedQuiz(quiz); setView('classroom'); setQuizLink(null); }
+      else { setStorageError(labels.quizLinkMissing); clearQuizLink(); }
+    });
+    return () => { mounted = false; };
+  }, [libraryReady]);
+
   const [recoveredSession, setRecoveredSession] = useState<GameSession>();
-  const recoveryAllowed = !classroomOnly && !publicSite && !new URLSearchParams(window.location.search).has('pin') && new URLSearchParams(window.location.search).get('role') !== 'player';
+  const recoveryAllowed = !classroomOnly && !publicSite && !quizLink && !new URLSearchParams(window.location.search).has('pin') && new URLSearchParams(window.location.search).get('role') !== 'player';
   const [checkingRecovery, setCheckingRecovery] = useState(recoveryAllowed);
   const [recoveryProblem, setRecoveryProblem] = useState<{ status: string; message?: string }>();
   const recoverHost = async () => {
@@ -245,11 +266,12 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
 
   if (checkingRecovery) return <div role="status" className="min-h-screen bg-white text-petrolio p-8">{labels.recoveringPresenter}</div>;
 
-  if (!libraryReady) return <div role="status" className="min-h-screen bg-white text-petrolio p-8">{labels.loadingLibrary}</div>;
+  if (!libraryReady || quizLink) return <div role="status" className="min-h-screen bg-white text-petrolio p-8">{labels.loadingLibrary}</div>;
 
+  const leaveClassroom = () => { clearQuizLink(); setView('dashboard'); };
   if (view === 'classroom') return selectedQuiz.videoConfig
-    ? <div className="h-screen bg-white"><VideoQuizPlayer quiz={selectedQuiz} classroom onExit={() => setView('dashboard')} /></div>
-    : <ClassroomScreen quiz={selectedQuiz} onExit={() => setView('dashboard')} />;
+    ? <div className="h-screen bg-white"><VideoQuizPlayer quiz={selectedQuiz} classroom onExit={leaveClassroom} /></div>
+    : <ClassroomScreen quiz={selectedQuiz} onExit={leaveClassroom} />;
 
   // If in Host Presenter mode
   if (view === 'host') {

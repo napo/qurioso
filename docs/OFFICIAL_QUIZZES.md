@@ -34,6 +34,16 @@ The source is [quizzes/parmigiana-di-melanzane.json](../public/quizzes/parmigian
 
 “Melanzane alla Parmigiana.jpg”, Blue Lotus, [original Flickr photo](https://www.flickr.com/photos/bluelotus/244367048), [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Melanzane_alla_Parmigiana.jpg), [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/). Credits, license and source links remain in the quiz and are displayed in the app.
 
+## Linking a quiz
+
+Each quiz has a link that opens it directly in the classroom activity, for example [`?app=classroom&quiz=tipi-di-vulcani`](https://qurioso.it/?app=classroom&quiz=tipi-di-vulcani). The `quiz` value is resolved in this order:
+
+1. the ID of a quiz in the library of the browser or app that opens the link;
+2. the slug of an included quiz (`tipi-di-vulcani`, `parmigiana-di-melanzane`), which works offline;
+3. a quiz published with the site: a complete quiz JSON (as exported by the editor) saved as `public/quizzes/<slug>.json` is available at `?app=classroom&quiz=<slug>` after the next deploy, without code changes and without appearing in the library.
+
+Slugs use lowercase letters, digits and hyphens. A published file is validated like a library backup before it opens. If the quiz is missing or invalid, the library opens with an error message. The address keeps the quiz while the activity is open, so reloading or copying it reopens the same activity; leaving the activity removes it. Personal quizzes live in each browser's library, so a link by ID only works where that library is.
+
 ## Sample quizzes
 
 The sample quizzes in [src/data/defaultQuizzes.ts](../src/data/defaultQuizzes.ts) are in Italian, plus **Discover the United Kingdom** in English and **Deutschland entdecken** in German (five classic questions each, with explanations). They are shown to new libraries regardless of the interface language. They use covers and question images bundled in [public/quizzes/covers/](../public/quizzes/covers/), so they display offline, in the PWA and on filtered networks. The images are resized to a maximum width of 800 px and converted to WebP. They are precached by the service worker. New quizzes use the Manarola image as their default cover. If an image cannot be loaded, the library card and question screens show a placeholder.
