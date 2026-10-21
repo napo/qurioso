@@ -108,7 +108,13 @@ export function LandingPage() {
                     <span className="block underline break-all">{item.name}</span>
                     <span className="mt-1 block text-xs text-muted">{item.size === undefined ? t.sizeUnavailable : formatDownloadSize(item.size, language)}</span>
                   </span>
-                </a>) : <p className="mt-3 text-sm text-muted">{downloadState === 'loading' ? t.checkingDownloads : downloadState === 'error' ? t.downloadError : t.buildUnavailable}</p>}
+                </a>) : downloadState === 'error' ? <a href="https://github.com/napo/qurioso/releases/latest" target="_blank" rel="noopener noreferrer" className="mt-4 flex items-start gap-2 text-sm text-petrolio">
+                  <Download size={16} className="mt-0.5 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block underline">{t.latestRelease}</span>
+                    <span className="mt-1 block text-xs text-muted">{t.downloadError}</span>
+                  </span>
+                </a> : <p className="mt-3 text-sm text-muted">{downloadState === 'loading' ? t.checkingDownloads : t.buildUnavailable}</p>}
               </div>;
             })}
           </div>

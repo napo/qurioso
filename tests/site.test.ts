@@ -70,6 +70,13 @@ test('classroom runs without a server; landing switches, remembers and passes al
   assert.equal(document.body.textContent?.match(/Noch keine Installationsdatei verfügbar/g)?.length, 3);
   assert.ok(document.querySelector('a[href="?app=classroom&lang=de"]'));
   await act(async () => root.render(React.createElement('div')));
+  globalThis.fetch = async () => { throw new TypeError('Network unavailable'); };
+  await act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(LandingPage))));
+  for (let n = 0; n < 40 && document.body.textContent?.includes('Downloads werden geprüft'); n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 15)); });
+  const fallbacks = [...document.querySelectorAll('a')].filter(a => a.textContent?.includes('Von der neuesten Version auf GitHub herunterladen'));
+  assert.equal(fallbacks.length, 3, 'every platform card links to the latest release when downloads cannot be verified');
+  assert.ok(fallbacks.every(a => a.getAttribute('href') === 'https://github.com/napo/qurioso/releases/latest'));
+  await act(async () => root.render(React.createElement('div')));
   // A URL language takes precedence over the saved preference.
   window.history.replaceState({}, '', '?lang=en#quiz-in-rete');
   await act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(LandingPage))));
