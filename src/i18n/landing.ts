@@ -56,6 +56,7 @@ const it = {
   "storageQuestion": "Dove vengono salvati i quiz?",
   "storageAnswer": "Nel browser del dispositivo che usi. Prima di cambiare browser o computer, esporta i quiz in JSON. Cancellare i dati del sito può cancellare anche il tuo archivio.",
   "openSource": "Codice aperto · AGPL-3.0",
+  "privacy": "Privacy",
   "pageTitle": "Qurioso — Quiz interattivi per la classe",
   "pageDescription": "Crea quiz con immagini e video. Gioca insieme in classe o con QR code e PIN sulla stessa rete. Gratis, open source e senza account.",
   "pageImageAlt": "Logo Qurioso e scritta «Porta la curiosità in classe», con le modalità Attività in classe e Quiz in Rete."
@@ -121,6 +122,7 @@ export const landingTranslations: Record<Language, LandingTranslations> = {
   "storageQuestion": "Where are quizzes saved?",
   "storageAnswer": "In the browser on the device you use. Export quizzes as JSON before switching browsers or computers. Clearing site data may also delete your quiz library.",
   "openSource": "Open source · AGPL-3.0",
+  "privacy": "Privacy",
   "pageTitle": "Qurioso — Network quizzes and classroom activities",
   "pageDescription": "Quizzes with images and videos for classroom discussions or individual answers via QR code and PIN on the same network. Free, open source, no account.",
   "pageImageAlt": "Qurioso logo and the Italian slogan Bring curiosity into the classroom, with classroom activities and network quizzes."
@@ -181,6 +183,7 @@ export const landingTranslations: Record<Language, LandingTranslations> = {
   "storageQuestion": "Wo werden die Quiz gespeichert?",
   "storageAnswer": "Im Browser des verwendeten Geräts. Exportiere die Quiz als JSON, bevor du den Browser oder Computer wechselst. Beim Löschen der Websitedaten kann auch deine Quizsammlung gelöscht werden.",
   "openSource": "Quelloffen · AGPL-3.0",
+  "privacy": "Datenschutz",
   "pageTitle": "Qurioso — Quiz im Netzwerk und Aktivitäten im Unterricht",
   "pageDescription": "Erstelle Quiz mit Bildern und Videos. Diskutiert gemeinsam oder antwortet einzeln per QR-Code und PIN im selben Netzwerk. Kostenlos, Open Source, ohne Konto.",
   "pageImageAlt": "Qurioso-Logo und der italienische Slogan Bring Neugier ins Klassenzimmer, mit Unterrichtsaktivitäten und Quiz im Netzwerk."

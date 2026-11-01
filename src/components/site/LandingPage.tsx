@@ -129,6 +129,6 @@ export function LandingPage() {
         {[[t.internetQuestion, t.internetAnswer], [t.accountQuestion, t.accountAnswer], [t.storageQuestion, t.storageAnswer]].map(([question, answer]) => <details key={question} className="border-b border-line py-4"><summary className="cursor-pointer font-bold text-petrolio">{question}</summary><p className="mt-3 text-muted max-w-3xl leading-relaxed">{answer}</p></details>)}
       </section>
     </main>
-    <footer className="border-t border-line max-w-6xl mx-auto px-5 md:px-8 py-7 flex flex-wrap justify-between gap-4 text-sm text-muted"><span className="inline-flex flex-wrap items-center gap-2">Qurioso <AppVersion /> · Maurizio Napolitano</span><a href="https://github.com/napo/qurioso" className="text-petrolio underline">{t.openSource}</a></footer>
+    <footer className="border-t border-line max-w-6xl mx-auto px-5 md:px-8 py-7 flex flex-wrap justify-between gap-4 text-sm text-muted"><span className="inline-flex flex-wrap items-center gap-2">Qurioso <AppVersion /> · Maurizio Napolitano</span><span className="inline-flex flex-wrap gap-4"><a href="privacy.html" className="text-petrolio underline">{t.privacy}</a><a href="https://github.com/napo/qurioso" className="text-petrolio underline">{t.openSource}</a></span></footer>
   </div>;
 }
