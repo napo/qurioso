@@ -59,6 +59,27 @@ test('release checks handle no releases, rate limits, offline and beta selection
   await assert.rejects(u.findUpdate('1.0.0', { fetchImpl: async () => { throw new Error('offline'); } }), /offline/);
 });
 
+test('updates keep working before and after the repository moves to qurioso-it', async t => {
+  const moved = { ...asset(), browser_download_url: asset().browser_download_url.replace('napo/qurioso', 'qurioso-it/qurioso') };
+  const movedRelease = { ...release, assets: [moved] };
+  const before: string[] = [];
+  const old = await u.findUpdate('1.0.0', { fetchImpl: async (url: string) => { before.push(url); return url.includes('/qurioso-it/') ? new Response(null, { status: 404 }) : Response.json(release); } });
+  assert.equal(old.tag_name, 'v1.1.0');
+  assert.deepEqual(before, ['https://api.github.com/repos/qurioso-it/qurioso/releases/latest', 'https://api.github.com/repos/napo/qurioso/releases/latest']);
+  const after: string[] = [];
+  const found = await u.findUpdate('1.0.0', { fetchImpl: async (url: string) => { after.push(url); if (url.includes('/napo/')) throw new TypeError('redirect mode is set to error'); return Response.json(movedRelease); } });
+  assert.equal(found.tag_name, 'v1.1.0');
+  assert.equal(after.length, 1);
+  await assert.rejects(u.findUpdate('1.0.0', { fetchImpl: async (url: string) => url.includes('/qurioso-it/') ? new Response(null, { status: 403 }) : Response.json(release) }), /limitato/);
+  assert.equal(u.selectInstaller(movedRelease, 'win32', 'x64'), moved);
+  const other = { ...asset(), browser_download_url: asset().browser_download_url.replace('napo/qurioso', 'qurioso-it/other') };
+  assert.equal(u.selectInstaller({ ...release, assets: [other] }, 'win32', 'x64'), null);
+  const dir = await mkdtemp(path.join(tmpdir(), 'qurioso-updates-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  assert.deepEqual(await readFile(await u.downloadInstaller(moved, dir, { fetchImpl: async () => new Response(bytes) })), bytes);
+  await assert.rejects(u.downloadInstaller(other, dir, { fetchImpl: async () => new Response(bytes) }), /non verificabile/);
+});
+
 test('installer streams to disk, validates size/hash, limits redirects and removes partial or cancelled downloads', async t => {
   const dir = await mkdtemp(path.join(tmpdir(), 'qurioso-updates-'));
   t.after(() => rm(dir, { recursive: true, force: true }));

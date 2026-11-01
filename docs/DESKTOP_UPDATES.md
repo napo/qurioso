@@ -68,7 +68,9 @@ Tutto il controllo risiede nel processo principale Electron. Il renderer LAN,
 gli iframe dei video e `quriosoDesktop` non ricevono API per scaricare/eseguire file.
 Non vengono inviati quiz, punteggi, PIN o credenziali: solo normali richieste HTTPS
 ai metadati GitHub e al file scelto. GitHub vede comunque IP e dati ordinari della
-connessione. Sono ammessi solo asset del repository `napo/qurioso` e redirect
+connessione. Sono ammessi solo asset dei repository `qurioso-it/qurioso` e
+`napo/qurioso` (il secondo serve durante il trasferimento: si consulta solo se il
+primo non esiste) e redirect
 HTTPS verso i CDN GitHub previsti. Installer senza dimensione/digest verificabile
 non vengono scaricati automaticamente: viene proposta la pagina delle versioni.
 Il download ha timeout di 30 minuti e può essere annullato.

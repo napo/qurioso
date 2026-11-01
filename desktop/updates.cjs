@@ -2,7 +2,9 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
-const RELEASES = 'https://api.github.com/repos/napo/qurioso/releases';
+// Moving to qurioso-it: the new repository wins, the old one serves releases until the transfer.
+const REPOSITORIES = ['qurioso-it/qurioso', 'napo/qurioso'];
+// GitHub redirects this page in browsers once the repository is transferred.
 const RELEASE_PAGE = 'https://github.com/napo/qurioso/releases';
 const MAX_INSTALLER_SIZE = 8 * 1024 ** 3;
 
@@ -52,7 +54,7 @@ function selectInstaller(release, platform, arch, linuxFormat = 'AppImage') {
     try {
       const url = new URL(asset.browser_download_url);
       return url.origin === 'https://github.com' && !url.username && !url.password && !url.search && !url.hash &&
-        url.pathname === `/napo/qurioso/releases/download/${release.tag_name}/${asset.name}`;
+        REPOSITORIES.some(repository => url.pathname === `/${repository}/releases/download/${release.tag_name}/${asset.name}`);
     } catch { return false; }
   }) || null;
 }
@@ -70,21 +72,25 @@ async function limitedJson(response) {
 
 async function findUpdate(currentVersion, { fetchImpl = fetch, signal } = {}) {
   const beta = parseVersion(currentVersion)?.pre.length;
-  const response = await fetchImpl(beta ? `${RELEASES}?per_page=100` : `${RELEASES}/latest`, {
-    redirect: 'error', credentials: 'omit', signal: AbortSignal.any([AbortSignal.timeout(15000), ...(signal ? [signal] : [])]),
-    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Qurioso-update-check' },
-  });
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error('GitHub non è raggiungibile o ha limitato le richieste.');
-  const result = await limitedJson(response);
-  return selectRelease(Array.isArray(result) ? result : [result], currentVersion);
+  for (const repository of REPOSITORIES) {
+    const releases = `https://api.github.com/repos/${repository}/releases`;
+    const response = await fetchImpl(beta ? `${releases}?per_page=100` : `${releases}/latest`, {
+      redirect: 'error', credentials: 'omit', signal: AbortSignal.any([AbortSignal.timeout(15000), ...(signal ? [signal] : [])]),
+      headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Qurioso-update-check' },
+    });
+    if (response.status === 404) continue;
+    if (!response.ok) throw new Error('GitHub non è raggiungibile o ha limitato le richieste.');
+    const result = await limitedJson(response);
+    return selectRelease(Array.isArray(result) ? result : [result], currentVersion);
+  }
+  return null;
 }
 
 function allowedDownloadUrl(value) {
   try {
     const url = new URL(value);
     return url.protocol === 'https:' && !url.username && !url.password && !url.port &&
-      (url.hostname === 'github.com' && url.pathname.startsWith('/napo/qurioso/releases/download/') ||
+      (url.hostname === 'github.com' && REPOSITORIES.some(repository => url.pathname.startsWith(`/${repository}/releases/download/`)) ||
        ['release-assets.githubusercontent.com', 'objects.githubusercontent.com'].includes(url.hostname));
   } catch { return false; }
 }
