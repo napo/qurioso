@@ -29,6 +29,8 @@ export default defineConfig(() => {
             { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           ],
         },
+        // The sign-in comes back with a query string, which must reach the real page and not the app shell.
+        workbox: { navigateFallbackDenylist: [/oauth-callback\.html/] },
         devOptions: {
           enabled: false,
         },

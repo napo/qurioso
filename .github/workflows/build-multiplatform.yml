@@ -134,6 +134,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes rpm
+      - name: Write cloud secrets
+        env:
+          GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.GOOGLE_DESKTOP_CLIENT_SECRET }}
+        run: node scripts/write-cloud-secrets.mjs
       - name: Build desktop packages
         shell: bash
         env:

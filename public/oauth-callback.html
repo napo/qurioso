@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Qurioso</title>
+  </head>
+  <body style="font-family: sans-serif; text-align: center; padding: 3em">
+    <h1>Qurioso</h1>
+    <p>✓</p>
+    <script>
+      // Hands the address, with the sign-in code, to the app that opened this window (src/services/cloudSync/webAuth.ts).
+      const channel = new BroadcastChannel('qurioso-oauth');
+      channel.postMessage(location.href);
+      channel.close();
+      history.replaceState(null, '', location.pathname);
+      window.close();
+    </script>
+  </body>
+</html>

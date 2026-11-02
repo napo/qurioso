@@ -16,6 +16,58 @@ export function openLibrary(): Promise<IDBDatabase> {
   });
 }
 
+/** When each saved quiz last changed and when each was deleted, for cloud sync. Kept beside the quizzes so exports and backups stay unchanged. */
+export interface LibrarySyncState { stamps: Record<string, number>; deletions: Record<string, number> }
+export const SYNC_STATE_KEY = 'sync:state';
+
+export function stampLibrary(state: LibrarySyncState | undefined, previous: Quiz[] | undefined, next: Quiz[], now: number): LibrarySyncState {
+  const stamps = { ...state?.stamps }, deletions = { ...state?.deletions };
+  const before = new Map((previous ?? []).map(quiz => [quiz.id, quiz]));
+  for (const quiz of next) {
+    const old = before.get(quiz.id);
+    if (old && JSON.stringify(old) === JSON.stringify(quiz)) continue;
+    // Never equal to the last stamp: a change within the same millisecond must still count as one.
+    stamps[quiz.id] = Math.max(now, (stamps[quiz.id] ?? 0) + 1);
+    delete deletions[quiz.id];
+  }
+  const kept = new Set(next.map(quiz => quiz.id));
+  for (const id of before.keys()) if (!kept.has(id)) { deletions[id] = now; delete stamps[id]; }
+  return { stamps, deletions };
+}
+
+const LIBRARY_CHANNEL = 'qurioso-library';
+const libraryWriteListeners = new Set<() => void>();
+/** Saves made by the user in this tab, which cloud sync follows. */
+export function onLibraryWrite(listener: () => void): () => void {
+  libraryWriteListeners.add(listener);
+  return () => libraryWriteListeners.delete(listener);
+}
+/** A tab holding an old list would turn every quiz it misses into a deletion that reaches the cloud. */
+export function announceLibraryChange(): void {
+  if (typeof BroadcastChannel === 'undefined') return;
+  const channel = new BroadcastChannel(LIBRARY_CHANNEL);
+  channel.postMessage('changed');
+  channel.close();
+}
+export function onLibraryChangedElsewhere(listener: () => void): () => void {
+  if (typeof BroadcastChannel === 'undefined') return () => {};
+  const channel = new BroadcastChannel(LIBRARY_CHANNEL);
+  channel.onmessage = () => listener();
+  return () => channel.close();
+}
+function libraryWritten(): void {
+  announceLibraryChange();
+  for (const listener of libraryWriteListeners) listener();
+}
+
+function putStamped(store: IDBObjectStore, quizzes: Quiz[]): void {
+  const previous = store.get('quizzes'), state = store.get(SYNC_STATE_KEY);
+  state.onsuccess = () => {
+    store.put(quizzes, 'quizzes');
+    store.put(stampLibrary(state.result, previous.result, quizzes, Date.now()), SYNC_STATE_KEY);
+  };
+}
+
 export async function loadQuizzes(): Promise<Quiz[] | null> {
   if (typeof indexedDB !== 'undefined') {
     const database = await openLibrary();
@@ -44,8 +96,8 @@ export async function storeQuizzes(quizzes: Quiz[]): Promise<void> {
   const database = await openLibrary();
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction('library', 'readwrite');
-    transaction.objectStore('library').put(quizzes, 'quizzes');
-    transaction.oncomplete = () => { database.close(); resolve(); };
+    putStamped(transaction.objectStore('library'), quizzes);
+    transaction.oncomplete = () => { database.close(); libraryWritten(); resolve(); };
     transaction.onabort = () => { database.close(); reject(new Error(serviceText('saveFailed'))); };
     transaction.onerror = () => { /* onabort reports failed writes without discarding the draft. */ };
   });
@@ -158,10 +210,10 @@ export async function commitLibraryRestore(expected: Quiz[] | null, quizzes: Qui
     const request = tx.objectStore('library').get('quizzes');
     request.onsuccess = () => {
       if (JSON.stringify(request.result ?? null) !== JSON.stringify(expected)) { conflict = true; tx.abort(); return; }
-      tx.objectStore('library').put(quizzes, 'quizzes');
+      putStamped(tx.objectStore('library'), quizzes);
       for (const [id, blob] of assets) tx.objectStore('videos').put(blob, id);
     };
-    tx.oncomplete = () => { database.close(); resolve(); };
+    tx.oncomplete = () => { database.close(); libraryWritten(); resolve(); };
     tx.onabort = () => { database.close(); reject(new Error(conflict ? 'backupChanged' : 'backupWrite')); };
     tx.onerror = () => {};
   });

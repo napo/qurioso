@@ -18,6 +18,12 @@ if (Number.isInteger(port) && port > 0 && port < 65536) {
         return () => ipcRenderer.removeListener('qurioso:sharing:changed', listener);
       },
     }),
+    cloud: Object.freeze({
+      providers: () => ipcRenderer.invoke('qurioso:cloud:providers'),
+      token: (provider, interactive) => ipcRenderer.invoke('qurioso:cloud:token', provider, interactive === true),
+      invalidate: provider => ipcRenderer.invoke('qurioso:cloud:invalidate', provider),
+      signOut: provider => ipcRenderer.invoke('qurioso:cloud:signout', provider),
+    }),
     // Native File/Help menu commands; items are enabled only while the library is visible.
     menu: Object.freeze({
       onCommand: callback => {

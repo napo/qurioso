@@ -16,8 +16,15 @@ export interface DesktopMenuApi {
   setLibraryVisible: (visible: boolean) => void;
   setLanguage?: (language: string) => void;
 }
+/** Sign-in lives in the main process: the page gets short-lived access tokens, never a refresh token. */
+export interface DesktopCloudApi {
+  providers: () => Promise<string[]>;
+  token: (provider: string, interactive: boolean) => Promise<string | null>;
+  invalidate: (provider: string) => Promise<void>;
+  signOut: (provider: string) => Promise<void>;
+}
 declare global {
   interface Window {
-    quriosoDesktop?: Readonly<{ serverPort: number; systemLanguage?: 'it' | 'en' | 'de'; internetSharing?: InternetSharingApi; menu?: DesktopMenuApi }>;
+    quriosoDesktop?: Readonly<{ serverPort: number; systemLanguage?: 'it' | 'en' | 'de'; internetSharing?: InternetSharingApi; menu?: DesktopMenuApi; cloud?: DesktopCloudApi }>;
   }
 }
