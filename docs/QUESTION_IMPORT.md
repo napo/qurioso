@@ -145,8 +145,12 @@ o destinazione la selezione iniziale viene ricalcolata per la nuova anteprima.
 
 ## Quiz video e compatibilità
 
-Le domande importate sono **non associate**. Non si copiano `videoTimestamp` o
-checkpoint del file sorgente. Quelli del quiz di destinazione esplicito restano
+Le domande importate sono **non associate**, tranne quando una colonna è associata
+al campo **Tempo nel video** (intestazioni riconosciute `tempo_video`, `video_time`,
+`timestamp`). Accetta `mm:ss`, `h:mm:ss` o secondi; un valore diverso è un errore
+della riga. In un quiz video il tempo diventa il checkpoint della domanda, in un
+quiz classico viene ignorato. Non si copiano mai `videoTimestamp` o checkpoint di
+un file JSON Qurioso. Quelli del quiz di destinazione esplicito restano
 identici, insieme al riferimento al Blob del video. Si possono poi associare le
 nuove domande dall'editor timeline. Non viene generato alcun checkpoint casuale.
 Per quiz legacy senza `checkpointMode`, si riusa `editableVideoQuiz`: i tempi
@@ -156,6 +160,24 @@ domande non ricevono i vecchi checkpoint impliciti.
 Formato dei quiz salvati, protocollo multiplayer, autorizzazioni e formula dei
 punteggi non cambiano. Non vengono aggiunti tipi di domanda, XLSX, dipendenze,
 servizi esterni o backup completi.
+
+## Domande da un assistente IA, senza chiave
+
+La sezione **Crea le domande con un assistente IA** del dialogo prepara una
+richiesta per l'assistente che il docente usa già (ChatGPT, Claude, Gemini…):
+Qurioso non contatta nessun servizio e non chiede chiavi. Il docente incolla la
+trascrizione del video, con i suoi tempi, o il testo della lezione, sceglie il
+numero di domande e, se vuole, la classe; **Copia la richiesta** la mette negli
+appunti (se la copia non è disponibile la mostra da selezionare).
+
+La richiesta, nella lingua dell'interfaccia, chiede un CSV con punto e virgola e
+le intestazioni del modello più `tempo_video` (in tedesco le intestazioni restano
+inglesi, il contenuto è tedesco): quattro risposte, una corretta, una spiegazione
+breve e il momento del video subito dopo l'argomento. La risposta incollata in
+**Risposta dell'assistente** perde blocchi di codice e frasi di contorno
+(`src/services/aiQuestionPrompt.ts`) e passa dallo stesso percorso di un file
+CSV: associazione delle colonne, validazione, duplicati e anteprima. Le domande
+vanno comunque rilette: l'assistente può sbagliare.
 
 ## Limiti e collaudo
 

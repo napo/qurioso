@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FileButton } from '../common/FileButton';
+import { copyText } from '../../utils/clipboard';
+import { AI_TRANSCRIPT_MAX, aiQuestionPrompt, csvFromAiAnswer } from '../../services/aiQuestionPrompt';
 import type { Quiz, Question } from '../../types/quiz';
 import { useLanguage } from '../../context/LanguageContext';
 import { importText, type ImportIssue, type ImportMessageKey } from '../../i18n/questionImport';
-import { IMPORT_FIELDS, OPTION_FIELDS, appendImportedQuestions, csvImportSource, detectQuestionSeparator, importId, jsonImportSource, previewQuestionImport, questionCsvTemplate, readQuestionFile, suggestQuestionMapping, QuestionImportError, type ImportConfig, type ImportSource } from '../../services/questionImport';
+import { IMPORT_FIELDS, IMPORT_LIMITS, OPTION_FIELDS, appendImportedQuestions, csvImportSource, detectQuestionSeparator, importId, jsonImportSource, previewQuestionImport, questionCsvTemplate, readQuestionFile, suggestQuestionMapping, QuestionImportError, type ImportConfig, type ImportSource } from '../../services/questionImport';
 
 const EMPTY_QUESTIONS: Question[] = [];
 const inputClass = 'w-full min-w-0 rounded-xl border border-line bg-white px-3 py-2 text-sm';
@@ -24,6 +26,8 @@ export function QuestionImportDialog({ initialQuiz, quizzes = [], onCancel, onCo
   const [title, setTitle] = useState(''), [video, setVideo] = useState(false);
   const [multiplier, setMultiplier] = useState(1), [explanation, setExplanation] = useState(true), [streak, setStreak] = useState(true);
   const [selected, setSelected] = useState(new Set<number>()), [page, setPage] = useState(0);
+  const [aiTranscript, setAiTranscript] = useState(''), [aiCount, setAiCount] = useState(10), [aiLevel, setAiLevel] = useState('');
+  const [aiAnswer, setAiAnswer] = useState(''), [aiStatus, setAiStatus] = useState(''), [aiPrompt, setAiPrompt] = useState('');
   const dialog = useRef<HTMLDivElement>(null), sequence = useRef(0), confirmed = useRef(false);
   const errorBox = useRef<HTMLParagraphElement>(null);
   const cancelRef = useRef(onCancel); cancelRef.current = onCancel;
@@ -72,6 +76,16 @@ export function QuestionImportDialog({ initialQuiz, quizzes = [], onCancel, onCo
     } catch (error) { if (request === sequence.current) errorIssue(error); }
     finally { if (request === sequence.current) setReading(false); }
   };
+  const copyAiPrompt = async () => {
+    const prompt = aiQuestionPrompt({ language, count: aiCount, level: aiLevel, transcript: aiTranscript }), copied = await copyText(prompt);
+    setAiStatus(t(copied ? 'aiCopied' : 'aiCopyFailed')); setAiPrompt(copied ? '' : prompt);
+  };
+  // The answer is read like a CSV file, so it gets the same mapping, checks and preview.
+  const useAiAnswer = () => {
+    const text = csvFromAiAnswer(aiAnswer);
+    ++sequence.current; setFileData({ text, name: `${t('aiAnswer')}.csv` });
+    configureCsv(text, detectQuestionSeparator(text), true); setStep('preview');
+  };
   const downloadTemplate = () => {
     const url = URL.createObjectURL(new Blob([questionCsvTemplate(language === 'it' ? 'it' : 'en')], { type: 'text/csv;charset=utf-8' }));
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'qurioso-domande.csv'; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -110,6 +124,21 @@ export function QuestionImportDialog({ initialQuiz, quizzes = [], onCancel, onCo
       <div className="min-h-0 overflow-auto p-4 space-y-4">
         <p className="text-sm text-muted">{t('local')}</p>
         <div className="space-y-1"><p className="text-sm font-bold text-petrolio">{t('chooseFile')}</p><FileButton aria-label={t('chooseFile')} accept=".csv,.tsv,.json,text/csv,application/json,text/tab-separated-values" disabled={confirming} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; void chooseFile(file); }} /><p className="text-xs text-muted">{t('utf8')}</p></div>
+        <details className="ai-questions border border-line rounded-xl p-3"><summary className="font-bold text-petrolio cursor-pointer">{t('aiTitle')}</summary><div className="space-y-3 mt-3">
+          <p className="text-sm">{t('aiIntro')}</p>
+          <label className="block text-sm font-bold">{t('aiTranscript')}<textarea aria-label={t('aiTranscript')} className={`${inputClass} h-32 font-normal`} maxLength={AI_TRANSCRIPT_MAX} value={aiTranscript} onChange={event => setAiTranscript(event.target.value)} /></label>
+          <p className="text-xs text-muted">{t('aiTranscriptHint')}</p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="text-sm">{t('aiCount')}<input type="number" min={1} max={50} aria-label={t('aiCount')} className={inputClass} value={aiCount} onChange={event => setAiCount(Math.min(50, Math.max(1, Math.round(Number(event.target.value)) || 1)))} /></label>
+            <label className="text-sm">{t('aiLevel')}<input aria-label={t('aiLevel')} className={inputClass} maxLength={100} value={aiLevel} onChange={event => setAiLevel(event.target.value)} /></label>
+          </div>
+          <button type="button" className="btn-secondary rounded-xl px-3 py-2 text-sm font-bold" onClick={() => void copyAiPrompt()}>{t('aiCopy')}</button>
+          {aiStatus && <p role="status" className="text-sm">{aiStatus}</p>}
+          {aiPrompt && <textarea readOnly aria-label={t('aiCopy')} className={`${inputClass} h-32 font-mono`} value={aiPrompt} onFocus={event => event.target.select()} />}
+          <p className="text-xs text-muted">{t('aiPrivacy')}</p>
+          <label className="block text-sm font-bold">{t('aiAnswer')}<textarea aria-label={t('aiAnswer')} className={`${inputClass} h-32 font-mono font-normal`} maxLength={IMPORT_LIMITS.bytes} value={aiAnswer} onChange={event => setAiAnswer(event.target.value)} /></label>
+          <button type="button" disabled={!aiAnswer.trim() || confirming} className="btn-primary rounded-xl px-3 py-2 text-sm font-bold" onClick={useAiAnswer}>{t('aiUse')}</button>
+        </div></details>
         {reading && <p role="status">{t('loading')}</p>}
         {fileData && <p className="text-sm font-bold break-words">{fileData.name}</p>}
         {activeIssue && <p ref={errorBox} tabIndex={-1} role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{t(activeIssue.key, activeIssue.args)}</p>}

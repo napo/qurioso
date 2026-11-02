@@ -1,7 +1,7 @@
 // Adapted from napo/analisirefertogara (AGPL-3.0-or-later), webapp/src/sync/engine.js.
 import { applySyncChanges, librarySnapshot, readSyncMeta, writeSyncMeta } from './archive';
 import { readSyncFile, writeSyncFile } from './file';
-import { EMPTY_SNAPSHOT, mergeSnapshots, snapshotChanges, snapshotStamps, type SyncBase, type SyncSnapshot } from './merge';
+import { EMPTY_SNAPSHOT, matchesBase, mergeSnapshots, snapshotChanges, snapshotStamps, type SyncBase, type SyncSnapshot } from './merge';
 import { StorageError, type CloudFile, type CloudStorage, type SyncAuth } from './types';
 
 export interface SyncResult { done: boolean; received: number; uploaded: boolean; conflicts: number; skipped: number }
@@ -31,10 +31,15 @@ async function round(client: CloudStorage, appVersion: string, now: () => number
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     const meta = await readSyncMeta();
     const knownVersion = meta.fileId ? await client.version(meta.fileId) : null;
-    let file: CloudFile | null = meta.fileId && knownVersion ? { id: meta.fileId, version: knownVersion } : await client.findArchive();
-    const remote: SyncSnapshot = file ? readSyncFile(await client.download(file.id)) : EMPTY_SNAPSHOT;
     const { skipped, ...local } = await librarySnapshot();
     const at = now();
+    // Neither side changed since the last round: the file is not downloaded again.
+    if (knownVersion && knownVersion === meta.version && matchesBase(local, meta.base ?? {}, at)) {
+      await writeSyncMeta({ ...meta, lastSyncedAt: at });
+      return { done: true, received: 0, uploaded: false, conflicts: 0, skipped };
+    }
+    let file: CloudFile | null = meta.fileId && knownVersion ? { id: meta.fileId, version: knownVersion } : await client.findArchive();
+    const remote: SyncSnapshot = file ? readSyncFile(await client.download(file.id)) : EMPTY_SNAPSHOT;
     const { merged, base, conflicts } = mergeSnapshots(local, remote, meta.base ?? {}, undefined, at);
     const toLocal = snapshotChanges(local, merged);
     const received = toLocal.changed ? await applySyncChanges(toLocal.puts, toLocal.deletions, snapshotStamps(local)) : 0;
@@ -47,9 +52,13 @@ async function round(client: CloudStorage, appVersion: string, now: () => number
         const updated = await client.update(file.id, bytes, file.version);
         if (!updated) continue;
         file = updated;
-      } else file = await client.create(bytes);
+      } else {
+        const created = await client.create(bytes);
+        if (!created) continue;
+        file = created;
+      }
     }
-    await writeSyncMeta({ ...meta, fileId: file!.id, base, lastSyncedAt: at });
+    await writeSyncMeta({ ...meta, fileId: file!.id, version: file!.version, base, lastSyncedAt: at });
     return { done: true, received, uploaded: upload, conflicts, skipped };
   }
   throw new Error('syncBusy');

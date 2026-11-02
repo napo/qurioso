@@ -31,7 +31,8 @@ export function stampLibrary(state: LibrarySyncState | undefined, previous: Quiz
     delete deletions[quiz.id];
   }
   const kept = new Set(next.map(quiz => quiz.id));
-  for (const id of before.keys()) if (!kept.has(id)) { deletions[id] = now; delete stamps[id]; }
+  // Later than the quiz it removes, even with a clock behind the device that last edited it.
+  for (const [id, quiz] of before) if (!kept.has(id)) { deletions[id] = Math.max(now, (stamps[id] ?? quiz.createdAt ?? 0) + 1); delete stamps[id]; }
   return { stamps, deletions };
 }
 

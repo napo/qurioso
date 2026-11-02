@@ -5,7 +5,8 @@ import { OFFICIAL_QUIZZES } from '../officialQuizzes';
 import { MissingVideoError, SYNC_STATE_KEY, announceLibraryChange, openLibrary, videoAssetInfo, type LibrarySyncState } from '../quizStorage';
 import type { SyncBase, SyncDeletion, SyncRecord, SyncSnapshot } from './merge';
 
-export interface SyncMeta { provider?: string; fileId?: string; base?: SyncBase; lastSyncedAt?: number }
+/** `version` is the file version this device last read or wrote. */
+export interface SyncMeta { provider?: string; fileId?: string; version?: string; base?: SyncBase; lastSyncedAt?: number }
 const META_KEY = 'sync:meta';
 const EMPTY_STATE: LibrarySyncState = { stamps: {}, deletions: {} };
 const builtIn = new Map([...DEFAULT_QUIZZES, ...OFFICIAL_QUIZZES].map(quiz => [quiz.id, quiz]));

@@ -8,7 +8,8 @@ export interface CloudStorage {
   findArchive(): Promise<CloudFile | null>;
   version(id: string): Promise<string | null>;
   download(id: string): Promise<Uint8Array>;
-  create(bytes: Uint8Array): Promise<CloudFile>;
+  /** Null when another device created the file first: the next round uses that one. */
+  create(bytes: Uint8Array): Promise<CloudFile | null>;
   /** Null when the file changed after `expected` was read. */
   update(id: string, bytes: Uint8Array, expected: string): Promise<CloudFile | null>;
   trash(id: string): Promise<void>;

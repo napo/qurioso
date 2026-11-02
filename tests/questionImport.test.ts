@@ -208,3 +208,42 @@ test('settings destination selection opens the existing quiz in the editor witho
   await env.wait(()=>document.querySelector('.quiz-editor'));assert.match(document.body.textContent!,/4 domande create/);assert.equal(JSON.stringify(await loadQuizzes()),before);
   assert.equal(env.requests(),0);
 });
+
+test('a mapped time in the video becomes a checkpoint of a video quiz, and is dropped for a classic one', () => {
+  const text = 'domanda;risposta_A;risposta_B;corretta;tempo_video\nPrima;Uno;Due;A;1:05\nSeconda;Uno;Due;B;90\nTerza;Uno;Due;A;\nQuarta;Uno;Due;A;1:02:03\nRotta;Uno;Due;A;dopo';
+  const source = csvImportSource(text, ';', true), rows = previewQuestionImport(source, configuration(suggestQuestionMapping(source.columns)));
+  assert.deepEqual(rows.map(row => row.question?.videoTimestamp), [65, 90, undefined, 3723, undefined]);
+  assert.equal(rows[4].errors[0].key, 'videoTimeInvalid');
+  const valid = rows.filter(row => row.question), video = structuredClone(DEFAULT_QUIZZES[0]);
+  const next = appendImportedQuestions(video, valid), added = next.questions.slice(-4);
+  assert.deepEqual(added.map(q => q.videoTimestamp), [65, 90, undefined, 3723]);
+  assert.deepEqual(next.videoConfig!.checkpoints.slice(-3), [65, 90, 3723].map((timestamp, i) => ({ questionId: added[[0, 1, 3][i]].id, timestamp })));
+  assert.ok(appendImportedQuestions(classic(), valid).questions.slice(-4).every(q => q.videoTimestamp === undefined));
+});
+
+test('the assistant request carries the importer headings and the transcript, and its answer is read without the chatter', async () => {
+  const { aiQuestionPrompt, csvFromAiAnswer } = await import('../src/services/aiQuestionPrompt');
+  const prompt = aiQuestionPrompt({ language: 'it', count: 7, level: 'terza media', transcript: '0:05 I vulcani a scudo…' });
+  assert.match(prompt, /7 domande/); assert.match(prompt, /terza media/); assert.match(prompt, /0:05 I vulcani a scudo/);
+  const header = prompt.split('\n').find(line => line.startsWith('domanda;'))!;
+  const mapping = suggestQuestionMapping(header.split(';'));
+  for (const field of ['text', 'type', 'optionA', 'optionD', 'correct', 'explanation', 'videoTime']) assert.ok(mapping[field] !== undefined, field);
+  assert.match(aiQuestionPrompt({ language: 'de', count: 3 }), /Schreibe auf Deutsch[\s\S]*question;type/);
+  const answer = 'Ecco le domande:\n\n```csv\ndomanda;tipo;risposta_A;risposta_B;corretta;tempo_video\nUno?;multiple_choice;Sì;No;A;0:10\n```\n\nFammi sapere se servono modifiche.';
+  assert.equal(csvFromAiAnswer(answer), 'domanda;tipo;risposta_A;risposta_B;corretta;tempo_video\nUno?;multiple_choice;Sì;No;A;0:10');
+});
+
+test('wizard copies the assistant request and turns the pasted answer into video checkpoints, without contacting any service', async t => {
+  const env=browser(t),{createRoot}=await import('react-dom/client'),{LanguageProvider}=await import('../src/context/LanguageContext'),{QuestionImportDialog}=await import('../src/components/builder/QuestionImportDialog');
+  const root=createRoot(document.getElementById('app')!);env.cleanup(async()=>{await act(async()=>root.unmount());});let result:Quiz|undefined,copied='';
+  Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async(text:string)=>{copied=text;}}});
+  const video=structuredClone(DEFAULT_QUIZZES[0]);
+  await act(async()=>root.render(React.createElement(LanguageProvider,null,React.createElement(QuestionImportDialog,{initialQuiz:video,onCancel(){},onConfirm:q=>{result=q;}}))));
+  await env.input(document.querySelector('textarea[aria-label="Trascrizione del video o testo della lezione"]')!,'0:30 La lava basaltica è fluida.');
+  await env.click('Copia la richiesta');assert.match(copied,/0:30 La lava basaltica/);assert.match(document.body.textContent!,/Richiesta copiata/);
+  await env.input(document.querySelector('textarea[aria-label="Risposta dell’assistente"]')!,'```\ndomanda;tipo;risposta_A;risposta_B;risposta_C;risposta_D;corretta;spiegazione;tempo_video\nCom’è la lava basaltica?;multiple_choice;Fluida;Solida;Gassosa;Viscosa;A;Scorre facilmente.;0:35\n```');
+  await env.click('Controlla le domande');assert.match(document.body.textContent!,/1 elementi · 1 validi/);
+  await env.click('Aggiungi le domande selezionate');
+  const added=result!.questions.at(-1)!;assert.equal(added.text,'Com’è la lava basaltica?');assert.equal(added.videoTimestamp,35);
+  assert.ok(result!.videoConfig!.checkpoints.some(cp=>cp.questionId===added.id&&cp.timestamp===35));assert.equal(env.requests(),0);
+});

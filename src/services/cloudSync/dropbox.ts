@@ -41,7 +41,13 @@ export class DropboxClient implements CloudStorage {
     const response = await this.request(`${CONTENT}/download`, { headers: { 'Dropbox-API-Arg': JSON.stringify({ path: PATH }) } });
     return new Uint8Array(await response.arrayBuffer());
   }
-  create(bytes: Uint8Array) { return this.upload(bytes, 'add'); }
+  async create(bytes: Uint8Array) {
+    try { return await this.upload(bytes, 'add'); }
+    catch (error) {
+      if (error instanceof StorageError && error.status === 409 && error.code.includes('conflict')) return null;
+      throw error;
+    }
+  }
   async update(_id: string, bytes: Uint8Array, expected: string) {
     try { return await this.upload(bytes, { '.tag': 'update', update: expected }); }
     catch (error) {

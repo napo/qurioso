@@ -7,7 +7,7 @@ import { loadQuizzes, loadVideo, readLibrarySnapshot, stampLibrary, storeQuizzes
 import { librarySnapshot, readSyncMeta } from '../src/services/cloudSync/archive';
 import { forgetSync, synchronise } from '../src/services/cloudSync/engine';
 import { SYNC_FILE_NAME, SyncFileError, readSyncFile, writeSyncFile } from '../src/services/cloudSync/file';
-import { DELETION_KEPT_DAYS, mergeSnapshots, snapshotChanges } from '../src/services/cloudSync/merge';
+import { DELETION_KEPT_DAYS, matchesBase, mergeSnapshots, snapshotChanges } from '../src/services/cloudSync/merge';
 import { DriveClient } from '../src/services/cloudSync/drive';
 import { DropboxClient } from '../src/services/cloudSync/dropbox';
 import { OneDriveClient } from '../src/services/cloudSync/onedrive';
@@ -23,12 +23,15 @@ const record = (id: string, updatedAt: number, title = id) => ({ id, updatedAt, 
 
 /** The file on the service, shared by the devices, with conditional writes like the real ones. */
 class FakeCloud implements CloudStorage {
-  bytes: Uint8Array | null = null; revision = 0; beforeUpdate?: () => void; updates = 0; refused = 0;
+  bytes: Uint8Array | null = null; revision = 0; beforeUpdate?: () => void; beforeCreate?: () => boolean; updates = 0; refused = 0; downloads = 0;
   private file() { return { id: 'file', version: String(this.revision) }; }
   async findArchive() { return this.bytes ? this.file() : null; }
   async version() { return this.bytes ? String(this.revision) : null; }
-  async download() { return this.bytes!; }
-  async create(bytes: Uint8Array) { this.bytes = bytes; this.revision++; return this.file(); }
+  async download() { this.downloads++; return this.bytes!; }
+  async create(bytes: Uint8Array) {
+    if (this.beforeCreate?.()) { this.beforeCreate = undefined; return null; }
+    this.bytes = bytes; this.revision++; return this.file();
+  }
   async update(_id: string, bytes: Uint8Array, expected: string) {
     this.beforeUpdate?.(); this.beforeUpdate = undefined;
     if (expected !== String(this.revision)) { this.refused++; return null; }
@@ -46,7 +49,7 @@ test('saving stamps only changed quizzes and records deletions, without touching
   assert.deepEqual(first, { stamps: { a: 5000, b: 5000 }, deletions: {} });
   const second = stampLibrary(first, [a, b], [{ ...a, title: 'new' }], 5000);
   assert.equal(second.stamps.a, 5001, 'a change in the same millisecond still counts');
-  assert.deepEqual(second.deletions, { b: 5000 });
+  assert.deepEqual(second.deletions, { b: 5001 }, 'a deletion is later than the quiz it removes');
   assert.equal(stampLibrary(second, [a], [a, { ...b }], 6000).deletions.b, undefined, 'recreating a quiz clears its deletion');
   await storeQuizzes([a]);
   assert.deepEqual(await loadQuizzes(), [a]);
@@ -119,6 +122,52 @@ test('a file changed by another device during the upload is merged, not overwrit
   assert.equal(cloud.refused, 1);
   assert.deepEqual(readSyncFile(cloud.bytes!).quizzes.map(r => r.quiz.title).sort(), ['changed', 'mine']);
   assert.deepEqual(await titles(), ['changed', 'mine']);
+});
+
+test('merge: an older remote stamp is an overwritten file, an edit beats a deletion, an unchanged library matches its base', () => {
+  const base = { a: 20 };
+  const side = (updatedAt: number, title: string) => ({ quizzes: [record('a', updatedAt, title)], deletions: [] });
+  const rolledBack = mergeSnapshots(side(20, 'synced'), side(10, 'older'), base, () => 'copy');
+  assert.deepEqual([rolledBack.conflicts, rolledBack.merged.quizzes.map(r => r.quiz.title)], [0, ['synced']], 'no copy of an overwritten version');
+  assert.equal(mergeSnapshots(side(30, 'edited'), side(10, 'older'), base).merged.quizzes[0].quiz.title, 'edited');
+  for (const [local, remote] of [[side(30, 'edited'), { quizzes: [], deletions: [{ id: 'a', deletedAt: 40 }] }], [{ quizzes: [], deletions: [{ id: 'a', deletedAt: 40 }] }, side(30, 'edited')]]) {
+    const result = mergeSnapshots(local, remote, base, () => 'copy');
+    assert.deepEqual([result.conflicts, result.merged.quizzes.map(r => r.quiz.title), result.merged.deletions], [0, ['edited'], []], 'an edit survives a later deletion');
+  }
+  assert.equal(matchesBase(side(20, 'synced'), base), true);
+  assert.equal(matchesBase(side(30, 'edited'), base), false);
+  assert.equal(matchesBase({ quizzes: [], deletions: [] }, base), false, 'a quiz missing locally is a change');
+  assert.equal(matchesBase({ ...side(20, 'synced'), deletions: [{ id: 'old', deletedAt: 1 }] }, base, DELETION_KEPT_DAYS * 86_400_000 + 1000), true, 'expired deletions are ignored');
+});
+
+test('without conditional writes an overwritten file is repaired, not rolled back, and a quiet round skips the download', async () => {
+  const cloud = new FakeCloud();
+  await storeQuizzes([quiz('a', 'start')]); await run(cloud);
+  const stale = cloud.bytes!;
+  await storeQuizzes([{ ...(await loadQuizzes())![0], title: 'edited' }]); await run(cloud);
+  // Another device wrote its older merge between our version check and our write.
+  cloud.bytes = stale; cloud.revision++;
+  const repaired = await run(cloud);
+  assert.deepEqual([repaired.conflicts, repaired.uploaded], [0, true]);
+  assert.deepEqual(await titles(), ['edited']);
+  assert.deepEqual(readSyncFile(cloud.bytes!).quizzes.map(r => r.quiz.title), ['edited']);
+  const downloads = cloud.downloads;
+  assert.deepEqual(await run(cloud), { done: true, received: 0, uploaded: false, conflicts: 0, skipped: 0 });
+  assert.equal(cloud.downloads, downloads, 'nothing changed on either side: no download');
+  await storeQuizzes([{ ...(await loadQuizzes())![0], title: 'again' }]); await run(cloud);
+  assert.equal(cloud.downloads, downloads + 1, 'a local change downloads before merging');
+});
+
+test('a file created by another device first is merged instead of duplicated', async () => {
+  const cloud = new FakeCloud();
+  await storeQuizzes([quiz('mine', 'mine')]);
+  cloud.beforeCreate = () => {
+    cloud.bytes = writeSyncFile({ quizzes: [record('theirs', 9000)], deletions: [] }, '1.3.3'); cloud.revision++;
+    return true;
+  };
+  assert.equal((await run(cloud)).done, true);
+  assert.deepEqual(readSyncFile(cloud.bytes!).quizzes.map(r => r.quiz.title).sort(), ['mine', 'theirs']);
+  assert.deepEqual(await titles(), ['mine', 'theirs']);
 });
 
 test('a quiz edited while the sync runs is not overwritten', async () => {
@@ -232,6 +281,14 @@ test('each service sends the token, stays in the app space and reports a changed
   assert.equal(await new DriveClient('t', logged(() => respond(200, { version: '8', trashed: true }))).version('id'), null);
   await new DriveClient('t', logged(() => respond(200, { files: [] }))).findArchive();
   assert.ok(decodeURIComponent(seen.at(-1)!.url.replace(/\+/g, ' ')).includes("key='qurioso' and value='archive'"));
+  assert.match(seen.at(-1)!.url, /orderBy=createdTime(&|$)/, 'every device picks the oldest file');
+
+  // Another device created its file first: ours goes to the bin and the next round uses theirs.
+  const duplicate = new DriveClient('t', logged(url => respond(200, url.includes('upload') ? { id: 'mine', version: '1' } : url.includes('?q=') && url.includes('archive') ? { files: [{ id: 'theirs', version: '3' }] } : { files: [{ id: 'folder' }] })));
+  assert.equal(await duplicate.create(bytes), null);
+  assert.deepEqual([seen.at(-1)!.url.endsWith('/files/mine'), seen.at(-1)!.init.body], [true, JSON.stringify({ trashed: true })]);
+  assert.equal(await new DropboxClient('t', logged(() => respond(409, { error_summary: 'path/conflict/file/..' }))).create(bytes), null);
+  assert.equal(await new OneDriveClient('t', logged(() => respond(409))).create(bytes), null);
 });
 
 test('PKCE sign-in checks the state, keeps the refresh token and renews without the browser', async () => {

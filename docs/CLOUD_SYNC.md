@@ -14,9 +14,17 @@ in `src/services/cloudSync/` e `desktop/cloudAuth.cjs`, adattato da
   validazione dei backup. Un video locale arriva sull'altro dispositivo come descrizione da ricollegare.
 - **Date**: `library['sync:state']` tiene la data di ogni modifica e cancellazione, separata dai quiz: export e backup non cambiano.
 - **Unione**: se un quiz è cambiato da una parte sola vince quella; se è cambiato da entrambe vince la modifica più
-  recente e l'altra resta come copia con un nuovo id. Le cancellazioni sono conservate 400 giorni.
+  recente e l'altra resta come copia con un nuovo id. Se da una parte è stato modificato e dall'altra cancellato, vince
+  la modifica. Le cancellazioni sono conservate 400 giorni.
+- **Date sempre crescenti**: ogni dispositivo dà a un quiz, o alla sua cancellazione, una data più alta di quella che
+  conosceva. Così una data sul servizio più vecchia di quella sincronizzata non è una modifica ma un file sovrascritto
+  (Google Drive non ha scritture condizionate vere): vince la versione locale, che ripara il file.
 - **Quiz inclusi**: quelli non modificati non viaggiano.
 - **Concorrenza**: se il file è cambiato prima dell'upload il giro riparte; i quiz modificati durante una sincronizzazione non vengono sovrascritti.
+  Se due dispositivi creano il file insieme, Dropbox e OneDrive rifiutano il secondo; su Google Drive vince il file
+  più vecchio e l'altro va nel cestino. In entrambi i casi il giro riparte e unisce i quiz.
+- **Risparmio di rete**: se la versione del file è quella dell'ultimo giro e sul dispositivo non è cambiato nulla, il
+  file non viene scaricato.
 - **Quando**: all'avvio, 4 secondi dopo ogni modifica, al ritorno nell'app, ogni 5 minuti e al ritorno della rete.
 - **Nessun server**: i dati vanno direttamente dal dispositivo al servizio. Un dispositivo usa un solo servizio alla volta.
 

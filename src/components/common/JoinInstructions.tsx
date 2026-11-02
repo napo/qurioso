@@ -7,7 +7,7 @@ import { displayAddress } from '../../utils/connectionUrl';
 export function JoinInstructions({ pin, addresses, address, onAddressChange }: {
   pin: string; addresses: string[]; address: string; onAddressChange: (address: string) => void;
 }) {
-  const { t, language } = useLanguage(), lobby = lobbyTranslations[language];
+  const { language } = useLanguage(), lobby = lobbyTranslations[language];
   const [copyStatus, setCopyStatus] = useState('');
   return <section aria-label={lobby.joinAccess} className="join-instructions space-y-3">
     <h2 className="text-2xl font-black text-ink">{lobby.joinTitle}</h2>
@@ -26,7 +26,7 @@ export function JoinInstructions({ pin, addresses, address, onAddressChange }: {
         }}>{lobby.copyAddress}</button>
         {copyStatus && <p role="status" className="mt-1 text-sm">{copyStatus}</p>}
       </div>
-      <p className="text-base text-muted">{lobby.joinStepBefore}<strong className="text-ink">{t.joinWithPin}</strong>{lobby.joinStepAfter}</p>
+      <p className="text-base text-muted">{lobby.joinSteps}</p>
     </> : <p role="status" className="text-base text-petrolio">{lobby.connectLan}</p>}
     <div className="rounded-xl border-2 border-mandarino bg-surface-soft px-4 py-2">
       <p className="text-sm font-bold text-muted">{lobby.gamePin}</p>

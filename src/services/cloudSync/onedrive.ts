@@ -41,7 +41,13 @@ export class OneDriveClient implements CloudStorage {
     if (!response.ok) throw new StorageError(response.status);
     return new Uint8Array(await response.arrayBuffer());
   }
-  create(bytes: Uint8Array) { return this.upload(`${CONTENT}?${new URLSearchParams({ '@microsoft.graph.conflictBehavior': 'fail' })}`, bytes); }
+  async create(bytes: Uint8Array) {
+    try { return await this.upload(`${CONTENT}?${new URLSearchParams({ '@microsoft.graph.conflictBehavior': 'fail' })}`, bytes); }
+    catch (error) {
+      if (error instanceof StorageError && error.status === 409) return null;
+      throw error;
+    }
+  }
   async update(_id: string, bytes: Uint8Array, expected: string) {
     try { return await this.upload(CONTENT, bytes, { 'If-Match': expected }); }
     catch (error) {

@@ -19,9 +19,10 @@ export class DriveClient implements CloudStorage {
     if (!response.ok) throw new StorageError(response.status);
     return response;
   }
+  /** The oldest match, so every device settles on the same file even if two created one at the same time. */
   private async find(value: string, extra = ''): Promise<CloudFile | null> {
     const q = `appProperties has { key='${PROPERTY}' and value='${value}' } and trashed=false${extra}`;
-    const response = await this.request(`${API}?${new URLSearchParams({ q, spaces: 'drive', fields: 'files(id,version)', orderBy: 'modifiedTime desc' })}`);
+    const response = await this.request(`${API}?${new URLSearchParams({ q, spaces: 'drive', fields: 'files(id,version)', orderBy: 'createdTime' })}`);
     return (await response.json()).files?.[0] ?? null;
   }
   findArchive() { return this.find('archive'); }
@@ -44,7 +45,8 @@ export class DriveClient implements CloudStorage {
     });
     return (await response.json()).id;
   }
-  async create(bytes: Uint8Array): Promise<CloudFile> {
+  /** Drive allows two files with the same name: when another device's file is older, ours goes to the bin. */
+  async create(bytes: Uint8Array): Promise<CloudFile | null> {
     const metadata = { name: SYNC_FILE_NAME, parents: [await this.folder()], mimeType: SYNC_FILE_MIME, appProperties: { [PROPERTY]: 'archive' } };
     const boundary = `qurioso${crypto.randomUUID()}`;
     const body = new Blob([
@@ -52,7 +54,10 @@ export class DriveClient implements CloudStorage {
       `--${boundary}\r\nContent-Type: ${SYNC_FILE_MIME}\r\n\r\n`, bytesBlob(bytes), `\r\n--${boundary}--`,
     ]);
     const response = await this.request(`${UPLOAD}?uploadType=multipart&fields=id,version`, { method: 'POST', headers: { 'Content-Type': `multipart/related; boundary=${boundary}` }, body });
-    return response.json();
+    const created: CloudFile = await response.json(), shared = await this.findArchive();
+    if (!shared || shared.id === created.id) return created;
+    await this.trash(created.id);
+    return null;
   }
   /** Drive has no conditional write: the version is checked just before writing. */
   async update(id: string, bytes: Uint8Array, expected: string): Promise<CloudFile | null> {

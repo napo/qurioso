@@ -1,11 +1,11 @@
 import type { Question, Quiz, ImageAttribution } from '../types/quiz';
 import type { ImportIssue, ImportMessageKey } from '../i18n/questionImport';
 import { COLOR_KEYS, SHAPE_KEYS } from '../utils/quizStyles';
-import { editableVideoQuiz } from './videoQuiz';
+import { editableVideoQuiz, parseVideoTime } from './videoQuiz';
 
 export const IMPORT_LIMITS = { bytes: 5 * 1024 * 1024, records: 1000, columns: 64 } as const;
 export const OPTION_FIELDS = Array.from({ length: 12 }, (_, i) => `option${String.fromCharCode(65 + i)}`);
-export const IMPORT_FIELDS = ['text', 'type', ...OPTION_FIELDS, 'options', 'correct', 'explanation', 'points', 'timeLimit', 'mediaUrl', 'mediaType', 'id'];
+export const IMPORT_FIELDS = ['text', 'type', ...OPTION_FIELDS, 'options', 'correct', 'explanation', 'points', 'timeLimit', 'videoTime', 'mediaUrl', 'mediaType', 'id'];
 export type Mapping = Record<string, string>;
 export interface CsvRecord { cells: string[]; line: number }
 export interface ImportSource { kind: 'csv' | 'canonical' | 'flat'; fullQuiz: boolean; records: unknown[]; columns: string[]; lines: number[] }
@@ -92,7 +92,7 @@ export function jsonImportSource(text: string): ImportSource {
 export function suggestQuestionMapping(columns: string[], csv = true): Mapping {
   const aliases: Record<string, string[]> = {
     text: ['text', 'question', 'domanda', 'testodomanda'], type: ['type', 'tipo'], correct: ['correct', 'correctanswer', 'rispostacorretta', 'corretta'],
-    explanation: ['explanation', 'spiegazione'], points: ['points', 'punti'], timeLimit: ['timelimit', 'time', 'tempo', 'secondi'], mediaUrl: ['mediaurl'], mediaType: ['mediatype','tipomedia'], id: ['id'], options: ['options', 'risposte'],
+    explanation: ['explanation', 'spiegazione'], points: ['points', 'punti'], timeLimit: ['timelimit', 'time', 'tempo', 'secondi'], videoTime: ['videotime', 'tempovideo', 'tempoinvideo', 'timestamp', 'videozeit', 'zeitimvideo'], mediaUrl: ['mediaurl'], mediaType: ['mediatype','tipomedia'], id: ['id'], options: ['options', 'risposte'],
   };
   OPTION_FIELDS.forEach((field, i) => { const letter = String.fromCharCode(65 + i).toLowerCase(); aliases[field] = [`option${letter}`, `risposta${letter}`, `risposta${i + 1}`, `option${i + 1}`]; });
   const result: Mapping = {};
@@ -114,6 +114,13 @@ function numeric(value: unknown, field: string, min: number, max: number, fallba
   const number = typeof value === 'number' ? value : Number(value.trim().replace(',', '.'));
   if (!Number.isFinite(number) || number < min || number > max) fail('numberRange', { field, min, max });
   return number;
+}
+/** mm:ss, h:mm:ss or plain seconds, as a transcript or a spreadsheet writes them. */
+function videoTime(value: unknown): number {
+  const text = String(value).trim();
+  if (/^\d+(?:[.,]\d+)?$/.test(text)) return numeric(text, 'videoTime', 0, 86400, 0);
+  try { const seconds = parseVideoTime(text); if (seconds <= 86400) return seconds; } catch { /* Reported below. */ }
+  return fail('videoTimeInvalid', { value: text.slice(0, 20) });
 }
 const httpUrl = (value: string) => { try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password; } catch { return false; } };
 function validateQuestion(raw: Record<string, any>, config: ImportConfig, canonical: boolean, warnings: ImportIssue[]): Question {
@@ -161,6 +168,7 @@ function validateQuestion(raw: Record<string, any>, config: ImportConfig, canoni
   if (!correct || type === 'true_false' && correct !== 1) fail('correctMissing');
   if (raw.id !== undefined && typeof raw.id !== 'string') fail('optionalType', { field: 'id' });
   const question: Question = { id: raw.id || '', text, type, options, points: numeric(raw.points, 'points', 0, 1000000, 1000), timeLimit: numeric(raw.timeLimit, 'timeLimit', 0.001, 86400, 20) };
+  if (!canonical && raw.videoTime !== undefined && String(raw.videoTime).trim() !== '') question.videoTimestamp = videoTime(raw.videoTime);
   if (raw.explanation !== undefined && raw.explanation !== '') {
     if (typeof raw.explanation !== 'string' || raw.explanation.length > 20000) fail('optionalType', { field: 'explanation' }); question.explanation = raw.explanation;
   }
@@ -215,7 +223,7 @@ export function previewQuestionImport(source: ImportSource, config: ImportConfig
 export function importId(prefix = 'q'): string {
   return `${prefix}-${Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('')}`;
 }
-/** Atomic immutable append. Source quiz metadata and timestamps are deliberately never copied. */
+/** Atomic immutable append. Source quiz metadata is never copied; a video time from a mapped column becomes a checkpoint of a video quiz. */
 export function appendImportedQuestions(destination: Quiz, rows: ImportRow[]): Quiz {
   if (!rows.length || rows.some(row => row.errors.length || !row.question)) fail('nothingSelected');
   if (new Set(rows.map(row => row.index)).size !== rows.length) fail('nothingSelected');
@@ -223,10 +231,12 @@ export function appendImportedQuestions(destination: Quiz, rows: ImportRow[]): Q
   const base = editableVideoQuiz(destination), used = new Set(base.questions.map(q => q.id));
   const added = rows.map(row => {
     let id = importId(); while (used.has(id)) id = importId(); used.add(id);
-    const { videoTimestamp: _timestamp, ...q } = row.question!;
-    return { ...q, id, options: q.options.map(option => ({ ...option, id: importId('opt') })) };
+    const { videoTimestamp, ...q } = row.question!;
+    return { ...q, id, ...(base.videoConfig && videoTimestamp !== undefined ? { videoTimestamp } : {}), options: q.options.map(option => ({ ...option, id: importId('opt') })) };
   });
-  return { ...base, questions: [...base.questions, ...added] };
+  const checkpoints = added.filter(q => q.videoTimestamp !== undefined).map(q => ({ questionId: q.id, timestamp: q.videoTimestamp! }));
+  return { ...base, questions: [...base.questions, ...added],
+    ...(base.videoConfig && checkpoints.length ? { videoConfig: { ...base.videoConfig, pauseMode: 'defined' as const, checkpoints: [...base.videoConfig.checkpoints, ...checkpoints] } } : {}) };
 }
 
 export function questionCsvTemplate(language: 'it' | 'en' = 'it'): string {

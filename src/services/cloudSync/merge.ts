@@ -6,6 +6,9 @@ import type { Quiz } from '../../types/quiz';
  * The base holds the stamp of every quiz at the last sync: a side whose stamp differs has changed since.
  * - Changed on one side only: that side wins.
  * - Changed on both sides: the latest change wins, the other version stays as a copy with a new id.
+ * - Edited on one side, deleted on the other: the edit wins.
+ * Stamps only grow on the device that writes them, so a remote stamp older than the base is not a change: it is a file
+ * that another device overwrote on a service without conditional writes, and the local version repairs it.
  */
 export interface SyncRecord { id: string; updatedAt: number; quiz: Quiz }
 export interface SyncDeletion { id: string; deletedAt: number }
@@ -30,8 +33,8 @@ function entries(snapshot: SyncSnapshot): Map<string, Entry> {
 }
 
 const same = (a: Entry, b: Entry) => (a.quiz === null) === (b.quiz === null) && (a.quiz === null || JSON.stringify(a.quiz) === JSON.stringify(b.quiz));
-// On the same stamp a deletion wins, then the local version.
-const latest = (local: Entry, remote: Entry) => remote.stamp > local.stamp || (remote.stamp === local.stamp && remote.quiz === null && local.quiz !== null) ? remote : local;
+// On the same stamp the local version wins.
+const latest = (local: Entry, remote: Entry) => remote.stamp > local.stamp ? remote : local;
 
 export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot, base: SyncBase, createId = newSyncId, now = Date.now()) {
   const l = entries(local), r = entries(remote), out = new Map<string, Entry>();
@@ -40,8 +43,10 @@ export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot, base: 
     const a = l.get(id), b = r.get(id);
     if (!a || !b) { out.set(id, (a ?? b)!); continue; }
     if (same(a, b)) { out.set(id, a); continue; }
-    const localChanged = a.stamp !== base[id], remoteChanged = b.stamp !== base[id];
-    if (localChanged !== remoteChanged) { out.set(id, localChanged ? a : b); continue; }
+    const known = base[id];
+    if (known !== undefined && b.stamp <= known) { out.set(id, a); continue; }
+    if (known !== undefined && a.stamp === known) { out.set(id, b); continue; }
+    if (!a.quiz !== !b.quiz) { out.set(id, a.quiz ? a : b); continue; }
     const winner = latest(a, b), loser = winner === a ? b : a;
     out.set(id, winner);
     if (winner.quiz && loser.quiz) {
@@ -57,6 +62,18 @@ export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot, base: 
     deletions: kept.filter(entry => !entry.quiz).map(entry => ({ id: entry.id, deletedAt: entry.stamp })),
   };
   return { merged, base: Object.fromEntries(kept.map(entry => [entry.id, entry.stamp])) as SyncBase, conflicts };
+}
+
+/** Nothing changed on this device since the last sync: every entry still has the stamp the base recorded. */
+export function matchesBase(snapshot: SyncSnapshot, base: SyncBase, now = Date.now()) {
+  const oldest = now - DELETION_KEPT_DAYS * 86_400_000, seen = new Set<string>();
+  for (const [id, entry] of entries(snapshot)) {
+    // Expired deletions leave the base but may stay on the device.
+    if (!entry.quiz && entry.stamp < oldest && base[id] === undefined) continue;
+    if (base[id] !== entry.stamp) return false;
+    seen.add(id);
+  }
+  return Object.keys(base).every(id => seen.has(id));
 }
 
 /** The quizzes to write and delete to turn `from` into `to`. */
