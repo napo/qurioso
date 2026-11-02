@@ -209,6 +209,28 @@ test('YouTube/Vimeo editor adapters capture provider time and explicitly disclos
   assert.equal(env.requests(), 0);
 });
 
+test('a YouTube quiz can be saved while the provider never reports its duration, for example offline', { timeout: 10000 }, async t => {
+  const env = browser(t), { dom } = env;
+  // The provider element exists but never loads: no loadedmetadata, no duration.
+  dom.window.customElements.define('youtube-video', class extends dom.window.HTMLElement { currentTime = 0; duration = NaN; async play() {} pause() {} });
+  const { createRoot } = await import('react-dom/client');
+  const { LanguageProvider } = await import('../src/context/LanguageContext');
+  const { QuizEditor } = await import('../src/components/builder/QuizEditor');
+  const root = createRoot(document.getElementById('app')!);
+  env.cleanup(async () => { await act(async () => root.unmount()); });
+  const quiz = editableVideoQuiz(structuredClone(DEFAULT_QUIZZES[0])); quiz.videoConfig = { ...quiz.videoConfig!, videoUrl: 'https://www.youtube.com/watch?v=M7lc1UVf-VE', videoType: 'youtube' };
+  let saved: Quiz | undefined;
+  await act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(QuizEditor, { initialQuiz: quiz, onSave: q => { saved = q; }, onCancel() {} }))));
+  const save = () => [...document.querySelectorAll('button')].find(b => b.textContent?.trim() === 'Salva quiz');
+  for (let n = 0; n < 100 && (!save() || save()!.disabled); n++) await act(async () => { await delay(10); });
+  assert.match(document.body.textContent!, /durata da verificare/);
+  assert.equal(save()!.disabled, false, 'Save waits for nothing the provider must report');
+  await act(async () => save()!.click());
+  for (let n = 0; n < 100 && !saved; n++) await act(async () => { await delay(10); });
+  assert.equal(saved!.videoConfig!.videoUrl, quiz.videoConfig.videoUrl);
+  assert.equal(env.requests(), 0);
+});
+
 test('missing local video can be relinked without losing questions/checkpoints; reference remains persistent after reopen', { timeout: 10000 }, async t => {
   const env = browser(t), { dom } = env;
   const { createRoot } = await import('react-dom/client'); const { LanguageProvider } = await import('../src/context/LanguageContext');

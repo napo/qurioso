@@ -9,7 +9,8 @@ exports.run = async (host, port, directory) => {
   const prefix = `const wait=async(f,label)=>{for(let n=0;n<400;n++){if(await f())return;await new Promise(r=>setTimeout(r,25));}throw new Error('Capture: '+label+' | '+document.body.innerHTML.slice(0,800)+' URL='+location.href+' resources='+performance.getEntriesByType('resource').map(r=>r.name).join(','));};const button=text=>[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===text);`;
   const execute = (win, code) => win.webContents.executeJavaScript(`(async()=>{${prefix}${code}})()`, true);
   const capture = async (win, name, language) => {
-    await execute(win, `await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));await document.fonts.ready;`);
+    // A hidden window does not advance CSS transitions, so a capture could show the first frame of one (a grey button turning orange).
+    await execute(win, `if(!document.getElementById('capture-no-transitions')){const style=document.createElement('style');style.id='capture-no-transitions';style.textContent='*,*::before,*::after{transition:none!important}';document.head.append(style);}await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));await document.fonts.ready;`);
     const folder = path.join(directory, language); await fs.mkdir(folder, { recursive: true });
     const picture=await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true});
     if(picture.getSize().width<100)throw new Error('Capture produced an empty screenshot: '+name);
@@ -30,7 +31,7 @@ exports.run = async (host, port, directory) => {
     // Wait for the real working state: start buttons enabled, not a frame of the loading or a colour transition.
     await execute(host, `await wait(()=>document.querySelector('[data-quiz-id="${quiz.id}"] button:not(:disabled)'),'volcano quiz');await new Promise(r=>setTimeout(r,400));`);
     await capture(host, 'library', language);
-    await execute(host, `const card=document.querySelector('[data-quiz-id="${quiz.id}"]');[...card.querySelectorAll('button')].find(b=>b.textContent.trim()===${JSON.stringify(edit)}).click();await wait(()=>document.querySelector('.quiz-editor'),'editor');const saveReady=()=>[...document.querySelectorAll('.quiz-editor button')].some(b=>b.querySelector('.lucide-save')&&!b.disabled);let steady=0;for(let n=0;n<160&&steady<6;n++){steady=saveReady()?steady+1:0;await new Promise(r=>setTimeout(r,250));}`);
+    await execute(host, `const card=document.querySelector('[data-quiz-id="${quiz.id}"]');[...card.querySelectorAll('button')].find(b=>b.textContent.trim()===${JSON.stringify(edit)}).click();await wait(()=>document.querySelector('.quiz-editor'),'editor');await wait(()=>[...document.querySelectorAll('.quiz-editor button')].some(b=>b.querySelector('.lucide-save')&&!b.disabled),'editor ready');`);
     await capture(host, 'editor', language);
     await host.loadURL(`${origin}/?app=classroom&lang=${language}`);
     await execute(host, `await wait(()=>document.querySelector('[data-quiz-id="${quiz.id}"]'),'classroom quiz');document.querySelector('[data-quiz-id="${quiz.id}"] button').click();await wait(()=>document.querySelector('youtube-video'),'classroom video');`);
