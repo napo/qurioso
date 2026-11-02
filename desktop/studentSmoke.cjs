@@ -15,7 +15,7 @@ exports.run = async host => {
   try {
     for (const mode of ['classic', 'video']) {
       await host.loadURL('http://qurioso.localhost/?app=network&lang=it');
-      const start = mode === 'classic' ? 'Quiz classico in rete' : 'Quiz video in rete';
+      const start = mode === 'classic' ? 'Quiz classico sui dispositivi' : 'Quiz video sui dispositivi';
       await execute(host, `await wait(() => button(${JSON.stringify(start)}) && !button(${JSON.stringify(start)}).disabled, 'quiz card'); button(${JSON.stringify(start)}).click(); await wait(() => phase() === 'lobby' && document.querySelector('[data-testid="join-address"]'), 'host lobby'); document.querySelector('[aria-labelledby="internet-sharing-title"] button')?.click();`);
       const entry = await execute(host, `return { pin: document.querySelector('[data-testid="join-pin"]').textContent, base: document.querySelector('[data-testid="join-address"]').textContent };`);
       const url = `${entry.base}/?pin=${entry.pin}&role=player&lang=it`;
@@ -24,7 +24,7 @@ exports.run = async host => {
         await wait(() => document.querySelector('form input'), 'fresh entry');
         const input = document.querySelector('input[placeholder="Nome o soprannome..."]');
         Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'Studente smoke'); input.dispatchEvent(new Event('input', { bubbles: true }));
-        await new Promise(r => setTimeout(r, 0)); button('Entra nel Quiz!').click();
+        await new Promise(r => setTimeout(r, 0)); button('Entra nel quiz!').click();
         await wait(() => document.body.textContent.includes('Sei nella lobby di gioco!'), 'joined');
         await fetch('/api/session/${entry.pin}/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ player: { id: 'holding-student', nickname: 'Attesa', avatar: '🦊' } }) });
       `);
@@ -45,7 +45,7 @@ exports.run = async host => {
       };
       console.log('Student smoke: ' + mode + ' joined');
       await refresh('Sei nella lobby di gioco!');
-      const startGame = mode === 'classic' ? 'Inizia il Quiz!' : 'Inizia il quiz video!';
+      const startGame = mode === 'classic' ? 'Inizia il quiz' : 'Inizia il quiz video';
       await execute(host, `await wait(() => button(${JSON.stringify(startGame)}) && !button(${JSON.stringify(startGame)}).disabled, 'start ready'); button(${JSON.stringify(startGame)}).click(); await wait(() => phase() === 'question', 'question');`);
       await refresh('Quale risposta scegliamo');
       for(const [width,height] of [[320,480],[360,640],[390,844],[844,390]]) {
@@ -59,22 +59,22 @@ exports.run = async host => {
           if(document.documentElement.scrollWidth>innerWidth||document.documentElement.scrollHeight>innerHeight+1)throw new Error('Phone answer screen requires scrolling');
         `);
       }
-      await execute(student, `await wait(() => document.querySelectorAll('.grid button').length === 6, 'options'); document.querySelector('.grid button').click(); await wait(() => document.body.textContent.includes('Risposta Inviata!'), 'accepted');`);
-      await refresh('Risposta Inviata!');
-      await refresh('Risposta Inviata!', true);
+      await execute(student, `await wait(() => document.querySelectorAll('.grid button').length === 6, 'options'); document.querySelector('.grid button').click(); await wait(() => document.body.textContent.includes('Risposta inviata!'), 'accepted');`);
+      await refresh('Risposta inviata!');
+      await refresh('Risposta inviata!', true);
       console.log('Student smoke: ' + mode + ' reopened');
       await execute(student, `if (document.querySelectorAll('.grid button').length) throw new Error('Answered question is editable after reopen');`);
       await execute(host, `button('Chiudi tempo e mostra risposte').click(); await wait(() => phase() === 'question_results', 'results');`);
-      await refresh('Risposta Esatta!');
+      await refresh('Risposta esatta!');
       const score = await execute(student, `const s = (await (await fetch('/api/session/${entry.pin}')).json()).session;
         if (Object.keys(s.answersForCurrentQuestion).length !== 1) throw new Error('Answer count changed after reopen'); return s.players[${JSON.stringify(id)}].score;`);
       if (!(score > 0)) throw new Error('Recovered student lost the score');
-      await execute(host, `button('Classifica Parziale').click(); await wait(() => phase() === 'leaderboard', 'leaderboard');`);
+      await execute(host, `button('Classifica parziale').click(); await wait(() => phase() === 'leaderboard', 'leaderboard');`);
       await refresh('Guarda la classifica');
       console.log('Student smoke: ' + mode + ' leaderboard');
       await execute(student, `const s = (await (await fetch('/api/session/${entry.pin}')).json()).session;
         if (s.players[${JSON.stringify(id)}].score !== ${score}) throw new Error('Duplicate grading after recovery');`);
-      await execute(host, `button(${JSON.stringify(mode === 'classic' ? 'Classifica Finale' : 'Riprendi video')}).click(); await wait(() => phase() === 'finished', 'final summary');`);
+      await execute(host, `button(${JSON.stringify(mode === 'classic' ? 'Classifica finale' : 'Riprendi video')}).click(); await wait(() => phase() === 'finished', 'final summary');`);
       await execute(student, `await wait(() => document.querySelector('[data-player-final] img'), 'final result image');
         if (document.querySelectorAll('[data-player-final] button').length !== 2) throw new Error('Finished player has navigation or replay controls');
         if (!document.querySelector('[data-player-final] ol')) throw new Error('Final ranking missing');`);

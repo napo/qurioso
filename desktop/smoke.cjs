@@ -5,13 +5,13 @@ exports.run = async (window, port) => {
       for (let n = 0; n < 100; n++) { if (await condition()) return; await new Promise(resolve => setTimeout(resolve, 50)); }
       throw new Error('Desktop interface did not become ready: ' + label + ' | ' + document.body.textContent.slice(0, 1800));
     };
-    await waitFor(() => [...document.querySelectorAll('button')].some(button => button.textContent === 'Quiz classico in rete' && !button.disabled), 'network quiz entry');
-    [...document.querySelectorAll('button')].find(button => button.textContent === 'Quiz classico in rete').click();
+    await waitFor(() => [...document.querySelectorAll('button')].some(button => button.textContent === 'Quiz classico sui dispositivi' && !button.disabled), 'device quiz entry');
+    [...document.querySelectorAll('button')].find(button => button.textContent === 'Quiz classico sui dispositivi').click();
     await waitFor(async () => (await (await fetch('/api/health')).json()).activeSessions === 1, 'authenticated host creates room');
     document.querySelector('[aria-labelledby="internet-sharing-title"] button')?.click();
     const health = await (await fetch('/api/health')).json();
     const info = await (await fetch('/api/server-info')).json();
-    const pin = [...document.querySelectorAll('span')].find(el => /^\\d{6}$/.test(el.textContent || '')).textContent;
+    const pin = (document.querySelector('[data-testid="join-pin"]') || [...document.querySelectorAll('span')].find(el => /^\\d{6}$/.test(el.textContent || ''))).textContent;
     const player = { id: 'desktop-smoke-player', nickname: 'Smoke', avatar: '🦊', score: 0, streak: 0 };
     const joined = await fetch('/api/session/' + pin + '/join', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ player }),
@@ -32,8 +32,8 @@ exports.run = async (window, port) => {
       };
       ws.onerror = () => { clearTimeout(timer); reject(new Error('WebSocket failed')); };
     });
-    await waitFor(() => [...document.querySelectorAll('button')].some(button => button.textContent.includes('Inizia il Quiz') && !button.disabled), 'host receives participant join');
-    [...document.querySelectorAll('button')].find(button => button.textContent.includes('Inizia il Quiz')).click();
+    await waitFor(() => [...document.querySelectorAll('button')].some(button => button.textContent.includes('Inizia il quiz') && !button.disabled), 'host receives participant join');
+    [...document.querySelectorAll('button')].find(button => button.textContent.includes('Inizia il quiz')).click();
     await waitFor(() => received?.status === 'question', 'participant receives question');
     if (received.currentQuestion.options.some(option => 'isCorrect' in option)) throw new Error('Desktop exposed the solution key');
     const answered = await fetch('/api/session/' + pin + '/answer', {
@@ -74,7 +74,7 @@ exports.run = async (window, port) => {
       throw new Error('Presenter did not recover after desktop reload');
     };
     await waitFor(() => document.body.textContent.includes('Sessione recuperata'));
-    const pin = [...document.querySelectorAll('span')].find(el => /^\\d{6}$/.test(el.textContent || '')).textContent;
+    const pin = (document.querySelector('[data-testid="join-pin"]') || [...document.querySelectorAll('span')].find(el => /^\\d{6}$/.test(el.textContent || ''))).textContent;
     const state = (await (await fetch('/api/session/' + pin)).json()).session;
     const activeSessions = (await (await fetch('/api/health')).json()).activeSessions;
     const exit = [...document.querySelectorAll('header button')].find(button => ['Esci', 'Exit', 'Beenden'].includes(button.textContent.trim()));

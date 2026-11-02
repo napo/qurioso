@@ -123,14 +123,14 @@ test('real host and player components exchange correct answers across rounds wit
   assert.notEqual(info.port, 0);
   await act(async () => root.render(React.createElement(LanguageProvider, null,
     React.createElement(HostScreen, { quiz: { ...quiz, videoConfig: undefined }, onExit() {} }))));
-  const pin = [...document.querySelectorAll('span')].find(el => /^\d{6}$/.test(el.textContent || ''))!.textContent!;
+  const pin = document.querySelector('[data-testid="join-pin"]')!.textContent!;
   await waitFor(async () => !!await getSession(pin), 'host creates a room');
   await act(async () => {
     const res = await post(`/api/session/${pin}/join`, { player: { id: 'remote', nickname: 'Remoto', name: 'Remoto', score: 0, streak: 0, avatar: '🦊' } });
     assert.equal(res.status, 200);
   });
   await waitFor(() => document.body.textContent?.includes('Remoto'), 'remote player joins the host');
-  await click('Inizia il Quiz');
+  await click('Inizia il quiz');
   await waitFor(async () => (await getSession(pin))?.status === 'question', 'first question');
   const answer = { playerId: 'remote', questionId: 'vq-1', optionId: 'vq1-a', timeTakenMs: 1000 };
   await act(async () => assert.equal((await post(`/api/session/${pin}/answer`, answer)).status, 200));
@@ -140,8 +140,8 @@ test('real host and player components exchange correct answers across rounds wit
   assert.ok(first.players.remote.score > 0);
   assert.equal((await post(`/api/session/${pin}/answer`, answer)).status, 200);
   assert.equal((await getSession(pin))!.players.remote.score, first.players.remote.score);
-  await click('Classifica Parziale');
-  await click('Prossima Domanda');
+  await click('Classifica parziale');
+  await click('Prossima domanda');
   await waitFor(async () => (await getSession(pin))?.currentQuestionIndex === 1, 'second question');
   // Force an outage in the host's WebSocket; its HTTP poll must recover the answer.
   await act(async () => { sockets[0].close(); await delay(30); });
@@ -154,8 +154,8 @@ test('real host and player components exchange correct answers across rounds wit
   await waitFor(async () => (await getSession(pin))?.players.remote.correctAnswersCount === 2, 'second round scored with current state');
   assert.equal(gameSync.isServerConnected(), false, 'HTTP fallback scores before the WebSocket reconnects');
   assert.equal((await post(`/api/session/${pin}/answer`, answer)).status, 400);
-  await click('Classifica Parziale');
-  await click('Prossima Domanda');
+  await click('Classifica parziale');
+  await click('Prossima domanda');
   await waitFor(async () => (await getSession(pin))?.currentQuestionIndex === 2, 'third question before a full host outage');
   blockHost = true;
   const thirdQuestion = quiz.questions[2];
@@ -169,8 +169,8 @@ test('real host and player components exchange correct answers across rounds wit
   assert.equal(Object.keys(recovered.players).length, 1);
   assert.equal((await (await fetch(base + '/api/health')).json()).activeSessions, 1);
   assert.equal(recovered.status, 'question_results');
-  await click('Classifica Parziale');
-  await click('Classifica Finale');
+  await click('Classifica parziale');
+  await click('Classifica finale');
   await waitFor(async () => (await getSession(pin))?.status === 'finished', 'host continues the same game after reconnect');
   await act(async () => root.unmount());
 
@@ -197,7 +197,7 @@ test('real host and player components exchange correct answers across rounds wit
   rejectAnswer = true;
   await click('Marte');
   await waitFor(() => document.body.textContent?.includes('Risposta non ricevuta'), 'failed submissions display an error');
-  assert.doesNotMatch(document.body.textContent || '', /Risposta Inviata/);
+  assert.doesNotMatch(document.body.textContent || '', /Risposta inviata/);
   rejectAnswer = false;
   await click('Marte');
   await waitFor(async () => Object.keys((await getSession(phonePin))!.answersForCurrentQuestion).length === 1, 'phone answer reaches backend');
@@ -205,10 +205,10 @@ test('real host and player components exchange correct answers across rounds wit
   const [playerId, submission] = Object.entries(received.answersForCurrentQuestion)[0];
   assert.equal(submission.optionId, 'vq1-a');
   assert.equal(submission.questionId, 'vq-1');
-  assert.match(document.body.textContent || '', /Risposta Inviata/);
+  assert.match(document.body.textContent || '', /Risposta inviata/);
   const scored = applyPlayerAnswer(received, quiz, { playerId, ...submission });
   await act(async () => { await post('/api/session/create', { session: { ...scored, status: 'question_results' } }); });
-  await waitFor(() => document.body.textContent?.includes('Risposta Esatta!'), 'phone receives the correctness message');
+  await waitFor(() => document.body.textContent?.includes('Risposta esatta!'), 'phone receives the correctness message');
   await act(async () => root.unmount());
 
   // Also exercise the independent video quiz mode with the Mars checkpoint.
@@ -234,7 +234,7 @@ test('real host and player components exchange correct answers across rounds wit
   URL.createObjectURL = () => 'blob:test-local-video';
   URL.revokeObjectURL = url => revoked.push(url);
   t.after(() => { URL.createObjectURL = originalCreateURL; URL.revokeObjectURL = originalRevokeURL; });
-  await click('Configura Video');
+  await click('Configura video');
   const fileInput = document.querySelector('input[type="file"]')!;
   Object.defineProperty(fileInput, 'files', { value: [new File(['test'], 'lezione.mp4', { type: 'video/mp4' })] });
   await act(async () => fileInput.dispatchEvent(new dom.window.Event('change', { bubbles: true })));

@@ -56,7 +56,7 @@ test('final results remain read-only after refresh and sharing exports the avata
   await click('Share result'); assert.equal(downloads, 1);
   await click('Close window'); assert.equal(closeCalls, 1); assert.equal(closeCleanup, 1);
   assert.match(document.querySelector('[role="status"]')!.textContent!, /manually/);
-  for (const [language, heading, share, close] of [['it', 'Gara conclusa', 'Condividi risultato', 'Chiudi finestra'], ['de', 'Spiel beendet', 'Ergebnis teilen', 'Fenster schließen']]) {
+  for (const [language, heading, share, close] of [['it', 'Partita conclusa', 'Condividi risultato', 'Chiudi finestra'], ['de', 'Spiel beendet', 'Ergebnis teilen', 'Fenster schließen']]) {
     await mount(language); assert.equal(document.querySelector('h1')!.textContent, heading);
     assert.deepEqual([...document.querySelectorAll('button')].map(b => b.textContent), [share, close]);
   }

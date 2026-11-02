@@ -427,10 +427,11 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
               <Globe size={16} className="hidden sm:block" /><span className="hidden lg:inline">Cloudflare</span><span aria-hidden="true" className={`relative w-11 h-6 rounded-full ${publicUrl ? 'bg-emerald-600' : sharingBusy ? 'bg-amber-500 animate-pulse' : 'bg-gray-400'}`}><span className={`absolute top-0.5 h-5 w-5 bg-white rounded-full shadow transition-transform ${publicUrl ? 'translate-x-5 left-0.5' : 'left-0.5'}`} /></span><span className="hidden sm:inline">{publicUrl ? 'ON' : 'OFF'}</span>
             </button>
           </div>}
-          <div className="bg-surface-soft px-2 sm:px-4 py-1.5 rounded-xl border-2 border-mandarino flex items-center gap-2.5 shadow-lg shadow-mandarino/10">
+          {/* In the lobby the large PIN box already shows it. */}
+          {status !== 'lobby' && <div className="bg-surface-soft px-2 sm:px-4 py-1.5 rounded-xl border-2 border-petrolio flex items-center gap-2.5">
             <span className="text-[11px] font-bold uppercase text-muted tracking-wider">PIN:</span>
             <span className="font-mono font-black text-xl md:text-2xl text-ink tracking-widest">{pin}</span>
-          </div>
+          </div>}
 
           <button
             onClick={() => setShowQRModal(true)}
@@ -497,9 +498,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                   <button
                     onClick={handleStartCountdown}
                     disabled={playerCount === 0 || (isVideo && !videoReady)}
-                    className={`btn-mandarino px-8 py-3.5 rounded-2xl font-black text-base flex items-center gap-2.5 shadow-md transition cursor-pointer ${
-                      (playerCount === 0 || (isVideo && !videoReady)) ? 'opacity-50 cursor-not-allowed saturate-50' : 'hover:scale-105 active:scale-95'
-                    }`}
+                    className="btn-primary px-8 py-3.5 rounded-2xl font-black text-base flex items-center gap-2.5 shadow-md transition cursor-pointer"
                   >
                     <Play className="w-5 h-5 fill-current" />
                     <span>{isVideo ? lobby.startVideo : lobby.start}</span>
@@ -507,12 +506,13 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
 
                   <button
                     onClick={handleAddBot}
-                    className="btn-petrolio px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 transition cursor-pointer"
+                    className="btn-quiet px-2 py-3 text-sm flex items-center gap-2 cursor-pointer"
                     title={lobby.botsTitle}
                   >
-                    <Bot className="w-4 h-4 text-accent-ink" />
+                    <Bot className="w-4 h-4" />
                     <span>{lobby.addBots}</span>
                   </button>
+                  {(playerCount === 0 || (isVideo && !videoReady)) && <p className="w-full text-sm text-muted">{playerCount === 0 ? lobby.waitPlayer : lobby.waitVideo}</p>}
                 </div>
               </div>
 
@@ -567,7 +567,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
           </div>
         )}
 
-        {recoveredSession && status === 'countdown' && <button className="btn-mandarino rounded-xl px-6 py-3" onClick={handleStartCountdown}>{lobby.resumeStart}</button>}
+        {recoveredSession && status === 'countdown' && <button className="btn-primary rounded-xl px-6 py-3" onClick={handleStartCountdown}>{lobby.resumeStart}</button>}
         {/* COUNTDOWN VIEW */}
         {status === 'countdown' && (
           <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
@@ -591,7 +591,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                 <span className="text-xs uppercase font-extrabold text-accent-ink tracking-wider mb-2 block">
                   {fill(lobby.questionOfTotal, { n: currentQuestionIndex + 1, total: totalQuestions })}
                 </span>
-                <h2 className="text-2xl md:text-3xl font-black text-ink leading-snug">
+                <h2 className="host-question-title text-2xl md:text-3xl font-black text-ink leading-snug">
                   {currentQuestion.text}
                 </h2>
               </div>
@@ -599,17 +599,17 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
               {/* Giant Countdown Clock */}
               <div className="flex flex-col items-center">
                 <div
-                  className={`w-24 h-24 rounded-2xl border-4 flex flex-col items-center justify-center transition-all shadow-md ${
+                  className={`host-timer w-24 h-24 rounded-2xl border-4 flex flex-col items-center justify-center transition-all shadow-md ${
                     timeRemaining <= 5
                       ? 'border-rose-500 bg-rose-50 text-rose-700 animate-pulse'
-                      : 'border-mandarino bg-surface-soft text-ink'
+                      : 'border-petrolio bg-surface-soft text-ink'
                   }`}
                 >
                   <span className="font-mono font-black text-4xl">{timeRemaining}</span>
                   <span className="text-[10px] uppercase font-bold text-muted">{lobby.seconds}</span>
                 </div>
                 <div className="mt-2 text-xs text-muted font-semibold">
-                  Risposte: <strong className="text-ink">{answersCount}</strong> / {playerCount}
+                  {lobby.answersSoFar}: <strong className="text-ink">{answersCount}</strong> / {playerCount}
                 </div>
               </div>
             </div>
@@ -639,7 +639,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl font-black ${colorStyle.badge}`}>
                       {shapeSymbol}
                     </div>
-                    <span className="font-bold text-lg md:text-xl text-ink min-w-0">
+                    <span className="host-option-text font-bold text-lg md:text-xl text-ink min-w-0">
                       <span className="font-black">{String.fromCharCode(65 + idx)} · </span>{option.text}
                     </span>
                   </div>
@@ -651,9 +651,9 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
             <div className="host-actions flex justify-end pt-2">
               <button
                 onClick={handleShowQuestionResults}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-soft hover:bg-surface-hover text-xs font-bold text-muted hover:text-ink border border-line transition cursor-pointer"
+                className="btn-primary flex items-center gap-2 px-5 py-3 rounded-xl text-sm cursor-pointer"
               >
-                <SkipForward className="w-4 h-4 text-accent-ink" />
+                <SkipForward className="w-4 h-4" />
                 <span>{lobby.closeTime}</span>
               </button>
             </div>
@@ -721,7 +721,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
               <div className="host-actions mt-4 flex justify-end">
                 <button
                   onClick={handleShowLeaderboard}
-                  className="btn-mandarino px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md transition cursor-pointer"
+                  className="btn-primary px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md transition cursor-pointer"
                 >
                   <span>{lobby.partialRanking}</span>
                   <ArrowRight className="w-4 h-4" />
@@ -750,7 +750,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
 
                 <button
                   onClick={handleNextStep}
-                  className="btn-mandarino px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg transition cursor-pointer"
+                  className="btn-primary px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg transition cursor-pointer"
                 >
                   <span>
                     {isVideo ? lobby.resumeVideo : currentQuestionIndex + 1 < totalQuestions ? lobby.nextQuestion : lobby.finalRanking}

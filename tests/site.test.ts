@@ -26,7 +26,7 @@ test('classroom runs without a server; landing switches, remembers and passes al
   assert.ok(volcanoCredit, 'the included volcano quiz displays its Commons credit');
   assert.match(volcanoCredit.parentElement!.textContent!, /Boaworm.*CC BY 3.0/);
   assert.equal(requests, 0);
-  assert.equal([...document.querySelectorAll('button')].some(button => button.textContent === 'Quiz in Rete'), false);
+  assert.equal([...document.querySelectorAll('button')].some(button => button.textContent === 'Quiz sui dispositivi'), false);
   const start = [...document.querySelectorAll('button')].find(button => button.textContent === 'Attività in classe');
   assert.ok(start);
   await act(async () => start.click());
@@ -53,7 +53,7 @@ test('classroom runs without a server; landing switches, remembers and passes al
   assert.equal(document.documentElement.lang, 'en');
   assert.equal(localStorage.getItem('qurioso_language'), 'en');
   assert.equal(new URL(window.location.href).searchParams.get('lang'), 'en');
-  assert.match(document.title, /Network quizzes and classroom activities/);
+  assert.match(document.title, /Device quizzes and classroom activities/);
   assert.equal(document.querySelector('meta[property="og:locale"]')?.getAttribute('content'), 'en_GB');
   assert.match(document.querySelector('meta[name="description"]')?.getAttribute('content') || '', /Quizzes with images and videos/);
   assert.match(document.body.textContent!, /Everyone on the same LAN/);

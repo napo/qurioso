@@ -13,7 +13,7 @@ const it = {
   videoActivity: 'Attività in classe con video', videoDone: 'Domande svolte: {done} su {total}.', restartActivity: 'Ricomincia attività', backToEditor: 'Torna all’editor',
   videoError: 'Impossibile riprodurre il video. Controlla la connessione e che il video consenta la riproduzione incorporata. Per i file locali verifica che il formato MP4/WebM sia supportato dal browser.',
   noTimeLimit: 'Discussione senza limite di tempo', beyondDuration: 'Alcune domande sono alla fine o oltre la durata del video. Controlla i checkpoint nell’editor.',
-  checkpointAt: 'Checkpoint {n} a {time}', configureVideo: 'Configurazione Video Quiz', configureHint: 'Scegli YouTube, Vimeo, un link diretto o un file locale. Le domande restano collegate ai checkpoint del quiz. Per conservare la scelta tra le sessioni, impostala nell’editor e salva il quiz.',
+  checkpointAt: 'Checkpoint {n} a {time}', configureVideo: 'Configurazione video quiz', configureHint: 'Scegli YouTube, Vimeo, un link diretto o un file locale. Le domande restano collegate ai checkpoint del quiz. Per conservare la scelta tra le sessioni, impostala nell’editor e salva il quiz.',
   fullscreen: 'Schermo intero', exitFullscreen: 'Esci da schermo intero', fullscreenError: 'Il browser non ha attivato lo schermo intero. L’attività continua normalmente.',
 };
 type Text = Record<keyof typeof it, string>;

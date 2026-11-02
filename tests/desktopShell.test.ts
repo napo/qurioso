@@ -58,7 +58,7 @@ test('the desktop library uses a compact workspace shell, native menu commands a
 
   // Compact segmented mode control, without the descriptive cards.
   const modes = [...document.querySelectorAll<HTMLButtonElement>('[data-activity-mode]')];
-  assert.deepEqual(modes.map(b => [b.textContent, b.getAttribute('aria-pressed')]), [['Lezione in aula', 'false'], ['Quiz sui dispositivi', 'true']]);
+  assert.deepEqual(modes.map(b => [b.textContent, b.getAttribute('aria-pressed')]), [['Attività in classe', 'false'], ['Quiz sui dispositivi', 'true']]);
   assert.equal(text().includes('Ogni partecipante risponde dal proprio telefono'), false, 'the extended explanation stays in the guide');
   await act(async () => modes[0].click());
   assert.equal(modes[0].getAttribute('aria-pressed'), 'true');
@@ -98,7 +98,7 @@ test('the desktop library uses a compact workspace shell, native menu commands a
   assert.match(about.textContent!, /GNU Affero General Public License/);
   assert.ok([...about.querySelectorAll('button')].some(b => b.textContent === 'Compilazione e GitHub'));
   assert.ok(document.querySelector('[data-qurioso-settings] button[aria-expanded]'), 'language selector in Settings');
-  assert.ok(buttons().some(b => b.getAttribute('aria-pressed') !== null && /Audio/.test(b.textContent || '')), 'sound toggle in Settings');
+  assert.ok(buttons().some(b => b.getAttribute('aria-pressed') !== null && /audio/i.test(b.textContent || '')), 'sound toggle in Settings');
   assert.ok(document.querySelector('[data-qurioso-settings] a[href*="app=guide"]'), 'guide link in Settings');
   await act(async () => menuListener('import-questions'));
   assert.ok(document.querySelector('.question-import-dialog'));

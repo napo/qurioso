@@ -3,8 +3,8 @@ exports.run = async window => {
   await window.loadURL('http://qurioso.localhost/?app=network&lang=it');
   await window.webContents.executeJavaScript(`(async()=>{
     const wait=async f=>{for(let n=0;n<200;n++){if(await f())return;await new Promise(r=>setTimeout(r,30));}throw new Error('Cloudflare UI timeout');};
-    await wait(()=>[...document.querySelectorAll('button')].some(b=>b.textContent==='Quiz classico in rete'&&!b.disabled));
-    [...document.querySelectorAll('button')].find(b=>b.textContent==='Quiz classico in rete').click();
+    await wait(()=>[...document.querySelectorAll('button')].some(b=>b.textContent==='Quiz classico sui dispositivi'&&!b.disabled));
+    [...document.querySelectorAll('button')].find(b=>b.textContent==='Quiz classico sui dispositivi').click();
     await wait(()=>document.querySelector('[aria-labelledby="internet-sharing-title"]'));
     const panel=document.querySelector('[aria-labelledby="internet-sharing-title"]');
     if(panel.querySelectorAll('nav a').length!==4)throw new Error('Cloudflare documentation missing');

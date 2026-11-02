@@ -4,7 +4,7 @@ import React, { act } from 'react';
 import { JSDOM } from 'jsdom';
 import { indexedDB } from 'fake-indexeddb';
 
-test('the public website presents classroom activities and offers the desktop app instead of network quizzes', async t => {
+test('the public website presents classroom activities and offers the desktop app instead of device quizzes', async t => {
   const dom = new JSDOM('<meta name="description" /><div id="app"></div>', { url: 'https://qurioso.it/?lang=it' });
   const saved = new Map<string, PropertyDescriptor | undefined>();
   const requests: string[] = [];
@@ -81,6 +81,6 @@ test('the public website presents classroom activities and offers the desktop ap
   window.history.replaceState({}, '', '?role=player&pin=123456&lang=it');
   await render(React.createElement(App));
   await settle(/Caricamento quiz/);
-  assert.match(document.body.textContent!, /Partecipa a un quiz in rete/);
+  assert.match(document.body.textContent!, /Partecipa a un quiz sui dispositivi/);
   assert.match(document.body.textContent!, /Apri il link o inquadra il QR fornito dal docente/);
 });

@@ -86,7 +86,7 @@ export function VideoTimelineEditor({ quiz, selectedQuestionId, onChange, onSele
     </div>
     <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
       <span aria-live="off">{ed.position} <strong data-testid="editor-video-time">{formatVideoTime(time)}</strong> / {duration ? formatVideoTime(duration) : ed.durationPending}</span>
-      <button type="button" disabled={!url || busy} className="btn-petrolio rounded-lg px-3 py-2" onClick={() => {
+      <button type="button" disabled={!url || busy} className="btn-secondary rounded-lg px-3 py-2" onClick={() => {
         if (!media.current) return;
         if (playing) media.current.pause(); else Promise.resolve(media.current.play()).catch(() => setError(ed.playFailed));
       }}>{playing ? ed.pauseVideo : ed.playVideo}</button>
@@ -96,21 +96,21 @@ export function VideoTimelineEditor({ quiz, selectedQuestionId, onChange, onSele
     {error && <div role="alert" className="text-sm text-rose-700">{error} <button type="button" className="underline font-bold" onClick={() => { setError(''); try { media.current?.load?.(); } catch { setError(ed.reopenSource); } }}>{ed.retryLoad}</button></div>}
     {url && videoProvider(url) !== 'html5' && <p className="text-xs text-muted">{ed.providerTiming}</p>}
     {!duration && <p className="text-xs text-muted">{ed.durationUnknown}</p>}
-    <button type="button" disabled={!hasPosition || busy || Boolean(error) || pendingTime} className="btn-mandarino w-full rounded-xl px-4 py-2 font-bold disabled:opacity-50" onClick={() => {
+    <button type="button" disabled={!hasPosition || busy || Boolean(error) || pendingTime} className="btn-secondary w-full rounded-xl px-4 py-2" onClick={() => {
       const position = media.current?.currentTime;
       if (!Number.isFinite(position) || position! < 0) { setError(ed.noPosition); return; }
       media.current?.pause(); setCapture(position); setExistingId('');
     }}>{ed.addHere}</button>
     {capture !== undefined && <div className="space-y-2 rounded-xl border-2 border-mandarino p-3" aria-label={ed.addToVideo}>
       <p className="font-bold text-sm">Domanda a {formatVideoTime(capture)}</p>
-      <button type="button" className="btn-petrolio rounded-lg px-3 py-2 text-sm" onClick={() => { onCreateAt(capture); setCapture(undefined); }}>{ed.createHere}</button>
+      <button type="button" className="btn-secondary rounded-lg px-3 py-2 text-sm" onClick={() => { onCreateAt(capture); setCapture(undefined); }}>{ed.createHere}</button>
       <label className="block text-sm">Oppure seleziona una domanda esistente
         <select aria-label={ed.existingQuestion} value={existingId} onChange={event => setExistingId(event.target.value)} className="mt-1 w-full min-w-0 rounded-lg border border-line p-2">
           <option value="">{ed.chooseQuestion}</option>
           {quiz.questions.map((q, i) => <option key={q.id} value={q.id}>{i + 1}. {q.text || ed.untitledQuestion}{checkpoints.some(cp => cp.questionId === q.id) ? ed.moveExisting : ''}</option>)}
         </select>
       </label>
-      <div className="flex gap-2"><button type="button" disabled={!existingId} className="btn-mandarino rounded-lg px-3 py-2 text-sm disabled:opacity-50" onClick={() => attach(existingId, capture)}>{ed.linkHere}</button>
+      <div className="flex gap-2"><button type="button" disabled={!existingId} className="btn-secondary rounded-lg px-3 py-2 text-sm" onClick={() => attach(existingId, capture)}>{ed.linkHere}</button>
         <button type="button" className="underline text-sm" onClick={() => setCapture(undefined)}>{ed.cancel}</button></div>
     </div>}
     <div aria-label={ed.timeline} className="timeline-markers relative h-12 rounded-xl bg-surface-soft border border-line mx-3">
@@ -125,7 +125,7 @@ export function VideoTimelineEditor({ quiz, selectedQuestionId, onChange, onSele
       <label className="block text-sm font-bold">{ed.checkpointTimeLabel}
         <input aria-label={ed.checkpointTime} value={timeDraft} onChange={event => { setTimeDraft(event.target.value); onPending(true); setTimeError(ed.applyHint); }} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); commitTime(); } }} className="mt-1 w-full rounded-lg border border-line p-2 font-mono" />
       </label>
-      <div className="flex flex-wrap gap-2"><button type="button" className="btn-petrolio rounded-lg px-3 py-2 text-sm" onClick={commitTime}>{ed.applyTime}</button>
+      <div className="flex flex-wrap gap-2"><button type="button" className="btn-secondary rounded-lg px-3 py-2 text-sm" onClick={commitTime}>{ed.applyTime}</button>
         <button type="button" disabled={!hasPosition || Boolean(duration && selected.timestamp > duration)} className="rounded-lg border border-line px-3 py-2 text-sm disabled:opacity-50" onClick={() => seek(selected.timestamp)}>{ed.goToCheckpoint}</button>
         <button type="button" className="rounded-lg border border-line px-3 py-2 text-sm" onClick={() => onChange(setQuestionCheckpoint(quiz, selected.questionId))}>{ed.removeCheckpoint}</button></div>
       {duration > 0 && <label className="block text-sm">Sposta checkpoint · frecce: 0,1 secondi

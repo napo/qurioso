@@ -359,8 +359,8 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
 
   if (draftCandidate) return <main className="h-full overflow-auto flex flex-col items-center justify-center p-6 gap-4 bg-white text-petrolio" role="dialog" aria-modal="true" aria-label={ed.recoverDraft}>
     <h2 className="text-2xl font-bold">{ed.unsavedDraft}</h2><p>{draftCandidate.quiz.title}</p>
-    <div className="flex flex-wrap gap-3"><button className="btn-petrolio rounded-xl px-5 py-3" onClick={() => { setQuiz(editableVideoQuiz(draftCandidate.quiz)); setActiveQuestionIndex(0); setVideoDuration(0); setDraftCandidate(undefined); setDraftReady(true); }}>{ed.resumeDraft}</button>
-      <button className="btn-mandarino rounded-xl px-5 py-3" onClick={async () => { try { await editorDraft('delete'); } catch { setDraftError(ed.draftDeleteFailed); } setDraftCandidate(undefined); setDraftReady(true); }}>{ed.discardDraft}</button></div>
+    <div className="flex flex-wrap gap-3"><button className="btn-primary rounded-xl px-5 py-3" onClick={() => { setQuiz(editableVideoQuiz(draftCandidate.quiz)); setActiveQuestionIndex(0); setVideoDuration(0); setDraftCandidate(undefined); setDraftReady(true); }}>{ed.resumeDraft}</button>
+      <button className="btn-danger rounded-xl px-5 py-3" onClick={async () => { try { await editorDraft('delete'); } catch { setDraftError(ed.draftDeleteFailed); } setDraftCandidate(undefined); setDraftReady(true); }}>{ed.discardDraft}</button></div>
   </main>;
   if (previewQuiz) return <div className="h-full flex flex-col min-h-0"><p className="shrink-0 bg-surface-soft p-2 text-center text-sm text-petrolio">{ed.previewBanner}</p>
     <div className="flex-1 min-h-0"><VideoQuizPlayer quiz={previewQuiz} classroom preview onExit={() => setPreviewQuiz(undefined)} /></div></div>;
@@ -394,9 +394,9 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" disabled={isSaving || videoBusy || timelinePending || !draftReady} onClick={() => setImportingQuestions(true)} className="btn-petrolio rounded-xl px-3 py-2 text-xs font-bold disabled:opacity-50">{importText(language, 'importQuestions')}</button>
-          <button type="button" disabled={isSaving || videoBusy || timelinePending || !draftReady} onClick={() => quizImportInput.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-soft hover:bg-surface-hover text-muted text-xs font-semibold rounded-xl border border-line transition cursor-pointer">
-            <Upload className="w-3.5 h-3.5 text-petrolio" />
+          <button type="button" disabled={isSaving || videoBusy || timelinePending || !draftReady} onClick={() => setImportingQuestions(true)} className="btn-secondary inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm">{importText(language, 'importQuestions')}</button>
+          <button type="button" disabled={isSaving || videoBusy || timelinePending || !draftReady} onClick={() => quizImportInput.current?.click()} className="btn-secondary inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm">
+            <Upload className="w-4 h-4" />
             <span>{importText(language, 'fullQuiz')}</span>
           </button>
           <input ref={quizImportInput} type="file" accept=".json" onChange={handleImportJSON} className="hidden" aria-label={importText(language, 'fullQuiz')} />
@@ -404,14 +404,14 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
           <button
             disabled={isSaving || videoBusy || timelinePending || !draftReady}
             onClick={handleExportJSON}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-soft hover:bg-surface-hover text-muted text-xs font-semibold rounded-xl border border-line transition cursor-pointer"
+            className="btn-secondary inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm"
             title={t.exportJsonFile}
           >
-            <FileJson className="w-3.5 h-3.5 text-petrolio" />
+            <FileJson className="w-4 h-4" />
             <span>{t.exportJsonFile}</span>
           </button>
 
-          {quiz.videoConfig && <button type="button" className="btn-petrolio rounded-xl px-4 py-2 text-sm font-bold disabled:opacity-50" disabled={isSaving || videoBusy || timelinePending || !draftReady} onClick={() => {
+          {quiz.videoConfig && <button type="button" className="btn-secondary rounded-xl px-3 py-2 text-sm" disabled={isSaving || videoBusy || timelinePending || !draftReady} onClick={() => {
             setSaveError('');
             try { const prepared = prepareQuiz(); if (!quizCheckpoints(prepared).length) throw new Error(ed.linkQuestionFirst); setPreviewQuiz(prepared); }
             catch (error) { setSaveError(error instanceof Error ? error.message : ed.previewUnavailable); }
@@ -424,7 +424,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
               catch (error) { setSaveError(error instanceof Error ? error.message : ed.saveFailed); }
               finally { setIsSaving(false); }
             }}
-            className="flex items-center gap-2 px-4 py-1.5 bg-mandarino hover:bg-mandarino text-ink text-xs font-bold rounded-xl shadow-md shadow-mandarino/25 transition active:scale-95 cursor-pointer"
+            className="btn-primary inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm"
           >
             <Save className="w-4 h-4" />
             <span>{t.saveQuiz}</span>
@@ -475,9 +475,9 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                     : 'bg-surface-soft border-line hover:bg-surface-hover'
                 }`}
               >
-                <div className="flex items-center justify-between text-[11px] font-bold text-muted mb-1">
-                  <span>#{idx + 1} • {q.type === 'true_false' ? t.trueFalse : t.multipleChoice}</span>
-                  <span className="text-muted">{q.timeLimit}s</span>
+                <div className="flex items-center justify-between gap-2 text-[11px] font-bold text-muted mb-1">
+                  <span className="min-w-0 truncate">#{idx + 1} • {q.type === 'true_false' ? t.trueFalse : t.multipleChoice}</span>
+                  <span className="shrink-0 whitespace-nowrap text-muted">{q.timeLimit} s</span>
                 </div>
                 <div className="text-xs font-semibold text-ink line-clamp-2">
                   {q.text || t.noQuestionText}

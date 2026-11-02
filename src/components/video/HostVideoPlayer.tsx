@@ -126,7 +126,7 @@ export const HostVideoPlayer = forwardRef<HostVideoControls, Props>(function Hos
     </div>
     <div className="presenter-video-controls flex flex-wrap items-center gap-3 mt-3">
       <button aria-label={playing ? t.pause : t.play} disabled={status !== 'video' || busy || !duration}
-        className="btn-mandarino rounded-xl p-3 disabled:opacity-50" onClick={() => playing ? pause() : void resume()}>
+        className="btn-secondary rounded-xl p-3" onClick={() => playing ? pause() : void resume()}>
         {playing ? <Pause size={20} /> : <Play size={20} />}
       </button>
       <input type="range" aria-label={t.positionVideo} min={0} max={duration || 1} step="0.1" value={Math.min(time, duration)}

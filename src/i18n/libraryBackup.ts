@@ -1,8 +1,8 @@
 import type { Language } from './translations';
 const en = {
   method:'Save method', direct:'Direct file streaming', browser:'Browser download (up to 512 MiB)', backupDirectUnavailable:'Direct file writing is unavailable or denied. Browser download has been selected; retry for backups within 512 MiB, or use a compatible browser for larger files.',
-  data:'Data', exportBackup:'Export backup', importBackup:'Import backup', exportQuiz:'Export quiz', importQuiz:'Import quiz', importQuestions:'Import questions',
-  singleHint:'Single quiz JSON: open the editor and use its complete quiz import/export commands. Question import adds questions only. A backup transfers the saved library.',
+  data:'Data', exportBackup:'Export backup', importBackup:'Import backup', openEditor:'Open in editor', importQuestions:'Import questions',
+  singleHint:'To export or import a single quiz, open it in the editor. A backup saves the whole library to move it or keep a copy.',
   chooseQuiz:'Choose quiz', close:'Close', cancel:'Stop operation', loading:'Analysing…', include:'Include local videos in backup',
   quizzes:'Quizzes', questions:'Questions', images:'Images / other assets', videos:'Local videos', quizSize:'Quiz data and manifest', imageSize:'Embedded images', videoSize:'Available local videos', includedSize:'Included videos', total:'Estimated content size', excluded:'Excluded / missing videos', orphans:'Files not referenced by saved quizzes (retained, excluded; may belong to drafts)',
   sizeHint:'Content bytes, before ZIP headers. Final ZIP size differs. Videos are not recompressed. External images and YouTube/Vimeo remain links and require their original sources.',
@@ -17,8 +17,8 @@ const en = {
 type Messages = {[K in keyof typeof en]:string};
 const it: Messages = {
   method:'Metodo di salvataggio', direct:'Scrittura diretta su file', browser:'Download dal browser (fino a 512 MiB)', backupDirectUnavailable:'La scrittura diretta non è disponibile o è stata negata. È stato selezionato il download dal browser: riprova entro 512 MiB, oppure usa un browser compatibile per file maggiori.',
-  data:'Dati', exportBackup:'Esporta backup', importBackup:'Importa backup', exportQuiz:'Esporta quiz', importQuiz:'Importa quiz', importQuestions:'Importa domande',
-  singleHint:'Quiz singolo JSON: apri l’editor e usa i comandi di importazione/esportazione del quiz completo. Importa domande aggiunge solo domande. Il backup trasferisce la biblioteca salvata.',
+  data:'Dati', exportBackup:'Esporta backup', importBackup:'Importa backup', openEditor:'Apri nell’editor', importQuestions:'Importa domande',
+  singleHint:'Per esportare o importare un singolo quiz aprilo nell’editor. Il backup salva tutta la biblioteca, per spostarla o tenerne una copia.',
   chooseQuiz:'Scegli quiz', close:'Chiudi', cancel:'Interrompi operazione', loading:'Analisi in corso…', include:'Includi i video locali nel backup',
   quizzes:'Quiz', questions:'Domande', images:'Immagini / altri asset', videos:'Video locali', quizSize:'Dati dei quiz e manifesto', imageSize:'Immagini incorporate', videoSize:'Video locali disponibili', includedSize:'Video inclusi', total:'Dimensione stimata dei contenuti', excluded:'Video esclusi / mancanti', orphans:'File non referenziati dai quiz salvati (conservati, esclusi; possono appartenere a bozze)',
   sizeHint:'Byte dei contenuti, prima delle intestazioni ZIP. La dimensione finale dello ZIP sarà diversa. I video non sono ricompressi. Immagini esterne e YouTube/Vimeo restano link e richiedono le sorgenti originali.',
@@ -33,8 +33,8 @@ const it: Messages = {
 const de: Messages = {
   method: 'Speichermethode', direct: 'Direkt in eine Datei schreiben', browser: 'Browser-Download (bis zu 512 MiB)',
   backupDirectUnavailable: 'Direktes Schreiben ist nicht verfügbar oder wurde abgelehnt. Der Browser-Download wurde ausgewählt. Versuche es für Sicherungen bis 512 MiB erneut oder verwende für größere Dateien einen kompatiblen Browser.',
-  data: 'Daten', exportBackup: 'Backup exportieren', importBackup: 'Backup importieren', exportQuiz: 'Quiz exportieren', importQuiz: 'Quiz importieren', importQuestions: 'Fragen importieren',
-  singleHint: 'Einzelnes Quiz als JSON: Öffne den Editor und verwende den Import/Export für vollständige Quiz. Der Fragenimport fügt nur Fragen hinzu. Ein Backup überträgt die gespeicherte Bibliothek.',
+  data: 'Daten', exportBackup: 'Backup exportieren', importBackup: 'Backup importieren', openEditor: 'Im Editor öffnen', importQuestions: 'Fragen importieren',
+  singleHint: 'Um ein einzelnes Quiz zu exportieren oder zu importieren, öffne es im Editor. Ein Backup speichert die ganze Bibliothek, um sie umzuziehen oder eine Kopie aufzubewahren.',
   chooseQuiz: 'Quiz auswählen', close: 'Schließen', cancel: 'Vorgang abbrechen', loading: 'Analyse läuft…', include: 'Lokale Videos in das Backup aufnehmen',
   quizzes: 'Quiz', questions: 'Fragen', images: 'Bilder / andere Medien', videos: 'Lokale Videos', quizSize: 'Quizdaten und Manifest', imageSize: 'Eingebettete Bilder', videoSize: 'Verfügbare lokale Videos', includedSize: 'Enthaltene Videos', total: 'Geschätzte Inhaltsgröße', excluded: 'Ausgeschlossene / fehlende Videos', orphans: 'Dateien ohne Verweis in gespeicherten Quiz (beibehalten, ausgeschlossen; können zu Entwürfen gehören)',
   sizeHint: 'Größe der Inhalte vor den ZIP-Headern. Die endgültige ZIP-Größe weicht ab. Videos werden nicht neu komprimiert. Externe Bilder und YouTube/Vimeo bleiben Links und benötigen ihre ursprünglichen Quellen.',

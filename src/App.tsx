@@ -1,4 +1,5 @@
-import { loadQuizzes, storeQuizzes } from './services/quizStorage';
+import { loadQuizzes, storeQuizzes, onLibraryChangedElsewhere } from './services/quizStorage';
+import { cloudSync } from './services/cloudSync/controller';
 import { ImageCreditDetails } from './components/common/ImageCredit';
 import { QuizCardMenu } from './components/library/QuizCardMenu';
 /**
@@ -78,6 +79,14 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
       .catch(error => { if (mounted) setStorageError(error.message); })
       .finally(() => { if (mounted) setLibraryReady(true); });
     return () => { mounted = false; };
+  }, []);
+
+  // Quizzes received from the cloud or saved in another tab must reach this list before the next save.
+  useEffect(() => {
+    const reload = () => { loadQuizzes().then(saved => { if (saved !== null) setQuizzes(saved); }).catch(() => {}); };
+    const stopReceiving = cloudSync.onReceived(reload), stopListening = onLibraryChangedElsewhere(reload);
+    void cloudSync.init();
+    return () => { stopReceiving(); stopListening(); cloudSync.dispose(); };
   }, []);
 
   // Selected quiz for playing / hosting / editing
@@ -316,7 +325,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
         {recoveryProblem && <div role="alert" className="rounded-xl border border-line bg-white p-4 text-petrolio">
           <p>{presenterRecoveryText(lobbyTranslations[language], recoveryProblem.status) || recoveryProblem.message}</p>
           {['unavailable', 'context_missing'].includes(recoveryProblem.status) && <div className="flex gap-3 mt-3">
-            <button className="btn-mandarino rounded-xl px-4 py-2" onClick={() => void recoverHost()}>{labels.retryRecovery}</button>
+            <button className="btn-primary rounded-xl px-4 py-2" onClick={() => void recoverHost()}>{labels.retryRecovery}</button>
             <button className="underline" onClick={async () => { await gameSync.endRecoverableSession(); setRecoveryProblem(undefined); }}>{labels.endRecovery}</button>
           </div>}
         </div>}
@@ -378,7 +387,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
 
                     {/* Mode Tag */}
                     {isVideoQuiz ? (
-                      <span className="hidden sm:flex absolute top-3 right-3 items-center gap-1 px-2.5 py-1 rounded-full bg-mandarino/90 backdrop-blur-md text-[11px] font-extrabold text-ink shadow-md">
+                      <span className="hidden sm:flex absolute top-3 right-3 items-center gap-1 px-2.5 py-1 rounded-full bg-white/90 backdrop-blur-md text-[11px] font-extrabold text-petrolio shadow-md">
                         <Video className="w-3 h-3" />
                         {t.videoQuizBadge}
                       </span>
@@ -415,16 +424,16 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
                         disabled={primary.disabled}
                         title={!serverInfo ? labels.needsLocalServer : undefined}
                         onClick={primary.run}
-                        className="w-full py-2.5 px-3 rounded-xl btn-petrolio font-bold text-xs shadow-md transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                        className="w-full py-2.5 px-3 rounded-xl btn-item font-bold text-xs shadow-md transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                       >
-                        <Play className="w-3.5 h-3.5 fill-current text-white" />
+                        <Play className="w-3.5 h-3.5 fill-current" />
                         <span>{primary.label}</span>
                       </button>
 
                       {warning && <p className="text-xs text-muted">{warning}</p>}
                       </>}
 
-                      {!networkMode && <button type="button" onClick={primary.run} className="w-full py-3 px-3 rounded-xl btn-mandarino font-bold text-sm cursor-pointer">{primary.label}</button>}
+                      {!networkMode && <button type="button" onClick={primary.run} className="w-full py-3 px-3 rounded-xl btn-item font-bold text-sm cursor-pointer">{primary.label}</button>}
                       {/* Manage Buttons */}
                       <div className="relative flex items-center justify-between pt-1">
                         <button
@@ -459,7 +468,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
                   {/* Compact list: play button and "⋯" for secondary actions */}
                   <div className="sm:hidden flex shrink-0 items-center gap-1">
                     <button type="button" aria-label={primary.label} title={primary.label} disabled={primary.disabled} onClick={primary.run}
-                      className={`grid place-items-center w-11 h-11 rounded-full ${networkMode ? 'btn-petrolio' : 'btn-mandarino'} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                      className={`grid place-items-center w-11 h-11 rounded-full btn-item`}>
                       <Play className="w-4 h-4 fill-current" />
                     </button>
                     <QuizCardMenu label={workspace.moreActions} actions={secondary} attribution={quiz.coverAttribution} creditsLabel={workspace.imageCredits} />
@@ -507,7 +516,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
             </button>)}
           </div> : <p className="rounded-2xl bg-white border border-line p-4 text-petrolio">{workspace.classroomHint}</p>}
           {networkMode && <p role="status" className="text-sm text-petrolio">{serverInfo ? workspace.networkReady : workspace.networkWaiting} <a className="underline font-bold" href={`?app=guide&topic=network&lang=${language}`}>{workspace.docs}</a></p>}
-          {publicSite && <aside data-device-download className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-3"><p className="font-bold text-petrolio">{workspace.devicesTitle}</p><a href={downloadsUrl} className="inline-flex items-center gap-2 btn-petrolio rounded-xl px-4 py-2.5 font-bold"><Download size={18} />{workspace.devicesDownload}</a></aside>}
+          {publicSite && <aside data-device-download className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-3"><p className="font-bold text-petrolio">{workspace.devicesTitle}</p><a href={downloadsUrl} className="inline-flex items-center gap-2 btn-secondary rounded-xl px-4 py-2.5 font-bold"><Download size={18} />{workspace.devicesDownload}</a></aside>}
         </section>
       {library}
       {guide}

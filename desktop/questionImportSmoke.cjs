@@ -27,10 +27,10 @@ exports.run = async window => {
   `);
   if(process.env.QURIOSO_IMPORT_SCREENSHOT)await fs.writeFile(process.env.QURIOSO_IMPORT_SCREENSHOT,(await window.webContents.capturePage()).toPNG());
   await execute(`
-    const confirm=button('Conferma e apri editor');confirm.click();confirm.click();await wait(()=>document.querySelector('.quiz-editor')&&button('Salva Quiz')&&!button('Salva Quiz').disabled,'new quiz editor');
+    const confirm=button('Conferma e apri editor');confirm.click();confirm.click();await wait(()=>document.querySelector('.quiz-editor')&&button('Salva quiz')&&!button('Salva quiz').disabled,'new quiz editor');
     if(JSON.stringify(await library())!==${JSON.stringify(before)})throw new Error('Import saved before editor confirmation');
     if(document.querySelector('textarea[aria-label="Testo della domanda"]').value!==${JSON.stringify('Domanda CSV, con virgola\nsu due righe')})throw new Error('Multiline question changed');
-    button('Salva Quiz').click();await wait(()=>!document.querySelector('.quiz-editor'),'save new quiz');
+    button('Salva quiz').click();await wait(()=>!document.querySelector('.quiz-editor'),'save new quiz');
     const saved=await library(),created=saved.find(q=>q.title==='Collaudo import domande');if(!created||created.questions.length!==1)throw new Error('Partial import or double confirmation failed');
     const card=[...document.querySelectorAll('.group')].find(card=>card.textContent.includes('Collaudo video del docente'));[...card.querySelectorAll('button')].find(b=>b.textContent.trim()==='Modifica').click();
     await wait(()=>button('Importa domande')&&!button('Importa domande').disabled,'video editor');
@@ -49,7 +49,7 @@ exports.run = async window => {
     button('Importa domande').click();await wait(()=>document.querySelector('.question-import-dialog'),'JSON dialog');upload(JSON.stringify(source),'quiz-completo.json');
     await wait(()=>document.body.textContent.includes('Il file è un quiz Qurioso completo')&&button('Aggiungi le domande selezionate')&&!button('Aggiungi le domande selezionate').disabled,'full quiz extraction');layout();
     const appendConfirm=button('Aggiungi le domande selezionate');appendConfirm.click();appendConfirm.click();await wait(()=>!document.querySelector('.question-import-dialog'),'append to video');
-    button('Salva Quiz').click();await wait(()=>!document.querySelector('.quiz-editor'),'save video');
+    button('Salva quiz').click();await wait(()=>!document.querySelector('.quiz-editor'),'save video');
     const updated=(await library()).find(q=>q.id===original.id);
     if(updated.questions.length!==original.questions.length+1||JSON.stringify(updated.videoConfig)!==JSON.stringify(original.videoConfig)||updated.title!==original.title)throw new Error('Import changed video metadata or duplicated questions');
     const added=updated.questions.at(-1);if(added.id===question.id||added.videoTimestamp!==undefined||updated.videoConfig.checkpoints.some(cp=>cp.questionId===added.id))throw new Error('Imported question was automatically associated');

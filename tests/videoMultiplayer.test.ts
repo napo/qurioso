@@ -168,7 +168,7 @@ test('real video host: pause/resume, multiple students, seeks, reconnect and end
     assert.ok(current.questionResult?.explanation);
   };
   await answerBoth();
-  await click('Classifica Parziale'); await click('Riprendi video');
+  await click('Classifica parziale'); await click('Riprendi video');
   await wait(async () => (await read()).status === 'question' && current.currentQuestionIndex === 1, 'second crossed checkpoint is queued');
   assert.notEqual(current!.roundId, firstRound); assert.equal(paused, true);
   const reconnect = await socket();
@@ -178,13 +178,13 @@ test('real video host: pause/resume, multiple students, seeks, reconnect and end
   await answerBoth();
   // Going back preserves completed questions, then playing across their timestamps does not reopen them.
   await move(1);
-  await click('Classifica Parziale'); await click('Riprendi video');
+  await click('Classifica parziale'); await click('Riprendi video');
   await wait(async () => (await read()).status === 'video' && !paused, 'backward seek resumes');
   await move(15); await delay(80); assert.equal((await read()).status, 'video');
   assert.ok(plays >= 3);
   await move(20, true);
   await wait(async () => (await read()).status === 'question' && current.currentQuestionIndex === 2, 'video end drains checkpoint beyond duration');
-  await answerBoth(); await click('Classifica Parziale'); await click('Riprendi video');
+  await answerBoth(); await click('Classifica parziale'); await click('Riprendi video');
   await wait(async () => (await read()).status === 'finished', 'multiplayer final summary');
   assert.equal(current!.videoQuestionsOpened, 3);
   const firstOpens = requests.filter(body => body.session.status === 'question' && body.session.currentQuestionIndex === 0);
@@ -227,7 +227,7 @@ test('real video host: pause/resume, multiple students, seeks, reconnect and end
   await wait(() => [...document.querySelectorAll('button')].some(b => b.textContent?.includes('Marte')), 'phone receives checkpoint');
   assert.ok(!document.body.textContent?.includes('Risposta corretta:'));
   await click('Marte');
-  await wait(() => document.body.textContent?.includes('Risposta Inviata'), 'phone answer accepted');
+  await wait(() => document.body.textContent?.includes('Risposta inviata'), 'phone answer accepted');
   await phonePublish({ status: 'question_results' });
   await wait(() => document.body.textContent?.includes('Risposta corretta: Marte'), 'phone receives released answer key');
   assert.ok(document.body.textContent?.includes(quiz.questions[0].explanation!));

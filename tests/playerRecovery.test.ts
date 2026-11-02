@@ -187,13 +187,13 @@ for (const mode of ['standard', 'video'] as const) test(`${mode}: real PlayerScr
   await publish({ status: 'question', currentQuestion: publicQuestion(quiz, 0), questionStartTime: Date.now(), timeRemaining: 30 });
   await remount();
   const correct = quiz.questions[0].options.find(o => o.isCorrect)!;
-  await click(correct.text); await wait(() => document.body.textContent?.includes('Risposta Inviata'), 'accepted answer');
-  await remount(); assert.match(document.body.textContent!, /Risposta Inviata/);
+  await click(correct.text); await wait(() => document.body.textContent?.includes('Risposta inviata'), 'accepted answer');
+  await remount(); assert.match(document.body.textContent!, /Risposta inviata/);
   assert.equal([...document.querySelectorAll('button')].some(b => b.textContent?.trim().endsWith(correct.text)), false, 'cannot change an accepted answer after refresh');
   const current = (await host.fetchSessionFromServer(pin))!;
   const scored = mode === 'standard' ? applyPlayerAnswer(current, quiz, { playerId: student.id, ...current.answersForCurrentQuestion.alice }) : current;
   await publish({ ...scored, status: 'question_results' });
-  await remount(); assert.match(document.body.textContent!, /Risposta Esatta/); assert.match(document.body.textContent!, new RegExp(String(scored.players.alice.score)));
+  await remount(); assert.match(document.body.textContent!, /Risposta esatta/); assert.match(document.body.textContent!, new RegExp(String(scored.players.alice.score)));
   await publish({ status: 'leaderboard' }); await remount(); assert.match(document.body.textContent!, /Guarda la classifica/);
   // Returning from a temporary recovery failure must retain the secret until explicitly abandoned.
   const saved = readPlayerCredential(pin); assert.ok(saved && typeof saved === 'object');

@@ -95,7 +95,7 @@ export function ClassroomScreen({ quiz, onExit }: { quiz: Quiz; onExit: () => vo
       <h2 ref={heading} tabIndex={-1} className="text-3xl font-bold text-petrolio outline-none">{t.finished}</h2>
       <p>{t.score.replace('{correct}', String(correct)).replace('{total}', String(quiz.questions.length))}</p>
       {quiz.questions.map((q, i) => <article key={q.id} className="rounded-xl border border-line p-4"><h3 className="font-bold">{q.text}</h3><p>{t.classAnswer.replace('{answer}', q.options.find(o => o.id === answers[i])?.text || t.notCollected)}</p><p className="text-petrolio">{t.solution.replace('{answer}', q.options.filter(o => o.isCorrect).map(o => o.text).join(', '))}</p></article>)}
-      <button type="button" onClick={restart} className="btn-petrolio rounded-xl px-5 py-3">{t.restart}</button>
+      <button type="button" onClick={restart} className="btn-primary rounded-xl px-5 py-3">{t.restart}</button>
     </section> : <section className="mx-auto max-w-[110rem] space-y-[clamp(1rem,2.2vh,2rem)]">
       <p className="text-[clamp(0.875rem,1.1vw,1.25rem)] text-muted">{t.progress.replace('{current}', String(index + 1)).replace('{total}', String(quiz.questions.length))}</p>
       <h2 ref={heading} tabIndex={-1} className="text-[clamp(1.75rem,3.2vw,3.75rem)] leading-tight font-bold outline-none">{question.text}</h2>
@@ -118,7 +118,7 @@ export function ClassroomScreen({ quiz, onExit }: { quiz: Quiz; onExit: () => vo
       </div>
       </div>
       {!confirmed && <button ref={confirmButton} type="button" disabled={choice === undefined} onClick={confirm}
-        className="btn-petrolio rounded-xl px-6 py-3 text-[clamp(1rem,1.3vw,1.5rem)] font-bold disabled:opacity-50 disabled:cursor-not-allowed">{t.confirm}</button>}
+        className="btn-primary rounded-xl px-6 py-3 text-[clamp(1rem,1.3vw,1.5rem)]">{t.confirm}</button>}
       {/* Only the outcome and explanation are announced; the "Next" control stays outside the live region. */}
       <div className={confirmed ? 'space-y-4 rounded-2xl bg-surface-soft p-5 text-[clamp(1rem,1.4vw,1.75rem)]' : ''}>
         <div role="status" aria-live="polite" className="space-y-4">
@@ -127,7 +127,7 @@ export function ClassroomScreen({ quiz, onExit }: { quiz: Quiz; onExit: () => vo
             {quiz.settings.showExplanation && question.explanation && <p>{question.explanation}</p>}
           </> : choice !== undefined && <p className="sr-only">{t.selected.replace('{letter}', letters[question.options.findIndex(o => o.id === choice)])}</p>}
         </div>
-        {confirmed && <button ref={nextButton} type="button" onClick={advance} className="mt-4 btn-petrolio rounded-xl px-5 py-3">{index + 1 < quiz.questions.length ? t.next : t.summary}</button>}
+        {confirmed && <button ref={nextButton} type="button" onClick={advance} className="mt-4 btn-primary rounded-xl px-5 py-3">{index + 1 < quiz.questions.length ? t.next : t.summary}</button>}
       </div>
       <p className="text-xs text-muted">{shortcuts}</p>
     </section>}

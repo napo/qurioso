@@ -86,7 +86,7 @@ test('editor embeds local and Commons images with their credits; storage and JSO
   assert.match(coverPicker.textContent!, /Foto di Autore & Team, via Wikimedia Commons/);
   assert.match(coverPicker.textContent!, /Crediti: Archivio fotografico/);
   assert.equal(coverPicker.querySelector('b'), null, 'Commons HTML is rendered as plain text');
-  await act(async () => [...document.querySelectorAll('button')].find(b => b.textContent?.includes('Salva Quiz'))!.click());
+  await act(async () => [...document.querySelectorAll('button')].find(b => b.textContent?.includes('Salva quiz'))!.click());
   assert.ok(saved);
   assert.match(saved.questions[0].mediaUrl!, /^data:image\/png;base64,/);
   assert.match(saved.coverImage!, /^data:image\/jpeg;base64,/);
@@ -114,5 +114,5 @@ test('editor embeds local and Commons images with their credits; storage and JSO
   uncredited.query.pages[42].imageinfo[0].extmetadata.Artist.value = '';
   uncredited.query.pages[42].imageinfo[0].extmetadata.Credit.value = '';
   assert.deepEqual(parseCommonsImages(uncredited), []);
-  await waitFor(() => ![...document.querySelectorAll('button')].find(b => b.textContent?.includes('Salva Quiz'))?.disabled);
+  await waitFor(() => ![...document.querySelectorAll('button')].find(b => b.textContent?.includes('Salva quiz'))?.disabled);
 });

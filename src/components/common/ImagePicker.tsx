@@ -2,6 +2,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import type { ImageAttribution } from '../../types/quiz';
 import { importImage, searchCommons, importCommonsImage, type CommonsImage } from '../../services/images';
 import { ImageCredit } from './ImageCredit';
+import { FileButton } from './FileButton';
 import { editorTranslations } from '../../i18n/editor';
 import { fill } from '../../i18n/format';
 import { useLanguage } from '../../context/LanguageContext';
@@ -68,8 +69,7 @@ export function ImagePicker({ label, value, attribution, onChange }: ImagePicker
         className="w-full rounded-xl border border-line p-2 text-xs text-ink focus:border-petrolio" />
       <div className="flex flex-wrap items-center gap-3">
         <label htmlFor={`${id}-file`} className="text-xs font-semibold text-ink">{ed.fromComputer}</label>
-        <input id={`${id}-file`} type="file" aria-label={fill(ed.uploadOf, { label })} accept="image/jpeg,image/png,image/webp" disabled={busy}
-          className="max-w-full text-xs text-muted file:rounded-lg file:border-0 file:bg-petrolio file:text-white file:px-3 file:py-2 file:mr-2 file:cursor-pointer"
+        <FileButton id={`${id}-file`} aria-label={fill(ed.uploadOf, { label })} accept="image/jpeg,image/png,image/webp" disabled={busy}
           onChange={async event => {
             const file = event.target.files?.[0];
             event.target.value = '';
@@ -107,7 +107,7 @@ export function ImagePicker({ label, value, attribution, onChange }: ImagePicker
           <p className="text-xs text-muted">{ed.commonsHint}</p>
           <div className="flex gap-2">
             <input type="search" autoFocus aria-label={ed.searchImages} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); findImages(); } }} placeholder={ed.imagePlaceholder} className="min-w-0 flex-1 rounded-xl border border-line p-3 text-sm" />
-            <button type="button" disabled={busy || !query.trim()} onClick={findImages} className="btn-petrolio rounded-xl px-4 text-sm font-bold cursor-pointer disabled:opacity-50">{ed.search}</button>
+            <button type="button" disabled={busy || !query.trim()} onClick={findImages} className="btn-secondary rounded-xl px-4 text-sm cursor-pointer">{ed.search}</button>
           </div>
           {busy && <p role="status" className="text-sm text-petrolio">{ed.loading}</p>}
           {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
@@ -116,7 +116,7 @@ export function ImagePicker({ label, value, attribution, onChange }: ImagePicker
             {results.map(result => <div key={result.id} className="rounded-xl border border-line p-2 space-y-2">
               <img src={result.url} alt={result.attribution.title} loading="lazy" className="h-28 w-full object-contain bg-surface-soft rounded-lg" />
               <ImageCredit attribution={result.attribution} />
-              <button type="button" disabled={busy} onClick={() => selectImage(result)} className="w-full btn-mandarino rounded-lg py-2 text-xs font-bold cursor-pointer disabled:opacity-50">{ed.useImage}</button>
+              <button type="button" disabled={busy} onClick={() => selectImage(result)} className="w-full btn-item rounded-lg py-2 text-xs cursor-pointer">{ed.useImage}</button>
             </div>)}
           </div>
         </div>

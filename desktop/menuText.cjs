@@ -1,7 +1,7 @@
 // Native menu labels. The menu follows the system language, then the language chosen in the app; English otherwise.
 const MENU_TEXT = {
   it: {
-    networkQuiz: 'Quiz in Rete', classroom: 'Attività in classe', quit: 'Esci da Qurioso',
+    networkQuiz: 'Quiz sui dispositivi', classroom: 'Attività in classe', quit: 'Esci da Qurioso',
     checkUpdates: 'Verifica aggiornamenti…', autoUpdates: 'Controlla aggiornamenti all’avvio',
     cancelUpdate: 'Annulla controllo o download aggiornamento', updateFolder: 'Apri cartella aggiornamenti scaricati',
     file: 'File', newQuiz: 'Nuovo quiz', newVideoQuiz: 'Nuovo quiz video', importQuestions: 'Importa domande…', backup: 'Backup e ripristino…',
@@ -11,7 +11,7 @@ const MENU_TEXT = {
     help: 'Aiuto', guide: 'Guida', about: 'Informazioni su Qurioso',
   },
   en: {
-    networkQuiz: 'Network quizzes', classroom: 'Classroom activities', quit: 'Quit Qurioso',
+    networkQuiz: 'Device quizzes', classroom: 'Classroom activities', quit: 'Quit Qurioso',
     checkUpdates: 'Check for updates…', autoUpdates: 'Check for updates at startup',
     cancelUpdate: 'Cancel update check or download', updateFolder: 'Open downloaded updates folder',
     file: 'File', newQuiz: 'New quiz', newVideoQuiz: 'New video quiz', importQuestions: 'Import questions…', backup: 'Backup and restore…',
@@ -21,7 +21,7 @@ const MENU_TEXT = {
     help: 'Help', guide: 'Guide', about: 'About Qurioso',
   },
   de: {
-    networkQuiz: 'Netzwerkquiz', classroom: 'Aktivitäten im Unterricht', quit: 'Qurioso beenden',
+    networkQuiz: 'Quiz auf den Geräten', classroom: 'Klassenaktivitäten', quit: 'Qurioso beenden',
     checkUpdates: 'Nach Updates suchen…', autoUpdates: 'Beim Start nach Updates suchen',
     cancelUpdate: 'Updateprüfung oder Download abbrechen', updateFolder: 'Ordner mit heruntergeladenen Updates öffnen',
     file: 'Datei', newQuiz: 'Neues Quiz', newVideoQuiz: 'Neues Videoquiz', importQuestions: 'Fragen importieren…', backup: 'Sicherung und Wiederherstellung…',

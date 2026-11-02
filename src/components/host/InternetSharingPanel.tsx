@@ -27,7 +27,7 @@ export function InternetSharingPanel({ state, onStart, onStop, onClose }: {
     }
   }}>
     <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="internet-sharing-title" className="w-full max-w-2xl max-h-[92dvh] overflow-y-auto rounded-2xl border border-line bg-white p-5 space-y-4 text-ink">
-      <header className="flex items-start justify-between gap-3"><div><h2 id="internet-sharing-title" className="text-xl font-black text-petrolio">{t.title}</h2><p className="text-sm font-bold text-accent-ink">{t.experimental}</p></div><button type="button" onClick={onClose} className="rounded-lg border border-line p-2">{t.close}</button></header>
+      <header className="flex items-start justify-between gap-3"><div><h2 id="internet-sharing-title" className="text-xl font-black text-petrolio">{t.title}</h2><p className="text-sm font-bold text-accent-ink">{t.experimental}</p></div><button type="button" onClick={onClose} className="btn-secondary rounded-xl px-3 py-2 text-sm">{t.close}</button></header>
       <div className={`rounded-xl border-2 p-3 space-y-2 ${state.phase === 'active' ? 'border-emerald-500 bg-emerald-50 text-emerald-900' : ['error', 'reconnecting'].includes(state.phase) ? 'border-rose-300 bg-rose-50 text-rose-900' : 'border-line bg-surface-soft'}`} role="status" aria-live="polite">
         <p>{t.local}: <strong>{t.localActive}</strong></p>
         <p className="font-bold">{t[state.phase]}{state.phase === 'downloading' && state.progress !== undefined ? ` · ${state.progress}%` : ''}</p>
@@ -36,10 +36,11 @@ export function InternetSharingPanel({ state, onStart, onStop, onClose }: {
       </div>
       {['error', 'reconnecting'].includes(state.phase) && <p role="alert" className="text-rose-800">{state.phase === 'reconnecting' ? t.reconnectHelp : error}</p>}
       <div className="flex flex-wrap gap-3">
-        {state.phase !== 'active' && <button type="button" disabled={busy} onClick={onStart} className="btn-petrolio px-4 py-3 rounded-xl font-bold disabled:opacity-50">{state.phase === 'error' ? t.retry : t.start}</button>}
-        {(busy || state.phase === 'active') && <button type="button" disabled={state.phase === 'stopping'} onClick={onStop} className="rounded-xl border border-line px-4 py-3 font-bold disabled:opacity-50">{t.stop}</button>}
+        {state.phase !== 'active' && <button type="button" disabled={busy} onClick={onStart} className="btn-primary px-4 py-3 rounded-xl">{state.phase === 'error' ? t.retry : t.start}</button>}
+        {(busy || state.phase === 'active') && <button type="button" disabled={state.phase === 'stopping'} onClick={onStop} className="btn-danger rounded-xl px-4 py-3">{t.stop}</button>}
       </div>
-      <p>{t.intro}</p><p className="text-sm">{t.disclosure}</p><p className="text-sm">{t.traffic}</p><p className="text-sm text-muted">{t.limits}</p>
+      <p>{t.intro}</p><p className="text-sm">{t.traffic}</p>
+      <details className="text-sm"><summary className="cursor-pointer font-bold text-petrolio">{t.technical}</summary><div className="mt-2 space-y-2"><p>{t.disclosure}</p><p className="text-muted">{t.limits}</p></div></details>
       <nav aria-label="Cloudflare" className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-bold text-petrolio">
         {Object.entries(sharingLinks).map(([key, url]) => <a key={key} href={url} target="_blank" rel="noopener noreferrer" className="underline">{t[key as keyof typeof sharingLinks]}</a>)}
       </nav>

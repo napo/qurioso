@@ -194,7 +194,7 @@ test('editor cancellation preserves unsaved text; confirmed append is saved only
   await env.click('Importa domande');await env.upload(new File([JSON.stringify([question()])],'domande.json'));
   assert.equal(JSON.stringify(await loadQuizzes()),before);await env.click('Annulla');assert.equal((document.querySelector('textarea[aria-label="Testo della domanda"]') as HTMLTextAreaElement).value,'Modifica locale da conservare');
   await env.click('Importa domande');await env.upload(new File([JSON.stringify([question()])],'domande.json'));await env.click('Aggiungi le domande selezionate');
-  assert.equal(JSON.stringify(await loadQuizzes()),before);await env.click('Salva Quiz');
+  assert.equal(JSON.stringify(await loadQuizzes()),before);await env.click('Salva quiz');
   const saved=(await loadQuizzes())![0];assert.equal(saved.questions.length,initial.questions.length+1);assert.equal(saved.questions[0].text,'Modifica locale da conservare');assert.equal(saved.questions.at(-1)!.text,'Domanda importata');assert.equal(env.requests(),0);
 });
 

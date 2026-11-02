@@ -64,7 +64,7 @@ exports.run = async (host, port) => {
       await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); }); db.close();
     `);
     await host.loadURL('http://qurioso.localhost/?app=network&lang=it');
-    await execute(host, `await wait(() => button('Quiz classico in rete') && !button('Quiz classico in rete').disabled, 'classic fixture'); button('Quiz classico in rete').click(); await wait(() => phase() === 'lobby' && document.querySelector('[data-testid="join-address"]'), 'lobby address'); document.querySelector('[aria-labelledby="internet-sharing-title"] button')?.click();`);
+    await execute(host, `await wait(() => button('Quiz classico sui dispositivi') && !button('Quiz classico sui dispositivi').disabled, 'classic fixture'); button('Quiz classico sui dispositivi').click(); await wait(() => phase() === 'lobby' && document.querySelector('[data-testid="join-address"]'), 'lobby address'); document.querySelector('[aria-labelledby="internet-sharing-title"] button')?.click();`);
     await check('classic-lobby', ['.host-header', '.join-address', '[data-testid="join-pin"]', '.host-lobby-banner button', '.host-lobby-qr canvas']);
     await check('mobile-host-lobby', ['.host-header', '.join-address', '[data-testid="join-pin"]'], [[390, 844]]);
     host.setContentSize(1280, 720);
@@ -103,7 +103,7 @@ exports.run = async (host, port) => {
         const set = (input, value) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); };
         set(inputs[0], ${JSON.stringify(entry.pin)}); set(inputs[1], ${JSON.stringify(direct ? 'QR smoke' : 'PIN smoke')});
         await new Promise(r => setTimeout(r, 0));
-        button('Entra nel Quiz!').click();
+        button('Entra nel quiz!').click();
         await wait(() => document.body.textContent.includes('Sei nella lobby di gioco!'), 'credentialed participant joins');
         if (sessionStorage.getItem('qurioso_presenter_recovery_v1') || window.quriosoDesktop) throw new Error('Participant has presenter context');
       `);
@@ -111,22 +111,22 @@ exports.run = async (host, port) => {
     // A separate participant renderer also exercises the smartphone breakpoint.
     participants[0].setContentSize(390, 844);
     await execute(participants[0], `await new Promise(r => requestAnimationFrame(r)); if (document.documentElement.scrollWidth > innerWidth) throw new Error('Mobile participant horizontal overflow');`);
-    await execute(host, `await wait(() => !button('Inizia il Quiz!').disabled, 'participants'); button('Inizia il Quiz!').click(); await wait(() => phase() === 'question', 'classic question');`);
+    await execute(host, `await wait(() => !button('Inizia il quiz').disabled, 'participants'); button('Inizia il quiz').click(); await wait(() => phase() === 'question', 'classic question');`);
     await execute(participants[0], `await wait(() => document.querySelectorAll('.grid button').length === 6, 'mobile question options'); if (document.documentElement.scrollWidth > innerWidth) throw new Error('Mobile question horizontal overflow');`);
     await check('classic-question', ['.host-header', '.host-question-heading', '.host-question-image', '.host-option', '.host-actions button']);
     await execute(host, `button('Chiudi tempo e mostra risposte').click(); await wait(() => phase() === 'question_results', 'classic results');`);
     await check('classic-results', ['.host-header', '.host-results h2', '.host-results .host-actions button']);
-    await execute(host, `button('Classifica Parziale').click(); await wait(() => phase() === 'leaderboard', 'classic leaderboard');`);
+    await execute(host, `button('Classifica parziale').click(); await wait(() => phase() === 'leaderboard', 'classic leaderboard');`);
     await check('classic-leaderboard', ['.host-header', '.host-leaderboard-heading', '.host-ranking']);
-    await execute(host, `button('Classifica Finale').click(); await wait(() => phase() === 'finished', 'classic final'); [...document.querySelectorAll('header button')].find(b => b.textContent.trim() === 'Esci').click(); await wait(() => button('Quiz video in rete'), 'library after exit'); button('Quiz video in rete').click(); await wait(() => phase() === 'lobby' && document.querySelector('video')?.duration > 0, 'local video metadata');`);
+    await execute(host, `button('Classifica finale').click(); await wait(() => phase() === 'finished', 'classic final'); [...document.querySelectorAll('header button')].find(b => b.textContent.trim() === 'Esci').click(); await wait(() => button('Quiz video sui dispositivi'), 'library after exit'); button('Quiz video sui dispositivi').click(); await wait(() => phase() === 'lobby' && document.querySelector('video')?.duration > 0, 'local video metadata');`);
     await check('video-lobby', ['.host-header', '.join-address', '[data-testid="join-pin"]', '.host-lobby-banner button', '.host-lobby-qr canvas', '.host-video']);
-    await execute(host, `button('+ Aggiungi Bot di Test').click(); await wait(() => !button('Inizia il quiz video!').disabled, 'video ready'); button('Inizia il quiz video!').click(); await wait(() => phase() === 'question', 'video checkpoint');
+    await execute(host, `button('Aggiungi partecipanti di prova').click(); await wait(() => !button('Inizia il quiz video').disabled, 'video ready'); button('Inizia il quiz video').click(); await wait(() => phase() === 'question', 'video checkpoint');
       if(!document.fullscreenElement)throw new Error('Video competition did not request fullscreen from the start click');
       await document.exitFullscreen();await wait(()=>!document.fullscreenElement,'leaving fullscreen');`);
     await check('video-question', ['.host-header', '.host-question-heading', '.host-question-image', '.host-option', '.host-actions button']);
     await execute(host, `button('Chiudi tempo e mostra risposte').click(); await wait(() => phase() === 'question_results', 'video results');`);
     await check('video-results', ['.host-header', '.host-results h2', '.host-results .host-actions button']);
-    await execute(host, `button('Classifica Parziale').click(); await wait(() => phase() === 'leaderboard', 'video leaderboard');`);
+    await execute(host, `button('Classifica parziale').click(); await wait(() => phase() === 'leaderboard', 'video leaderboard');`);
     await check('video-leaderboard', ['.host-header', '.host-leaderboard-heading', '.host-ranking']);
     await execute(host, `button('Riprendi video').click();await wait(()=>phase()==='video','video playback');
       document.querySelector('.host-video button[aria-label="Video a schermo intero"]').click();await wait(()=>Boolean(document.fullscreenElement),'video fullscreen');
@@ -137,7 +137,7 @@ exports.run = async (host, port) => {
     if(process.env.QURIOSO_VIDEO_FULLSCREEN_SCREENSHOT)await fs.writeFile(process.env.QURIOSO_VIDEO_FULLSCREEN_SCREENSHOT,(await host.webContents.capturePage()).toPNG());
     host.webContents.sendInputEvent({type:'keyDown',keyCode:'Escape'});host.webContents.sendInputEvent({type:'keyUp',keyCode:'Escape'});
     await execute(host, `await wait(()=>!document.fullscreenElement,'Escape exits fullscreen');`);
-    await execute(host, `[...document.querySelectorAll('header button')].find(b => b.textContent.trim() === 'Esci').click(); await wait(() => button('Quiz classico in rete'), 'final exit');`);
+    await execute(host, `[...document.querySelectorAll('header button')].find(b => b.textContent.trim() === 'Esci').click(); await wait(() => button('Quiz classico sui dispositivi'), 'final exit');`);
     console.log('Presenter smoke passed: base URL + PIN and direct QR URL in isolated LAN renderers, clipboard, PIN/session consistency, mobile participant, layouts at 100%: ' + layoutChecks.join(', '));
   } finally { for (const player of participants) if (!player.isDestroyed()) player.destroy(); }
 };

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, net, session, shell, utilityProcess, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, net, safeStorage, session, shell, utilityProcess, Menu, ipcMain } = require('electron');
 const { randomBytes } = require('node:crypto');
 const { MENU_TEXT, menuLanguage } = require('./menuText.cjs');
 const path = require('node:path');
@@ -68,7 +68,10 @@ async function start() {
     if (url.origin === ORIGIN) {
       url.hostname = '127.0.0.1';
       url.port = String(backendPort);
-      try { return await net.fetch(new Request(url.href, request), { bypassCustomProtocolHandlers: true }); }
+      const forwarded = new Request(url.href, request);
+      // A revalidated asset comes back as 304, which this hand-off turns into net::ERR_FAILED and a blank page on reload.
+      for (const header of ['if-none-match', 'if-modified-since']) forwarded.headers.delete(header);
+      try { return await net.fetch(forwarded, { bypassCustomProtocolHandlers: true }); }
       catch (error) { if (quitting) return new Response(null, { status: 503 }); throw error; }
     }
     return net.fetch(request, { bypassCustomProtocolHandlers: true });
@@ -116,6 +119,12 @@ async function start() {
   for (const action of ['status', 'start', 'stop', 'release']) ipcMain.handle(`qurioso:sharing:${action}`, (event, pin) => {
     if (!trustedCaller(event)) throw new Error('Native sharing unavailable');
     return action === 'status' ? sharing.snapshot() : action === 'start' ? sharing.start(typeof pin === 'string' ? pin : '') : action === 'release' ? sharing.release() : sharing.stop();
+  });
+  const cloud = require('./cloudAuth.cjs').createCloudAuth({ directory: app.getPath('userData'), safeStorage, openBrowser: url => shell.openExternal(url) });
+  const cloudActions = { providers: () => cloud.providers(), token: (_event, id, interactive) => cloud.token(id, interactive === true), invalidate: (_event, id) => cloud.invalidate(id), signout: (_event, id) => cloud.signOut(id) };
+  for (const [action, run] of Object.entries(cloudActions)) ipcMain.handle(`qurioso:cloud:${action}`, (event, ...args) => {
+    if (!trustedCaller(event)) throw new Error('Cloud sign-in unavailable');
+    return run(event, ...args);
   });
   window.webContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => { if (isMainFrame && !isInPlace && sharing.hasConnector()) void sharing.stop(); });
   window.webContents.on('render-process-gone', () => sharing.shutdown());

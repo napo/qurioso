@@ -4,6 +4,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { backupError, backupText, type BackupMessage } from '../../i18n/libraryBackup';
 import { BACKUP_LIMITS, backupImageCount, backupEstimate, exportLibraryBackup, planBackup, previewLibraryBackup, relinkBackupVideo, restoreLibraryBackup, type BackupPlan, type BackupPreview, type Progress, type RestoreMode } from '../../services/libraryBackup';
 import { formatAssetSize } from '../../services/quizStorage';
+import { FileButton } from '../common/FileButton';
 
 export function LibraryData({quizzes,onRestored,onEditor,onQuestions}:{quizzes:Quiz[];onRestored:(q:Quiz[])=>void;onEditor:(q:Quiz)=>void;onQuestions:()=>void}) {
   const {language}=useLanguage(), t=(key:BackupMessage)=>backupText(language,key);
@@ -24,15 +25,14 @@ export function LibraryData({quizzes,onRestored,onEditor,onQuestions}:{quizzes:Q
     <h2 className="text-xl font-black text-petrolio">{t('data')}</h2><p className="text-sm text-muted">{t('singleHint')}</p>
     <div className="flex flex-wrap gap-2 items-center">
       <select aria-label={t('chooseQuiz')} value={selected?.id || ''} onChange={e=>setQuizId(e.target.value)} className="min-w-0 max-w-full rounded-xl border border-line p-2">{quizzes.map(q=><option key={q.id} value={q.id}>{q.title}</option>)}</select>
-      <button disabled={!selected} onClick={()=>onEditor(selected)} className="btn-petrolio rounded-xl px-3 py-2">{t('exportQuiz')}</button>
-      <button disabled={!selected} onClick={()=>onEditor(selected)} className="btn-petrolio rounded-xl px-3 py-2">{t('importQuiz')}</button>
-      <button onClick={onQuestions} className="btn-petrolio rounded-xl px-3 py-2">{t('importQuestions')}</button>
-      <button onClick={()=>setDialog('export')} className="btn-mandarino rounded-xl px-3 py-2 font-bold">{t('exportBackup')}</button>
-      <button onClick={()=>setDialog('import')} className="btn-petrolio rounded-xl px-3 py-2 font-bold">{t('importBackup')}</button>
+      <button disabled={!selected} onClick={()=>onEditor(selected)} className="btn-secondary rounded-xl px-3 py-2">{t('openEditor')}</button>
+      <button onClick={onQuestions} className="btn-secondary rounded-xl px-3 py-2">{t('importQuestions')}</button>
+      <button onClick={()=>setDialog('export')} className="btn-secondary rounded-xl px-3 py-2">{t('exportBackup')}</button>
+      <button onClick={()=>setDialog('import')} className="btn-secondary rounded-xl px-3 py-2">{t('importBackup')}</button>
     </div>
     {!!missing.length && <div className="space-y-2"><p className="font-bold text-petrolio">{t('missing')}</p>{missing.map(q=>{
       const v=q.videoConfig!,m=v.missingVideo!;
-      return <label key={v.videoAssetId} className="block text-sm break-words">{q.title} · {m.name||v.videoFileName} · {(m.sizeKnown===false?'—':formatAssetSize(m.size))} · {m.mime}<br/>{t('relink')} <input disabled={relinking||!!dialog} type="file" accept="video/mp4,video/webm,.mp4,.webm" onChange={e=>{const file=e.target.files?.[0];e.target.value='';void relink(v.videoAssetId!,file);}} /></label>;
+      return <div key={v.videoAssetId} className="text-sm break-words space-y-1"><p>{q.title} · {m.name||v.videoFileName} · {(m.sizeKnown===false?'—':formatAssetSize(m.size))} · {m.mime}</p><FileButton label={t('relink')} aria-label={`${t('relink')}: ${q.title}`} disabled={relinking||!!dialog} accept="video/mp4,video/webm,.mp4,.webm" onChange={e=>{const file=e.target.files?.[0];e.target.value='';void relink(v.videoAssetId!,file);}} /></div>;
     })}</div>}
     {error&&<p role="alert">{error}</p>}
     {dialog&&<BackupDialog mode={dialog} quizzes={quizzes} onClose={()=>setDialog(undefined)} onRestored={onRestored}/>}
@@ -106,9 +106,9 @@ function BackupDialog({mode,quizzes,onClose,onRestored}:{mode:'export'|'import';
         {!!plan.orphanCount&&<p className="text-sm">{t('orphans')}: {plan.orphanCount} · {formatAssetSize(plan.orphanBytes)} · video</p>}
         {!!plan.warnings.length&&<p className="text-sm">{t('backupExternal')}</p>}
       </>}
-      {mode==='import'&&<label className="block font-bold">{t('file')}<input className="block max-w-full mt-2" type="file" accept=".zip,application/zip" disabled={busy||finished.current} onChange={e=>{
+      {mode==='import'&&<div className="space-y-2"><p className="font-bold">{t('file')}</p><FileButton aria-label={t('file')} accept=".zip,application/zip" disabled={busy||finished.current} onChange={e=>{
         const file=e.target.files?.[0];e.target.value='';if(!file)return;setPreview(undefined);setConfirmed(false);setSelected([]);void run(async()=>{const p=await previewLibraryBackup(file,quizzes);abort.current?.signal.throwIfAborted();setPreview(p);});
-      }}/></label>}
+      }}/></div>}
       {preview&&m&&<>
         <h3 className="font-bold">{t('preview')}</h3>
         {stats([[t('quizzes'),m.quizzes.length],[t('questions'),m.quizzes.reduce((n,q)=>n+q.questions.length,0)],[t('images'),backupImageCount(m)],[t('videos'),m.assets.filter(a=>a.kind==='video'&&a.included).length],[t('excluded'),m.assets.filter(a=>a.kind==='video'&&!a.included).length],[t('total'),formatAssetSize(preview.total)],[t('conflicts'),preview.conflicts.length]])}
@@ -126,8 +126,8 @@ function BackupDialog({mode,quizzes,onClose,onRestored}:{mode:'export'|'import';
     </div>
     <footer>
       {busy&&abort.current&&<button disabled={progress?.phase==='restore'} onClick={()=>abort.current?.abort()}>{t('cancel')}</button>}
-      {mode==='export'&&<button className="btn-mandarino" disabled={busy||!estimate||estimate.total>(direct?BACKUP_LIMITS.total:BACKUP_LIMITS.buffered)} onClick={()=>void exportFile()}>{t('export')}</button>}
-      {mode==='import'&&<button className="btn-mandarino" disabled={busy||!preview||finished.current||(restoreMode==='all'&&!confirmed)||(restoreMode==='replace'&&!selected.length)} onClick={()=>void restore()}>{t('confirm')}</button>}
+      {mode==='export'&&<button className="btn-primary" disabled={busy||!estimate||estimate.total>(direct?BACKUP_LIMITS.total:BACKUP_LIMITS.buffered)} onClick={()=>void exportFile()}>{t('export')}</button>}
+      {mode==='import'&&<button className="btn-primary" disabled={busy||!preview||finished.current||(restoreMode==='all'&&!confirmed)||(restoreMode==='replace'&&!selected.length)} onClick={()=>void restore()}>{t('confirm')}</button>}
       <button disabled={busy} onClick={onClose}>{t('close')}</button>
     </footer>
   </div></div>;

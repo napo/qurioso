@@ -329,7 +329,7 @@ export const FinalPodium: React.FC<FinalPodiumProps> = ({
       <div className="max-w-4xl mx-auto w-full flex items-center justify-center gap-4 mt-8 pb-8">
         <button
           onClick={onRestart || onPlayAgain}
-          className="btn-mandarino flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm shadow-md transition active:scale-95 cursor-pointer"
+          className="btn-primary flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm shadow-md transition active:scale-95 cursor-pointer"
         >
           <RotateCcw className="w-4 h-4" />
           <span>{t.playAgain}</span>

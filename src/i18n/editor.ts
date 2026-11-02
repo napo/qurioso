@@ -4,7 +4,7 @@ import type { Language } from './translations';
 const it = {
   trueOption: 'Vero',
   falseOption: 'Falso',
-  defaultCategory: 'Cultura Generale',
+  defaultCategory: 'Cultura generale',
   draftUnavailable: 'Recupero bozze non disponibile. Esporta il quiz prima di chiudere la pagina.',
   discardChanges: 'Ci sono modifiche non salvate. Vuoi scartarle e uscire dall’editor?',
   discardTimeQuestion: 'Il tempo modificato non è stato applicato. Vuoi scartare questa modifica e cambiare domanda?',

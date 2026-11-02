@@ -201,9 +201,9 @@ test('App refresh restores a video host paused, keeps checkpoints/results and ex
   await wait(async () => (await state()).status === 'question_results', 'accepted answer closes question');
   const scored = (await state()).players.phone.score;
   await refresh();
-  assert.match(document.body.textContent!, /Risultati Domanda 2/);
+  assert.match(document.body.textContent!, /Risultati domanda 2/);
   assert.equal((await state()).players.phone.score, scored); assert.equal(plays, 0);
-  await click('Classifica Parziale'); await click('Riprendi video');
+  await click('Classifica parziale'); await click('Riprendi video');
   await wait(() => plays === 1, 'explicit resume plays video');
   await act(async () => {
     const media = document.querySelector('video')!; media.currentTime = 33; media.dispatchEvent(new dom.window.Event('ended'));
@@ -212,7 +212,7 @@ test('App refresh restores a video host paused, keeps checkpoints/results and ex
   await click('Chiudi tempo'); await wait(async () => (await state()).status === 'question_results', 'last results');
   await refresh();
   assert.equal(plays, 1, 'recovery of end-of-video results stays paused');
-  await click('Classifica Parziale'); await click('Riprendi video');
+  await click('Classifica parziale'); await click('Riprendi video');
   await wait(async () => (await state()).status === 'finished', 'restored ended flag reaches final summary');
   assert.equal((await (await request('/api/health')).json()).activeSessions, 1);
   await click('Esci');

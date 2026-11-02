@@ -26,7 +26,7 @@ test('the official hosted app offers classroom and downloads, never a quiz serve
   assert.ok(document.querySelector('[data-qurioso-dashboard]'));
   assert.match(document.body.textContent!, /Qurioso Web/);
   assert.ok([...document.querySelectorAll('a')].some(a => a.textContent?.includes('Scarica Qurioso') && a.href.endsWith('#quiz-in-rete')));
-  assert.equal([...document.querySelectorAll('button')].some(b => b.textContent === 'Quiz classico in rete'), false);
+  assert.equal([...document.querySelectorAll('button')].some(b => b.textContent === 'Quiz classico sui dispositivi'), false);
   assert.equal(document.querySelector('header')!.textContent!.includes(' Live'), false);
   assert.equal(document.querySelector('.library-data'), null);
   assert.equal([...document.querySelectorAll('button[aria-haspopup="menu"]')].map(b => b.textContent).join(), 'Nuovo quiz', 'a single creation control in the library');
@@ -63,11 +63,11 @@ test('the official hosted app offers classroom and downloads, never a quiz serve
   assert.equal(document.querySelector('[data-internet-setup]'), null);
   await act(async () => document.querySelector<HTMLButtonElement>('[data-activity-mode="network"]')!.click());
   assert.equal(new URL(window.location.href).searchParams.get('app'), 'network', 'refresh retains the selected workspace and presenter recovery');
-  assert.ok([...document.querySelectorAll('button')].some(b => b.textContent === 'Quiz classico in rete'));
-  assert.ok([...document.querySelectorAll('button')].some(b => b.textContent === 'Quiz video in rete' && !b.disabled), 'the included volcano quiz is playable on the network');
-  assert.equal([...document.querySelectorAll('button')].some(b => b.textContent === 'Attività in classe'), false);
+  assert.ok([...document.querySelectorAll('button')].some(b => b.textContent === 'Quiz classico sui dispositivi'));
+  assert.ok([...document.querySelectorAll('button')].some(b => b.textContent === 'Quiz video sui dispositivi' && !b.disabled), 'the included volcano quiz is playable on the network');
+  assert.equal([...document.querySelectorAll('button')].some(b => b.textContent === 'Attività in classe' && !b.hasAttribute('data-activity-mode')), false);
   await act(async () => document.querySelector<HTMLButtonElement>('[data-activity-mode="classroom"]')!.click());
-  assert.equal([...document.querySelectorAll('button')].some(b => b.textContent === 'Quiz classico in rete'), false);
+  assert.equal([...document.querySelectorAll('button')].some(b => b.textContent === 'Quiz classico sui dispositivi'), false);
   await act(async () => document.querySelector<HTMLButtonElement>('button[aria-label="Impostazioni"]')!.click());
   assert.equal(document.querySelector('[data-internet-setup]'), null);
   assert.equal(document.body.textContent!.includes('Preferisci accesso Internet'), false);

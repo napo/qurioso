@@ -105,7 +105,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Una risposta da ogni dispositivo",
-          "body": "Scegli Quiz in rete se ciascuno studente deve rispondere individualmente. Il docente scarica e avvia l’app desktop; i partecipanti usano il browser del telefono o del computer.",
+          "body": "Scegli Quiz sui dispositivi se ciascuno studente deve rispondere individualmente. Il docente scarica e avvia l’app desktop; i partecipanti usano il browser del telefono o del computer.",
           "action": "downloads"
         },
         {
@@ -126,7 +126,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       "steps": [
         {
           "title": "Apri la biblioteca",
-          "body": "Sul sito scegli Attività in classe dalla home; nell’app desktop seleziona Lezione in aula. Puoi usare i quiz già inclusi oppure crearne uno tuo. Non serve avviare un server e non è richiesta la registrazione.",
+          "body": "Sul sito scegli Attività in classe dalla home; nell’app desktop seleziona Attività in classe. Puoi usare i quiz già inclusi oppure crearne uno tuo. Non serve avviare un server e non è richiesta la registrazione.",
           "action": "classroom"
         },
         {
@@ -144,7 +144,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       ]
     },
     "network": {
-      "title": "Condurre un quiz in rete",
+      "title": "Condurre un quiz sui dispositivi",
       "summary": "Prepara il computer del docente e fai entrare i partecipanti.",
       "audience": "desktop",
       "needs": "L’app desktop sul computer del docente e i dispositivi dei partecipanti sulla stessa LAN o Wi-Fi.",
@@ -155,8 +155,8 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
           "action": "downloads"
         },
         {
-          "title": "Apri un quiz in rete",
-          "body": "Nell’app desktop seleziona Quiz sui dispositivi, poi Quiz video in rete nella scheda Tipi di vulcani con geopop. Il quiz incluso resta disponibile anche nelle biblioteche già salvate. Puoi avviare allo stesso modo i tuoi quiz con checkpoint validi."
+          "title": "Apri un quiz sui dispositivi",
+          "body": "Nell’app desktop seleziona Quiz sui dispositivi, poi Quiz video sui dispositivi nella scheda Tipi di vulcani con geopop. Il quiz incluso resta disponibile anche nelle biblioteche già salvate. Puoi avviare allo stesso modo i tuoi quiz con checkpoint validi."
         },
         {
           "title": "Mostra indirizzo, PIN e QR",
@@ -221,7 +221,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Salva e prova",
-          "body": "Premi Salva Quiz e controlla titolo e copertina nella biblioteca. Apri un’attività in classe per verificare testi e risposte, poi esporta un backup se vuoi conservarli o trasferirli."
+          "body": "Premi Salva quiz e controlla titolo e copertina nella biblioteca. Apri un’attività in classe per verificare testi e risposte, poi esporta un backup se vuoi conservarli o trasferirli."
         }
       ]
     },
@@ -331,7 +331,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Conferma e salva nell’editor",
-          "body": "Apri il risultato nell’editor, controlla domande e risposte e premi Salva Quiz. Nei quiz video le domande importate non ricevono automaticamente un checkpoint: associale nella timeline."
+          "body": "Apri il risultato nell’editor, controlla domande e risposte e premi Salva quiz. Nei quiz video le domande importate non ricevono automaticamente un checkpoint: associale nella timeline."
         }
       ]
     },
@@ -395,7 +395,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "One answer from each device",
-          "body": "Choose Network quizzes when each student should answer individually. The teacher downloads and runs the desktop app; participants use a browser on their phone or computer.",
+          "body": "Choose Device quizzes when each student should answer individually. The teacher downloads and runs the desktop app; participants use a browser on their phone or computer.",
           "action": "downloads"
         },
         {
@@ -416,7 +416,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       "steps": [
         {
           "title": "Open the library",
-          "body": "On the website choose Classroom activities from the home page; in the desktop app select Classroom lesson. Use an included quiz or create your own. No server or registration is required.",
+          "body": "On the website choose Classroom activities from the home page; in the desktop app select Classroom activities. Use an included quiz or create your own. No server or registration is required.",
           "action": "classroom"
         },
         {
@@ -434,7 +434,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       ]
     },
     "network": {
-      "title": "Host a network quiz",
+      "title": "Host a device quiz",
       "summary": "Prepare the teacher’s computer and let participants join.",
       "audience": "desktop",
       "needs": "The desktop app on the teacher’s computer, with participants’ devices on the same LAN or Wi-Fi.",
@@ -445,8 +445,8 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
           "action": "downloads"
         },
         {
-          "title": "Open a network quiz",
-          "body": "In the desktop app select Quiz on participants’ devices, then Network video quiz on the Tipi di vulcani con geopop card. This included quiz remains available in previously saved libraries too. Start your own quizzes with valid checkpoints in the same way."
+          "title": "Open a device quiz",
+          "body": "In the desktop app select Device quizzes, then Video device quiz on the Tipi di vulcani con geopop card. This included quiz remains available in previously saved libraries too. Start your own quizzes with valid checkpoints in the same way."
         },
         {
           "title": "Show the address, PIN and QR code",
@@ -685,7 +685,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Eine Antwort pro Gerät",
-          "body": "Wähle Netzwerkquiz, wenn alle einzeln antworten sollen. Die Lehrkraft lädt die Desktop-App herunter und startet sie; die Teilnehmenden nutzen den Browser auf ihrem Telefon oder Computer.",
+          "body": "Wähle Geräte-Quiz, wenn alle einzeln antworten sollen. Die Lehrkraft lädt die Desktop-App herunter und startet sie; die Teilnehmenden nutzen den Browser auf ihrem Telefon oder Computer.",
           "action": "downloads"
         },
         {
@@ -706,7 +706,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       "steps": [
         {
           "title": "Bibliothek öffnen",
-          "body": "Wähle auf der Website Klassenaktivitäten; in der Desktop-App wählst du Unterricht im Klassenraum. Nutze ein enthaltenes Quiz oder erstelle ein eigenes. Dafür sind weder ein Server noch eine Registrierung erforderlich.",
+          "body": "Wähle auf der Website Klassenaktivitäten; in der Desktop-App wählst du Klassenaktivitäten. Nutze ein enthaltenes Quiz oder erstelle ein eigenes. Dafür sind weder ein Server noch eine Registrierung erforderlich.",
           "action": "classroom"
         },
         {
@@ -724,7 +724,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       ]
     },
     "network": {
-      "title": "Ein Netzwerkquiz leiten",
+      "title": "Ein Geräte-Quiz leiten",
       "summary": "Bereite den Computer der Lehrkraft vor und lasse die Teilnehmenden beitreten.",
       "audience": "desktop",
       "needs": "Die Desktop-App auf dem Computer der Lehrkraft und alle Geräte im selben LAN oder WLAN.",
@@ -735,8 +735,8 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
           "action": "downloads"
         },
         {
-          "title": "Netzwerkquiz öffnen",
-          "body": "Wähle in der Desktop-App Quiz auf den Geräten und dann Video-Netzwerkquiz auf der Karte Tipi di vulcani con geopop. Dieses enthaltene Quiz bleibt auch in gespeicherten Bibliotheken verfügbar. Eigene Quiz mit gültigen Checkpoints startest du genauso."
+          "title": "Geräte-Quiz öffnen",
+          "body": "Wähle in der Desktop-App Quiz auf den Geräten und dann Video-Quiz auf den Geräten auf der Karte Tipi di vulcani con geopop. Dieses enthaltene Quiz bleibt auch in gespeicherten Bibliotheken verfügbar. Eigene Quiz mit gültigen Checkpoints startest du genauso."
         },
         {
           "title": "Adresse, PIN und QR-Code zeigen",
@@ -829,7 +829,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Speichern, testen und zeigen",
-          "body": "Speichere und teste das Quiz. Im Netzwerkspiel erscheint das Video auf dem Bildschirm der Lehrkraft; Telefone zeigen Antwortschaltflächen. Beim Start wird Vollbild angefordert: Esc beendet es, die Videoschaltfläche aktiviert es erneut."
+          "body": "Speichere und teste das Quiz. Im Geräte-Quiz erscheint das Video auf dem Bildschirm der Lehrkraft; Telefone zeigen Antwortschaltflächen. Beim Start wird Vollbild angefordert: Esc beendet es, die Videoschaltfläche aktiviert es erneut."
         }
       ]
     },

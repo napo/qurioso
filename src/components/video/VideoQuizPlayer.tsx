@@ -302,8 +302,8 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
   if (completed) return <main className="h-full overflow-auto bg-white text-petrolio flex flex-col items-center justify-center gap-4 p-6 text-center">
     <QuriosoIcon size={48} /><h2 className="text-3xl font-black">{c.finished}</h2>
     <p>{fill(c.videoDone, { done: answeredCount, total: checkpoints.length })}</p>
-    <button className="btn-mandarino rounded-xl px-5 py-3 font-bold" onClick={() => { endedRef.current = false; setCompleted(false); triggeredRef.current = new Set(); activeQuestionRef.current = false; setTriggeredCheckpoints(new Set()); setActiveQuestion(null); setScore(0); setStreak(0); setAnsweredCount(0); setCurrentTime(0); }}>{c.restartActivity}</button>
-    {onExit && <button className="btn-petrolio rounded-xl px-5 py-3 font-bold" onClick={onExit}>{preview ? c.backToEditor : t.exit}</button>}
+    <button className="btn-secondary rounded-xl px-5 py-3" onClick={() => { endedRef.current = false; setCompleted(false); triggeredRef.current = new Set(); activeQuestionRef.current = false; setTriggeredCheckpoints(new Set()); setActiveQuestion(null); setScore(0); setStreak(0); setAnsweredCount(0); setCurrentTime(0); }}>{c.restartActivity}</button>
+    {onExit && <button className="btn-primary rounded-xl px-5 py-3" onClick={onExit}>{preview ? c.backToEditor : t.exit}</button>}
   </main>;
 
   return (
@@ -330,7 +330,7 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
           <div className="flex items-center gap-4 bg-surface-soft px-3.5 py-1.5 rounded-xl border border-line text-xs">
             <div className="flex items-center gap-1.5 text-accent-ink font-bold">
               <Award className="w-4 h-4" />
-              <span>{score} pts</span>
+              <span>{score} pt</span>
             </div>
             {streak > 1 && (
               <div className="flex items-center gap-1 text-orange-700 font-semibold animate-pulse">
@@ -401,7 +401,7 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
         {videoError && !activeQuestion && (
           <div role="alert" className="absolute inset-0 bg-white/95 flex flex-col items-center justify-center p-6 text-center gap-4">
             <p className="max-w-lg text-sm text-rose-700">{videoError}</p>
-            <button onClick={() => setShowConfigModal(true)} className="btn-petrolio px-5 py-3 rounded-xl font-bold cursor-pointer">{g.changeVideo}</button>
+            <button onClick={() => setShowConfigModal(true)} className="btn-primary px-5 py-3 rounded-xl cursor-pointer">{g.changeVideo}</button>
           </div>
         )}
         {!isPlaying && !activeQuestion && !videoError && !sourceBusy && videoProvider(videoUrl) === 'html5' && (
@@ -521,7 +521,7 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
                   )}
                   <button
                     onClick={resumeVideo}
-                    className="w-full py-3 rounded-xl btn-petrolio font-bold text-sm shadow-lg transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                    className="w-full py-3 rounded-xl btn-primary font-bold text-sm shadow-lg transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                   >
                     <span>{t.continueVideo}</span>
                     <Play className="w-4 h-4 fill-current" />

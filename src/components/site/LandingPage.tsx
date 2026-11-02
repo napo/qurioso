@@ -53,7 +53,7 @@ export function LandingPage() {
     <a href="#contenuto" className="sr-only focus:not-sr-only focus:block focus:p-3">{t.skip}</a>
     <header className="max-w-6xl mx-auto px-5 md:px-8 py-6 flex flex-wrap items-center justify-between gap-5">
       <a href="./" aria-label={t.home}><QuriosoLogo size="md" /></a>
-      <nav aria-label={t.nav} className="flex flex-wrap items-center gap-5 text-sm font-bold text-petrolio">{localServer && <a href={`?role=player&lang=${language}`} className="btn-mandarino rounded-xl px-4 py-3">{appText.joinWithPin}</a>}<a href={classroomUrl} className="hover:underline">{t.classroom}</a><a href={networkUrl} className="hover:underline">{t.network}</a><a href={`?app=guide&lang=${language}`} className="hover:underline">{guideNavigation[language].nav}</a><LanguageSelector /></nav>
+      <nav aria-label={t.nav} className="flex flex-wrap items-center gap-5 text-sm font-bold text-petrolio">{localServer && <a href={`?role=player&lang=${language}`} className="btn-secondary rounded-xl px-4 py-3">{appText.joinWithPin}</a>}<a href={classroomUrl} className="hover:underline">{t.classroom}</a><a href={networkUrl} className="hover:underline">{t.network}</a><a href={`?app=guide&lang=${language}`} className="hover:underline">{guideNavigation[language].nav}</a><LanguageSelector /></nav>
     </header>
     <main id="contenuto">
       <section className="max-w-6xl mx-auto px-5 md:px-8 pt-12 md:pt-20 pb-16 md:pb-24 grid lg:grid-cols-[1.15fr_1fr] gap-12 items-center">
@@ -62,7 +62,7 @@ export function LandingPage() {
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.08] text-petrolio">{t.title}</h1>
           <p className="mt-6 text-lg text-muted max-w-xl leading-relaxed">{t.intro}</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <a href={classroomUrl} className="btn-petrolio rounded-xl px-5 py-4 font-bold inline-flex items-center gap-3">{t.openClassroom} <ArrowUpRight size={19} /></a>
+            <a href={classroomUrl} className="btn-primary rounded-xl px-5 py-4 inline-flex items-center gap-3">{t.openClassroom} <ArrowUpRight size={19} /></a>
             <a href={networkUrl} className="rounded-xl border border-line px-5 py-4 font-bold text-petrolio inline-flex items-center gap-3">{t.discoverNetwork} <ChevronRight size={18} /></a>
           </div>
           <p className="mt-4 text-sm text-muted">{t.noInstall}</p>

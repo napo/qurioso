@@ -9,7 +9,7 @@ const it = {
   tunnelButton: 'Tunnel Internet', configure: 'Configura Cloudflare', openPanel: 'Apri controlli Cloudflare',
   qrUpdated: 'Link e QR aggiornati all’indirizzo pubblico',
 
-  title: 'Condividi su Internet', experimental: 'Sperimentale', close: 'Chiudi', start: 'Attiva condivisione', retry: 'Riprova', stop: 'Interrompi condivisione', reconnectHelp: 'Il collegamento a Cloudflare non risponde. I partecipanti esterni potrebbero essere disconnessi. Qurioso tenta il ripristino automatico; puoi interrompere la condivisione e riprovare. Controlla la connessione e la guida Cloudflare.',
+  title: 'Condividi su Internet', experimental: 'Sperimentale', technical: 'Dettagli tecnici', close: 'Chiudi', start: 'Attiva condivisione', retry: 'Riprova', stop: 'Interrompi condivisione', reconnectHelp: 'Il collegamento a Cloudflare non risponde. I partecipanti esterni potrebbero essere disconnessi. Qurioso tenta il ripristino automatico; puoi interrompere la condivisione e riprovare. Controlla la connessione e la guida Cloudflare.',
   intro: 'Condividi questa partita tramite Cloudflare, anche con partecipanti fuori dalla LAN. Non serve un account.', reconnecting: 'Connessione Cloudflare persa: tentativo di ripristino automatico',
   disclosure: 'Al primo utilizzo Qurioso scarica il componente cloudflared dai rilasci ufficiali di Cloudflare e ne verifica l’integrità. Viene salvato nella cartella dati dell’app e riutilizzato. Il download può richiedere alcuni minuti.',
   traffic: 'Durante la condivisione, il traffico della partita, inclusi i nomi dei partecipanti e le risposte, passa attraverso Cloudflare. Chi possiede il link può raggiungere la pagina di partecipazione. Il docente continua a controllare il quiz nell’app locale.',
@@ -38,7 +38,7 @@ const en: Text = {
   tunnelButton: 'Internet tunnel', configure: 'Configure Cloudflare', openPanel: 'Open Cloudflare controls',
   qrUpdated: 'Link and QR code updated to the public address',
 
-  title: 'Share over the Internet', experimental: 'Experimental', close: 'Close', start: 'Start sharing', retry: 'Retry', stop: 'Stop sharing', reconnectHelp: 'The Cloudflare connection is not responding. Remote participants may be disconnected. Qurioso is reconnecting automatically; you can stop sharing and retry. Check Internet access and the Cloudflare guide.',
+  title: 'Share over the Internet', experimental: 'Experimental', technical: 'Technical details', close: 'Close', start: 'Start sharing', retry: 'Retry', stop: 'Stop sharing', reconnectHelp: 'The Cloudflare connection is not responding. Remote participants may be disconnected. Qurioso is reconnecting automatically; you can stop sharing and retry. Check Internet access and the Cloudflare guide.',
   intro: 'Share this game through Cloudflare with participants outside your LAN. No account is required.', reconnecting: 'Cloudflare connection lost: reconnecting automatically',
   disclosure: 'On first use, Qurioso downloads cloudflared from official Cloudflare releases and verifies its integrity. It is stored in the app data folder and reused. The download may take a few minutes.',
   traffic: 'While sharing, game traffic, including participant names and answers, passes through Cloudflare. Anyone with the link can reach the participant page. The teacher keeps controlling the quiz in the local app.',
@@ -66,7 +66,7 @@ const de: Text = {
   tunnelButton: 'Internet-Tunnel', configure: 'Cloudflare einrichten', openPanel: 'Cloudflare-Steuerung öffnen',
   qrUpdated: 'Link und QR-Code auf die öffentliche Adresse aktualisiert',
 
-  title: 'Über das Internet teilen', experimental: 'Experimentell', close: 'Schließen', start: 'Freigabe starten', retry: 'Erneut versuchen', stop: 'Freigabe beenden', reconnectHelp: 'Die Cloudflare-Verbindung antwortet nicht. Externe Teilnehmende könnten getrennt sein. Qurioso versucht die Verbindung automatisch wiederherzustellen; du kannst die Freigabe beenden und erneut versuchen. Prüfe die Internetverbindung und die Cloudflare-Anleitung.',
+  title: 'Über das Internet teilen', experimental: 'Experimentell', technical: 'Technische Details', close: 'Schließen', start: 'Freigabe starten', retry: 'Erneut versuchen', stop: 'Freigabe beenden', reconnectHelp: 'Die Cloudflare-Verbindung antwortet nicht. Externe Teilnehmende könnten getrennt sein. Qurioso versucht die Verbindung automatisch wiederherzustellen; du kannst die Freigabe beenden und erneut versuchen. Prüfe die Internetverbindung und die Cloudflare-Anleitung.',
   intro: 'Teile dieses Spiel über Cloudflare mit Teilnehmenden außerhalb deines LANs. Ein Konto ist nicht nötig.', reconnecting: 'Cloudflare-Verbindung verloren: automatischer Wiederverbindungsversuch',
   disclosure: 'Beim ersten Start lädt Qurioso cloudflared aus den offiziellen Cloudflare-Veröffentlichungen herunter und prüft die Integrität. Die Komponente wird im App-Datenordner gespeichert und wiederverwendet. Der Download kann einige Minuten dauern.',
   traffic: 'Während der Freigabe läuft der Spielverkehr einschließlich Namen und Antworten über Cloudflare. Wer den Link hat, kann die Teilnahmeseite öffnen. Die Lehrkraft steuert das Quiz weiterhin in der lokalen App.',

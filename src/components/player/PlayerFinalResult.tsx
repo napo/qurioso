@@ -46,8 +46,8 @@ export function PlayerFinalResult({ result, onClose }: { result: FinalResult; on
       {image ? <img src={image.url} alt={summary} className="w-full mx-auto" /> : <div className="p-6 text-center space-y-3"><h2 className="font-bold [overflow-wrap:anywhere]">{result.title}</h2><p className="[overflow-wrap:anywhere]">{player.avatar} {player.nickname}</p><p className="text-3xl font-black">{player.score} {t.points}</p><p>{t.position} {rank} {t.of} {result.players.length}</p></div>}
     </section>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <button type="button" disabled={(!image && !imageFailed) || sharing} onClick={() => imageFailed ? setAttempt(value => value + 1) : void share()} className="btn-mandarino rounded-xl p-4 font-bold flex items-center justify-center gap-2 disabled:opacity-50"><Share2 size={20} />{imageFailed ? t.retry : t.share}</button>
-      <button type="button" onClick={close} className="rounded-xl p-4 font-bold border border-line bg-white flex items-center justify-center gap-2"><X size={20} />{t.close}</button>
+      <button type="button" disabled={(!image && !imageFailed) || sharing} onClick={() => imageFailed ? setAttempt(value => value + 1) : void share()} className="btn-primary rounded-xl p-4 flex items-center justify-center gap-2"><Share2 size={20} />{imageFailed ? t.retry : t.share}</button>
+      <button type="button" onClick={close} className="btn-secondary rounded-xl p-4 flex items-center justify-center gap-2"><X size={20} />{t.close}</button>
     </div>
     {(!image || notice) && <p role="status" className="text-sm text-petrolio">{notice ? t[notice] : imageFailed ? t.imageError : t.preparing}</p>}
     <p className="text-sm text-muted">{t.shareHint}</p>

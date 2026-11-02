@@ -1,4 +1,5 @@
 import { VideoSearch } from './VideoSearch';
+import { FileButton } from './FileButton';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { parseVideoUrl, videoFileError, DEMO_VIDEO_URL } from '../../utils/videoSource';
 import { storeVideo } from '../../services/quizStorage';
@@ -25,7 +26,7 @@ export function VideoSourcePicker({ value, onChange, onBusyChange }: {
     <label htmlFor={`${id}-url`} className="block text-sm font-bold text-petrolio">{ed.pasteLink}</label>
     <div className="flex gap-2">
       <input id={`${id}-url`} type="url" value={url} disabled={busy} onChange={event => setUrl(event.target.value)} placeholder="https://www.youtube.com/watch?v=…" className="min-w-0 flex-1 rounded-xl border border-line px-3 py-2 text-xs" />
-      <button type="button" disabled={busy} className="btn-petrolio rounded-xl px-3 py-2 text-xs font-bold cursor-pointer" onClick={() => {
+      <button type="button" disabled={busy} className="btn-secondary rounded-xl px-3 py-2 text-sm cursor-pointer" onClick={() => {
         try {
           const source = parseVideoUrl(url.trim());
           setError('');
@@ -35,8 +36,7 @@ export function VideoSourcePicker({ value, onChange, onBusyChange }: {
     </div>
     <p className="text-xs text-muted">{ed.onlineNote}</p>
     <label htmlFor={`${id}-file`} className="block text-sm font-bold text-petrolio">{ed.orUpload}</label>
-    <input id={`${id}-file`} type="file" accept="video/mp4,video/webm,.mp4,.webm" disabled={busy} aria-label={ed.uploadVideo}
-      className="max-w-full text-xs text-muted file:mr-2 file:rounded-lg file:border-0 file:bg-petrolio file:text-white file:px-3 file:py-2 file:cursor-pointer"
+    <FileButton id={`${id}-file`} accept="video/mp4,video/webm,.mp4,.webm" disabled={busy} aria-label={ed.uploadVideo}
       onChange={async event => {
         const file = event.target.files?.[0]; event.target.value = '';
         if (!file) return;

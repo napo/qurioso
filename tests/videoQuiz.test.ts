@@ -63,7 +63,7 @@ test('YouTube and Vimeo quiz checkpoints pause, show feedback, resume, and ignor
     await click('Marte');
     assert.match(document.querySelector('[role="status"]')?.textContent || '', /Risposta corretta/);
     assert.match(document.body.textContent || '', /1\/3/);
-    await click('Continua Video');
+    await click('Continua video');
     assert.equal(media.plays, 1);
     assert.equal(media.paused, false);
     await act(async () => {
@@ -112,7 +112,7 @@ test('YouTube and Vimeo quiz checkpoints pause, show feedback, resume, and ignor
     sourceInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
   });
   await click('Usa link');
-  await click('Salva Quiz');
+  await click('Salva quiz');
   assert.equal(saved!.videoConfig!.videoType, 'youtube');
   assert.equal(saved!.videoConfig!.videoUrl, 'https://www.youtube.com/watch?v=M7lc1UVf-VE');
   assert.equal(saved!.videoConfig!.checkpoints.length, 0, 'new video quizzes keep questions unassigned until the teacher places them');

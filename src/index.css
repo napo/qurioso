@@ -42,27 +42,38 @@
 }
 .border-petrolio-subtle { border-color: var(--color-line); }
 
-.btn-mandarino, .btn-petrolio {
-  transition: background-color .2s, box-shadow .2s, transform .2s;
+/* Button roles: the colour says what a button does.
+   primary   - the one action that moves the screen or dialog forward; at most one visible at a time
+   secondary - every other action
+   danger    - deletes, discards, disconnects or leaves
+   item      - the main action repeated on each card of a list, where repeated orange would tire
+   selected  - the active state of tabs and toggles (see aria-pressed / aria-selected users) */
+.btn-primary, .btn-secondary, .btn-danger, .btn-item {
+  border: 1.5px solid transparent;
+  font-weight: 700;
+  transition: background-color .2s, border-color .2s, box-shadow .2s, transform .2s;
 }
-.btn-mandarino {
+.btn-primary {
   background: var(--color-mandarino);
   color: var(--color-ink);
   box-shadow: 0 3px 10px rgb(255 150 59 / 18%);
 }
-.btn-mandarino:hover {
-  background: #ffab62;
-  box-shadow: 0 5px 16px rgb(255 150 59 / 24%);
-  transform: translateY(-1px);
+.btn-primary:hover:not(:disabled) { background: #ffab62; box-shadow: 0 5px 16px rgb(255 150 59 / 24%); transform: translateY(-1px); }
+.btn-secondary { background: #fff; color: var(--color-petrolio); border-color: var(--color-petrolio); }
+.btn-secondary:hover:not(:disabled) { background: var(--color-surface-soft); }
+.btn-danger { background: #fff; color: #b42318; border-color: #b42318; }
+.btn-danger:hover:not(:disabled) { background: #fdecea; }
+.btn-item, .btn-selected { background: var(--color-petrolio); color: #fff; border-color: var(--color-petrolio); }
+.btn-item { box-shadow: 0 3px 10px rgb(7 94 99 / 12%); }
+.btn-item:hover:not(:disabled) { background: #064b4f; transform: translateY(-1px); }
+.btn-primary:active:not(:disabled), .btn-secondary:active:not(:disabled), .btn-danger:active:not(:disabled), .btn-item:active:not(:disabled) { transform: translateY(1px); }
+/* Unavailable looks unavailable, never like a faded colour. */
+.btn-primary:disabled, .btn-secondary:disabled, .btn-danger:disabled, .btn-item:disabled {
+  background: #eef2f2; color: #6b7f80; border-color: #d5dfdf; box-shadow: none; cursor: not-allowed; opacity: 1; filter: none; transform: none;
 }
-.btn-petrolio {
-  background: var(--color-petrolio);
-  color: #fff;
-  border: 1px solid var(--color-petrolio);
-  box-shadow: 0 3px 10px rgb(7 94 99 / 12%);
-}
-.btn-petrolio:hover { background: #064b4f; transform: translateY(-1px); }
-.btn-mandarino:active, .btn-petrolio:active { transform: translateY(1px); }
+.btn-quiet { color: var(--color-petrolio); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.btn-quiet:disabled { color: #6b7f80; cursor: not-allowed; }
+.file-button:focus-within { outline: 3px solid var(--color-petrolio); outline-offset: 3px; }
 .glow-mandarino { filter: drop-shadow(0 2px 5px rgb(255 150 59 / 15%)); }
 .glow-petrolio { filter: drop-shadow(0 2px 5px rgb(7 94 99 / 12%)); }
 
@@ -127,6 +138,23 @@
   .player-answer-grid:not([data-answer-count="2"]):not([data-answer-count="3"]):not([data-answer-count="4"]) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .player-question-prompt p { font-size: .75rem; }
 }
+/* Projected question: on a projector the question and answers are what the class reads, so they take the free height. */
+@media (min-width: 768px) and (min-height: 560px) {
+  .host-screen[data-phase="question"] .host-question { flex: 1 1 auto; min-height: 0; max-width: min(100%, 110rem); }
+  .host-screen[data-phase="question"] .host-question-heading { padding: clamp(1rem, 2.2vh, 2rem); }
+  .host-screen[data-phase="question"] .host-question-title { font-size: clamp(1.75rem, 1.6vw + 1.6vh, 3.5rem); line-height: 1.2; text-wrap: balance; }
+  /* Three-digit times must fit: the box grows sideways instead of clipping. */
+  .host-screen[data-phase="question"] .host-timer { width: auto; min-width: clamp(6rem, 11vh, 9rem); height: clamp(6rem, 11vh, 9rem); padding-inline: .75rem; }
+  .host-screen[data-phase="question"] .host-timer > .font-mono { font-size: clamp(2rem, 4.4vh, 3.5rem); line-height: 1; }
+  .host-screen[data-phase="question"] .host-options { flex: 1 1 auto; grid-auto-rows: minmax(min-content, 1fr); gap: clamp(.75rem, 1.6vh, 1.25rem); }
+  /* With an image the layout is a grid: give the answers the free row instead of spreading it between rows. */
+  .host-screen[data-phase="question"] .host-question:has(.host-question-image) { grid-template-rows: auto minmax(0, 1fr) auto; align-items: stretch; }
+  .host-screen[data-phase="question"] .host-question:has(.host-question-image) > .host-question-image { align-self: center; }
+  .host-screen[data-phase="question"] .host-option { padding: clamp(.75rem, 2vh, 1.75rem); gap: clamp(.75rem, 1.2vw, 1.5rem); }
+  .host-screen[data-phase="question"] .host-option > div:first-child { width: clamp(2.5rem, 6vh, 4.5rem); height: clamp(2.5rem, 6vh, 4.5rem); font-size: clamp(1.25rem, 3vh, 2.25rem); }
+  .host-screen[data-phase="question"] .host-option-text { font-size: clamp(1.25rem, 1.1vw + 1.4vh, 2.75rem); line-height: 1.25; }
+}
+
 /* Keep the media mounted, preserving provider state while questions are open. */
 .host-screen:is([data-phase="question"], [data-phase="question_results"], [data-phase="leaderboard"], [data-phase="countdown"]) .host-video { display: none; }
 

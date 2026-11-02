@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { FileButton } from '../common/FileButton';
 import type { Quiz, Question } from '../../types/quiz';
 import { useLanguage } from '../../context/LanguageContext';
 import { importText, type ImportIssue, type ImportMessageKey } from '../../i18n/questionImport';
@@ -108,7 +109,7 @@ export function QuestionImportDialog({ initialQuiz, quizzes = [], onCancel, onCo
       </header>
       <div className="min-h-0 overflow-auto p-4 space-y-4">
         <p className="text-sm text-muted">{t('local')}</p>
-        <div><label className="block text-sm font-bold text-petrolio mb-1">{t('chooseFile')}<input aria-label={t('chooseFile')} className={inputClass} type="file" accept=".csv,.tsv,.json,text/csv,application/json,text/tab-separated-values" disabled={confirming} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; void chooseFile(file); }} /></label><p className="text-xs text-muted">{t('utf8')}</p></div>
+        <div className="space-y-1"><p className="text-sm font-bold text-petrolio">{t('chooseFile')}</p><FileButton aria-label={t('chooseFile')} accept=".csv,.tsv,.json,text/csv,application/json,text/tab-separated-values" disabled={confirming} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; void chooseFile(file); }} /><p className="text-xs text-muted">{t('utf8')}</p></div>
         {reading && <p role="status">{t('loading')}</p>}
         {fileData && <p className="text-sm font-bold break-words">{fileData.name}</p>}
         {activeIssue && <p ref={errorBox} tabIndex={-1} role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{t(activeIssue.key, activeIssue.args)}</p>}
@@ -149,9 +150,9 @@ export function QuestionImportDialog({ initialQuiz, quizzes = [], onCancel, onCo
         </section>}
       </div>
       <footer className="shrink-0 border-t border-line px-4 py-3 flex flex-wrap gap-2 justify-end bg-white">
-        <button type="button" onClick={onCancel} className="rounded-xl border border-line px-4 py-2 text-sm font-bold">{t('cancel')}</button>
-        {step==='preview' && source?.kind!=='canonical' && <button type="button" className="rounded-xl border border-line px-4 py-2 text-sm font-bold" onClick={()=>{setStep('configure');setIssue(undefined);}}>{t('back')}</button>}
-        {step!=='preview' ? <button type="button" disabled={!source || reading} className="btn-petrolio rounded-xl px-4 py-2 text-sm font-bold disabled:opacity-50" onClick={()=>{if(preview.issue)setIssue(preview.issue);else{setIssue(undefined);setStep('preview');}}}>{t('next')}</button> : <button type="button" disabled={reading || confirming || !selected.size || Boolean(preview.issue)} className="btn-mandarino rounded-xl px-4 py-2 text-sm font-bold disabled:opacity-50" onClick={()=>void confirm()}>{t(initialQuiz?'confirmEditor':'confirm')}</button>}
+        <button type="button" onClick={onCancel} className="btn-secondary rounded-xl px-4 py-2 text-sm">{t('cancel')}</button>
+        {step==='preview' && source?.kind!=='canonical' && <button type="button" className="btn-secondary rounded-xl px-4 py-2 text-sm" onClick={()=>{setStep('configure');setIssue(undefined);}}>{t('back')}</button>}
+        {step!=='preview' ? <button type="button" disabled={!source || reading} className="btn-primary rounded-xl px-4 py-2 text-sm font-bold" onClick={()=>{if(preview.issue)setIssue(preview.issue);else{setIssue(undefined);setStep('preview');}}}>{t('next')}</button> : <button type="button" disabled={reading || confirming || !selected.size || Boolean(preview.issue)} className="btn-primary rounded-xl px-4 py-2 text-sm font-bold" onClick={()=>void confirm()}>{t(initialQuiz?'confirmEditor':'confirm')}</button>}
       </footer>
     </div>
   </div>;

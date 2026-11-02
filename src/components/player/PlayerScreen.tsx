@@ -234,8 +234,8 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
     <QuriosoIcon size={44} />
     <p role="status">{leaving ? p.leaving : recovering ? p.recovering : recoveryProblem}</p>
     {!recovering && !leaving && <div className="flex flex-wrap justify-center gap-3">
-      {canRetry && <button type="button" className="btn-petrolio rounded-xl px-5 py-3" onClick={() => void recover()}>{p.retryRecovery}</button>}
-      <button type="button" className="btn-mandarino rounded-xl px-5 py-3" onClick={() => void leave()}>{p.backToEntry}</button>
+      {canRetry && <button type="button" className="btn-primary rounded-xl px-5 py-3" onClick={() => void recover()}>{p.retryRecovery}</button>}
+      <button type="button" className="btn-secondary rounded-xl px-5 py-3" onClick={() => void leave()}>{p.backToEntry}</button>
     </div>}
   </main>;
   if (isJoined && !session) return <main className="min-h-screen bg-qurioso-canvas p-6 flex flex-col items-center justify-center text-petrolio">
@@ -338,7 +338,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
               <button
                 type="submit"
                 disabled={isJoining}
-                className="w-full py-4 rounded-2xl btn-mandarino font-black text-base tracking-wide flex items-center justify-center gap-2 shadow-md shadow-mandarino/25 transition cursor-pointer active:scale-95"
+                className="w-full py-4 rounded-2xl btn-primary font-black text-base tracking-wide flex items-center justify-center gap-2 shadow-md shadow-mandarino/25 transition cursor-pointer active:scale-95"
               >
                 <Zap className="w-5 h-5 fill-current" />
                 <span>{isJoining ? p.connecting : p.enter}</span>
