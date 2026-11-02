@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { Copy, Check, ExternalLink, Wifi, Globe, Smartphone } from 'lucide-react';
-import { getJoinBaseUrl, isLoopbackOrigin } from '../../utils/connectionUrl';
+import { displayAddress, getJoinBaseUrl, isLoopbackOrigin } from '../../utils/connectionUrl';
 import { gameSync, ServerInfo } from '../../services/gameSync';
 import { copyText } from '../../utils/clipboard';
 import { useLanguage } from '../../context/LanguageContext';
@@ -123,7 +123,7 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
           </div>
 
           <div className="text-[12px] text-muted font-semibold mt-1 truncate max-w-[240px] px-2 py-0.5 bg-surface-soft rounded-md">
-            {baseUrl.replace(/^https?:\/\//, '')}
+            {displayAddress(baseUrl)}
           </div>
 
           <div className="flex items-center gap-1.5 mt-2.5 w-full">

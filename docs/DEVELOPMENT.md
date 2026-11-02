@@ -15,7 +15,7 @@ npm ci
 npm run dev
 ```
 
-The terminal prints the local and LAN addresses with the selected port. Open the local address for the landing page, or append `?app=network` to open the full local application. QR links containing `?pin=...` open the participant screen directly.
+The terminal prints the local and LAN addresses with the selected port. On this computer, open the local address for the landing page, or append `?app=network` to open the full local application. Other devices only get the participant screen, whatever the path or parameters, and presenter APIs refuse them (see [LAN security](LAN_SECURITY.md)). QR links containing `?pin=...` open the participant screen directly.
 
 By default, `PORT=0` selects an available port at each launch. For a fixed port:
 

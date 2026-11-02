@@ -17,7 +17,7 @@ exports.run = async host => {
       await host.loadURL('http://qurioso.localhost/?app=network&lang=it');
       const start = mode === 'classic' ? 'Quiz classico sui dispositivi' : 'Quiz video sui dispositivi';
       await execute(host, `await wait(() => button(${JSON.stringify(start)}) && !button(${JSON.stringify(start)}).disabled, 'quiz card'); button(${JSON.stringify(start)}).click(); await wait(() => phase() === 'lobby' && document.querySelector('[data-testid="join-address"]'), 'host lobby'); document.querySelector('[aria-labelledby="internet-sharing-title"] button')?.click();`);
-      const entry = await execute(host, `return { pin: document.querySelector('[data-testid="join-pin"]').textContent, base: document.querySelector('[data-testid="join-address"]').textContent };`);
+      const entry = await execute(host, `return { pin: document.querySelector('[data-testid="join-pin"]').textContent, base: document.querySelector('[data-testid="join-address"]').dataset.url };`);
       const url = `${entry.base}/?pin=${entry.pin}&role=player&lang=it`;
       student = open(); await student.loadURL(url);
       await execute(student, `

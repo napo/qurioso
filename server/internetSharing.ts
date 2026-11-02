@@ -1,7 +1,17 @@
 import type { IncomingMessage } from 'node:http';
 
-const loopback = (address?: string) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(address || '');
+export const loopback = (address?: string) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(address || '');
 export interface PublicShare { origin: string; pin: string }
+
+/** Participant routes, for any PIN or only the given one. Everything else is presenter-only. */
+export function participantRouteAllowed(method: string, pathname: string, pin = '\\d{6}') {
+  // Express routes are case-insensitive: mixed-case API paths must not pass as assets.
+  if (!/^\/api(?:\/|$)/i.test(pathname)) return method === 'GET' || method === 'HEAD';
+  const base = `/api/session/${pin}`;
+  if (method === 'GET') return new RegExp(`^${base}(?:/player/[a-zA-Z0-9_-]+)?$`).test(pathname);
+  if (method === 'POST') return new RegExp(`^${base}/(?:join|answer|player/[a-zA-Z0-9_-]+/leave)$`).test(pathname);
+  return false;
+}
 
 /** cloudflared targets the existing server with an unguessable native-only Host header. */
 export function createPublicAccess(secret: string | undefined) {
@@ -21,14 +31,6 @@ export function createPublicAccess(secret: string | undefined) {
     !isPublic(request) && request.headers.authorization === `Bearer ${secret}` && !request.headers.origin);
   const originAllowed = (request: IncomingMessage) => Boolean(share && loopback(request.socket.remoteAddress) &&
     (!request.headers.origin || request.headers.origin === share.origin));
-  const routeAllowed = (method: string, pathname: string) => {
-    if (!share) return false;
-    // Express routes are case-insensitive: mixed-case API paths must not pass as assets.
-    if (!/^\/api(?:\/|$)/i.test(pathname)) return method === 'GET' || method === 'HEAD';
-    const base = `/api/session/${share.pin}`;
-    if (method === 'GET') return pathname === base || new RegExp(`^${base}/player/[a-zA-Z0-9_-]+$`).test(pathname);
-    if (method === 'POST') return [`${base}/join`, `${base}/answer`].includes(pathname) || new RegExp(`^${base}/player/[a-zA-Z0-9_-]+/leave$`).test(pathname);
-    return false;
-  };
+  const routeAllowed = (method: string, pathname: string) => Boolean(share && participantRouteAllowed(method, pathname, share.pin));
   return { host, isPublic, snapshot, configure, controlAllowed, originAllowed, routeAllowed };
 }

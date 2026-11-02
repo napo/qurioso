@@ -45,7 +45,8 @@ test('selected interface drives base-address copying and QR PIN; HTTP clipboard 
   assert.equal(qrPayloads.at(-1), 'http://192.168.1.25:52317/?pin=123456&role=player');
   const select = document.querySelector('select')!;
   await act(async () => { select.value = 'http://10.0.0.4:52317'; select.dispatchEvent(new dom.window.Event('change', { bubbles: true })); });
-  assert.equal(document.querySelector('[data-testid="join-address"]')!.textContent, 'http://10.0.0.4:52317');
+  assert.equal(document.querySelector('[data-testid="join-address"]')!.textContent, '10.0.0.4:52317', 'participants read the address without scheme or path');
+  assert.deepEqual([...select.options].map(option => option.textContent), ['192.168.1.25:52317', '10.0.0.4:52317']);
   assert.equal(document.querySelector('[data-testid="join-pin"]')!.textContent, '123456');
   assert.equal(qrPayloads.at(-1), 'http://10.0.0.4:52317/?pin=123456&role=player');
   await act(async () => [...document.querySelectorAll('button')].find(b => b.textContent === 'Copia indirizzo')!.click());

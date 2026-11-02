@@ -7,7 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import os from 'os';
 import { performance } from 'node:perf_hooks';
-import { createPublicAccess } from './server/internetSharing';
+import { createPublicAccess, loopback, participantRouteAllowed } from './server/internetSharing';
 import { remainingMs, receivedTimeMs, type RoundClock } from './server/roundClock';
 import type { GameSession, Player, Quiz } from './src/types/quiz';
 import { applyPlayerAnswer, publicQuestion } from './src/services/sessionState';
@@ -75,11 +75,27 @@ function requirePlayer(room: Room, playerId: string, credential: unknown) {
   if (!matches(credential, room.playerTokens.get(playerId))) throw new ProtocolError(403, 'Player authorization required');
   if (playerCredentialExpired(room.playerExpiries.get(playerId))) throw new ProtocolError(410, 'Player credential expired');
 }
+// Participants reach the server over the LAN or the tunnel; presenter features answer only on this computer.
+// A loopback Host also stops DNS rebinding: a web page cannot borrow its own hostname to reach loopback.
+function presenterDevice(request: http.IncomingMessage) {
+  const hostname = (request.headers.host || '').replace(/:\d+$/, '').toLowerCase();
+  return loopback(request.socket.remoteAddress) && !publicAccess.isPublic(request) && ['localhost', '127.0.0.1', '[::1]'].includes(hostname);
+}
+/** Every page opened from a participant device starts in participant mode. */
+function participantEntry(req: express.Request, pin?: string) {
+  if (req.method !== 'GET' || (req.path !== '/' && req.query.app === undefined)) return undefined;
+  if (req.query.role === 'player' && req.query.app === undefined) return undefined;
+  const target = new URL(req.originalUrl, 'http://localhost');
+  target.searchParams.delete('app');
+  target.searchParams.set('role', 'player');
+  if (pin) target.searchParams.set('pin', pin);
+  return target.pathname + target.search;
+}
 function reader(room: Room, req: express.Request): { host: boolean; playerId?: string } {
   if (!req.headers.authorization) return { host: false };
   const credential = bearer(req);
   if (matches(credential, room.hostToken)) {
-    if (publicAccess.isPublic(req)) throw new ProtocolError(403, 'Public access is for participants only');
+    if (!presenterDevice(req)) throw new ProtocolError(403, 'Presenter access is available only on the teacher computer');
     return { host: true };
   }
   for (const [playerId, expected] of room.playerTokens) if (matches(credential, expected)) { requirePlayer(room, playerId, credential); return { host: false, playerId }; }
@@ -151,8 +167,16 @@ app.use((req, res, next) => {
       res.status(403).json({ error: 'Internet sharing permits participants in the shared session only' }); return;
     }
     // The public entry always opens participant mode; the local teacher library stays local.
-    if (req.path === '/' && req.query.role !== 'player') { res.redirect(`/?role=player&pin=${publicAccess.snapshot()!.pin}`); return; }
+    const entry = participantEntry(req, publicAccess.snapshot()!.pin);
+    if (entry) { res.redirect(entry); return; }
     next(); return;
+  }
+  if (!presenterDevice(req)) {
+    if (!participantRouteAllowed(req.method, new URL(req.url, 'http://localhost').pathname)) {
+      res.status(403).json({ error: 'Presenter features are available only on the teacher computer' }); return;
+    }
+    const entry = participantEntry(req);
+    if (entry) { res.redirect(entry); return; }
   }
   if (!allowedOrigin(req.headers.origin, req.headers.host, req.socket.remoteAddress)) {
     res.status(403).json({ error: 'Origin not allowed' }); return;
@@ -459,6 +483,7 @@ wss.on('connection', (ws: WebSocket, request: http.IncomingMessage) => {
         let role: 'host' | 'player';
         let playerId: string | undefined;
         if (matches(supplied, room.hostToken)) {
+          if (!presenterDevice(request)) throw new ProtocolError(403, 'Presenter access is available only on the teacher computer');
           role = 'host'; check(data.role === 'host');
         } else {
           playerId = id(data.playerId);

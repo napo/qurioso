@@ -4,7 +4,9 @@ The LAN workflow still uses a public six-digit PIN and QR link, without accounts
 
 ## Session ownership
 
-A presenter first obtains a server-generated, cryptographically random 256-bit credential with `POST /api/presenter-token`. This is an accountless creation capability, not an administrative login: any LAN user may start a separate quiz. The credential permits exactly one new room and cannot claim another presenter's PIN. Unused credentials expire after five minutes.
+Presenter features answer only on the teacher computer. Requests from any other address (another LAN device, or the Cloudflare tunnel described in [Internet sharing](INTERNET_SHARING.md)) may only load the app and use participant routes: `GET /api/session/:pin`, `GET /api/session/:pin/player/:playerId`, and `POST` to `join`, `answer` and `player/:playerId/leave`. Everything else, including `/api/presenter-token`, `/api/session/create`, `state`, `presenter`, `bot-answer`, `DELETE`, `/api/server-info` and `/api/health`, returns 403. A presenter token sent from another device is rejected on REST and on WebSocket `REGISTER`. Any page opened from another device without `role=player`, or with an `app` parameter, is redirected to participant mode, so a student who types the address lands on the PIN form, never on the library. The teacher computer is a loopback connection whose `Host` is `127.0.0.1`, `localhost` or `[::1]`: the Electron window and a local browser qualify, while a web page that rebinds its own hostname to loopback (DNS rebinding) does not.
+
+A presenter first obtains a server-generated, cryptographically random 256-bit credential with `POST /api/presenter-token`. This is an accountless creation capability, not an administrative login. The credential permits exactly one new room and cannot claim another presenter's PIN. Unused credentials expire after five minutes.
 
 `POST /api/session/create` requires `Authorization: Bearer <hostToken>`. After creation the same secret is bound to that room. Both this route (which also accepts updates) and `POST /api/session/:pin/state` require its owner token and an integer `revision` matching the latest host revision. Each new accepted host write increments that revision; stale writes receive HTTP/WS status 409. `DELETE /api/session/:pin` requires the owner token, removes the room and closes all its sockets. A deleted room cannot be recreated using its old token.
 
@@ -32,7 +34,7 @@ The question is rebuilt from an explicit field allowlist, including real option 
 
 HTTP JSON and WebSocket frames are capped at 1 MiB. State, PIN, IDs, players, options, timing, numeric statistics and event types are validated before mutation. Unknown state fields are discarded; prototype-related keys, malformed values, duplicate option IDs and cross-room state writes are rejected. Join/answer data cannot overwrite presenter state. Concurrent joins and accepted answers survive an in-flight host snapshot of the same round.
 
-The server allows up to 100 active sessions, 500 players per session and 256 unconsumed presenter credentials. Session APIs return JSON errors without stack traces. No wildcard CORS is permitted: browser API/WS origins must match the server, with an explicit loopback-only exception for Electron's stable `http://qurioso.localhost` origin. Native clients without an Origin header still need the same credentials. Dynamic ports and LAN PIN/QR links are unchanged.
+The server allows up to 100 active sessions, 500 players per session and 256 unconsumed presenter credentials. Session APIs return JSON errors without stack traces. No wildcard CORS is permitted: browser API/WS origins must match the server, with an explicit loopback-only exception for Electron's stable `http://qurioso.localhost` origin. Native clients without an Origin header still need the same credentials. Dynamic ports and LAN PIN/QR links are unchanged. Since only the teacher computer can create rooms and credentials, LAN devices cannot exhaust these limits.
 
 ## Timing, score integrity and reconnect recovery
 
@@ -55,7 +57,9 @@ The host grades accepted answer receipts that arrived while it was disconnected,
 ## Remaining risks and deployment scope
 
 - HTTP/WS traffic is not encrypted. A network observer who can capture a bearer secret can impersonate its owner. Use a trusted LAN; Internet hosting requires TLS and deployment-level access controls.
-- This is room ownership protection, not admission control for the school network. Anyone who knows a public PIN may join with a new identity; anyone on the LAN may create their own room. This change does not attempt comprehensive abuse/rate-limit or denial-of-service protection.
+- This is room ownership protection, not admission control for the school network. Anyone who knows a public PIN may join with a new identity, up to 500 players, and there is not yet a way to remove one. Only the teacher computer may create rooms. Comprehensive rate limiting and denial-of-service protection are out of scope.
+- A reverse proxy on the same computer would make every client look local; expose the server through one only with its own access control.
+- A teacher using the presenter from another device (for example by opening the server's LAN address on a tablet) is treated as a participant.
 - The presenter remains trusted to publish its quiz state and calculate scores. The scoring formula is unchanged, but participant response times are now measured by the server as described below. The presenter remains trusted to grade; this is not protection against a malicious presenter.
 - Sessions and credentials are ephemeral. A server restart removes them. An occupied PIN fails closed instead of overwriting an existing room.
 

@@ -70,7 +70,8 @@ exports.run = async (host, port) => {
     host.setContentSize(1280, 720);
     const entry = await execute(host, `
       const pin = document.querySelector('[data-testid="join-pin"]').textContent;
-      const base = document.querySelector('[data-testid="join-address"]').textContent;
+      const base = document.querySelector('[data-testid="join-address"]').dataset.url;
+      if (document.querySelector('[data-testid="join-address"]').textContent !== base.replace(/^https?:\\/\\//, '')) throw new Error('Displayed address is not the bare host and port');
       if (new URL(base).search || new URL(base).pathname !== '/') throw new Error('Address contains query or path');
       if ([...document.querySelectorAll('header span')].filter(el => /^\\d{6}$/.test(el.textContent)).some(el => el.textContent !== pin)) throw new Error('Header PIN differs');
       if (!(await (await fetch('/api/session/' + pin)).json()).session) throw new Error('Displayed PIN has no session');
@@ -85,16 +86,10 @@ exports.run = async (host, port) => {
       participants.push(player);
       await player.loadURL(direct ? `${entry.base}/?pin=${entry.pin}&role=player&lang=it` : entry.base);
       if (!direct) {
-        // The bare base address is opened as a student types it; the Italian fixtures are then chosen like a saved user preference.
-        await execute(player, `if (location.search) throw new Error('Base entry has query parameters'); localStorage.setItem('qurioso_language', 'it');`);
-        await player.loadURL(entry.base);
-        const navigated = new Promise(resolve => player.webContents.once('did-finish-load', resolve));
-        await execute(player, `
-          if (location.search) throw new Error('Base entry has query parameters');
-          await wait(() => [...document.querySelectorAll('a')].some(a => a.getAttribute('href')?.startsWith('?role=player')), 'root PIN entry');
-          [...document.querySelectorAll('a')].find(a => a.getAttribute('href')?.startsWith('?role=player')).click();
-        `);
-        await navigated;
+        // The bare address is typed by a student: a LAN device lands straight on the PIN form, never on the library.
+        await execute(player, `if (location.search !== '?role=player') throw new Error('LAN entry did not open participant mode: ' + location.href); localStorage.setItem('qurioso_language', 'it');`);
+        await player.loadURL(`${entry.base}/?app=network`);
+        await execute(player, `if (new URLSearchParams(location.search).has('app')) throw new Error('LAN device reached the teacher library');`);
       }
       await execute(player, `
         await wait(() => document.querySelector('form input'), 'player form');

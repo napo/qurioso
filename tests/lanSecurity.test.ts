@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { once } from 'node:events';
+import os from 'node:os';
+import { request as httpRequest } from 'node:http';
 import { WebSocket } from 'ws';
 import { startLanServer, round } from './helpers/lanServer';
 import { DEFAULT_QUIZZES } from '../src/data/defaultQuizzes';
@@ -202,4 +204,57 @@ test('LAN credentials protect REST and WebSocket state, ownership, answers and r
     assert.equal((await closed)[0], 1009);
     assert.equal((await request('/api/health')).status, 200);
   });
+});
+
+const lanIp = Object.values(os.networkInterfaces()).flat().find(net => net?.family === 'IPv4' && !net.internal)?.address;
+test('LAN devices reach only participant features; presenter features stay on the teacher computer', { timeout: 15000, skip: !lanIp && 'no LAN interface' }, async t => {
+  const { request, mint, base } = await startLanServer(t);
+  const lan = base.replace('localhost', lanIp!);
+  const lanRequest = (url: string, method = 'GET', body?: unknown, token?: string) => fetch(lan + url, { method, redirect: 'manual',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  const initial = round(), path = `/api/session/${initial.pin}`, hostToken = await mint();
+  assert.equal((await request('/api/session/create', 'POST', { session: initial }, hostToken)).status, 200);
+
+  for (const [url, method] of [['/api/presenter-token', 'POST'], ['/api/session/create', 'POST'], [path + '/presenter', 'GET'],
+    [path + '/state', 'POST'], [path, 'DELETE'], [path + '/bot-answer', 'POST'], ['/api/server-info', 'GET'], ['/api/health', 'GET'],
+    ['/API/SESSION/' + initial.pin + '/PRESENTER', 'GET'], ['/api/desktop/internet-sharing', 'POST']]) {
+    assert.equal((await lanRequest(url, method, method === 'POST' ? {} : undefined, hostToken)).status, 403, url);
+  }
+  assert.equal((await lanRequest(path, 'GET', undefined, hostToken)).status, 403, 'a teacher credential is useless from another device');
+  assert.equal((await request('/api/presenter-token', 'POST')).status, 200, 'the teacher computer keeps every feature');
+
+  for (const [url, location] of [['/', '/?role=player'], ['/?app=network&lang=it', '/?lang=it&role=player'], ['/x?app=classroom', '/x?role=player']]) {
+    const entry = await lanRequest(url);
+    assert.equal(entry.status, 302, url); assert.equal(entry.headers.get('location'), location, url);
+  }
+  assert.equal((await lanRequest(`/?pin=${initial.pin}&role=player`)).status, 200, 'the QR link opens directly');
+  assert.equal((await fetch(base + '/', { redirect: 'manual' })).status, 200, 'the teacher computer opens the library');
+
+  const joined = await lanRequest(path + '/join', 'POST', { player: player() });
+  assert.equal(joined.status, 200);
+  const aliceToken = (await joined.json()).playerToken;
+  assert.equal((await lanRequest(path + '/player/alice', 'GET', undefined, aliceToken)).status, 200);
+  const ws = new WebSocket(lan.replace('http:', 'ws:') + '/ws');
+  t.after(() => ws.terminate()); await once(ws, 'open');
+  const next = (data: unknown) => new Promise<any>(resolve => {
+    const listener = (bytes: Buffer) => { const message = JSON.parse(bytes.toString()); if (message.type !== 'PING') { ws.off('message', listener); resolve(message); } };
+    ws.on('message', listener); ws.send(JSON.stringify(data));
+  });
+  assert.equal((await next({ type: 'REGISTER', pin: initial.pin, role: 'host', token: hostToken })).status, 403);
+  assert.equal((await next({ type: 'REGISTER', pin: initial.pin, role: 'player', playerId: 'alice', token: aliceToken })).type, 'SESSION_STATE_UPDATE');
+});
+
+test('a rebound hostname on loopback gets only participant features', { timeout: 15000 }, async t => {
+  const { base, mint } = await startLanServer(t);
+  const port = new URL(base).port;
+  const rebound = (url: string, method = 'GET') => new Promise<{ status?: number; location?: string }>((resolve, reject) => {
+    const request = httpRequest(base + url, { method, headers: { Host: `evil.example:${port}`, Origin: `http://evil.example:${port}` } },
+      response => { response.resume(); resolve({ status: response.statusCode, location: response.headers.location }); });
+    request.on('error', reject); request.end();
+  });
+  assert.equal((await rebound('/api/presenter-token', 'POST')).status, 403);
+  assert.equal((await rebound('/api/server-info')).status, 403);
+  assert.deepEqual(await rebound('/?app=network'), { status: 302, location: '/?role=player' });
+  assert.match(await mint(), /^[a-f0-9]{64}$/, 'localhost keeps every feature');
 });

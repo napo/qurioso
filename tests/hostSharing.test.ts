@@ -37,7 +37,7 @@ test('actual host switches both QR views and copied address to the active public
   const root = createRoot(document.getElementById('app')!);
   t.after(async () => { await act(async () => root.unmount()); Object.assign(gameSync, methods); QRCode.toCanvas = originalCanvas; dom.window.close(); for (const [key, value] of saved) { if (value) Object.defineProperty(globalThis, key, value); else Reflect.deleteProperty(globalThis, key); } });
   const click = async (text: string) => { const button = [...document.querySelectorAll('button')].find(b => b.textContent!.trim() === text); assert.ok(button, text); await act(async () => button.click()); };
-  const address = () => document.querySelector('[data-testid="join-address"]')!.textContent;
+  const address = () => document.querySelector<HTMLElement>('[data-testid="join-address"]')!.dataset.url;
   const emit = async (state: InternetSharingState) => { await act(async () => listener(state)); };
   const toolbar = () => document.querySelector<HTMLButtonElement>('button[data-sharing-phase]')!;
   await act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(HostScreen, { quiz, onExit: () => {} }))));
@@ -58,6 +58,7 @@ test('actual host switches both QR views and copied address to the active public
   assert.equal(document.querySelector('[role="dialog"]'), null, 'activation closes the service modal');
   assert.equal(document.querySelector('[data-session-access]')!.getAttribute('data-session-access'), 'public');
   assert.equal(address(), active.url);
+  assert.equal(document.querySelector('[data-testid="join-address"]')!.textContent, 'first-example.trycloudflare.com');
   assert.equal(document.querySelector('select'), null, 'LAN interfaces cannot override the advertised public address');
   await click('Copia indirizzo'); assert.equal(copied, active.url);
   await act(async () => document.querySelector<HTMLButtonElement>('button[title="Mostra QR Code Ingrandito"]')!.click());

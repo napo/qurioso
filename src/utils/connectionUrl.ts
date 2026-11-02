@@ -8,6 +8,11 @@ export function getJoinAddresses(origin: string, info: ConnectionInfo | null): s
   return [...new Set(addresses)];
 }
 
+/** What participants type: browsers add the scheme, so only the host (and LAN port) is shown. */
+export function displayAddress(url: string): string {
+  return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+}
+
 export function isLoopbackOrigin(origin: string): boolean {
   return ['qurioso.localhost', 'localhost', '127.0.0.1', '[::1]', '0.0.0.0'].includes(new URL(origin).hostname);
 }

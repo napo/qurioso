@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { copyText } from '../../utils/clipboard';
 import { useLanguage } from '../../context/LanguageContext';
 import { lobbyTranslations } from '../../i18n/lobby';
+import { displayAddress } from '../../utils/connectionUrl';
 
 export function JoinInstructions({ pin, addresses, address, onAddressChange }: {
   pin: string; addresses: string[]; address: string; onAddressChange: (address: string) => void;
@@ -13,13 +14,13 @@ export function JoinInstructions({ pin, addresses, address, onAddressChange }: {
     {addresses.length > 1 && <label className="block text-sm font-bold text-petrolio">
       {lobby.addressSelect}
       <select aria-label={lobby.addressSelect} value={address} onChange={event => { onAddressChange(event.target.value); setCopyStatus(''); }} className="mt-1 block max-w-full rounded-lg border border-line bg-white p-2 text-base">
-        {addresses.map(url => <option key={url} value={url}>{url}</option>)}
+        {addresses.map(url => <option key={url} value={url}>{displayAddress(url)}</option>)}
       </select>
     </label>}
     {address ? <>
       <div className="rounded-xl border border-line bg-surface-soft p-3">
         <p className="text-sm font-bold text-muted">{lobby.addressOpen}</p>
-        <p data-testid="join-address" className="join-address select-text font-mono text-xl md:text-2xl font-bold text-petrolio break-all">{address}</p>
+        <p data-testid="join-address" data-url={address} className="join-address select-text font-mono text-xl md:text-2xl font-bold text-petrolio break-all">{displayAddress(address)}</p>
         <button type="button" className="mt-2 rounded-lg border border-line bg-white px-3 py-2 text-sm font-bold text-petrolio" onClick={async () => {
           setCopyStatus(await copyText(address) ? lobby.addressCopied : lobby.copyUnavailable);
         }}>{lobby.copyAddress}</button>
