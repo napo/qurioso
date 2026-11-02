@@ -475,9 +475,9 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                     : 'bg-surface-soft border-line hover:bg-surface-hover'
                 }`}
               >
-                <div className="flex items-center justify-between gap-2 text-[11px] font-bold text-muted mb-1">
+                <div className={`flex items-center justify-between gap-2 text-[11px] font-bold mb-1 ${activeQuestionIndex === idx ? 'text-ink' : 'text-muted'}`}>
                   <span className="min-w-0 truncate">#{idx + 1} • {q.type === 'true_false' ? t.trueFalse : t.multipleChoice}</span>
-                  <span className="shrink-0 whitespace-nowrap text-muted">{q.timeLimit} s</span>
+                  <span className="shrink-0 whitespace-nowrap">{q.timeLimit} s</span>
                 </div>
                 <div className="text-xs font-semibold text-ink line-clamp-2">
                   {q.text || t.noQuestionText}

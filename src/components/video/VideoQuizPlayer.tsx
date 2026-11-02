@@ -582,6 +582,7 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
           <div className="flex items-center gap-3">
             <button
               onClick={togglePlay}
+              aria-label={isPlaying ? c.pause : c.play} title={isPlaying ? c.pause : c.play}
               className="p-2 rounded-xl bg-petrolio hover:bg-petrolio text-white transition cursor-pointer"
             >
               {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
@@ -589,12 +590,13 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
             <button
               onClick={restartVideo}
               className="p-2 rounded-xl bg-surface-soft hover:bg-surface-hover text-muted hover:text-ink transition cursor-pointer"
-              title="Ricomincia Video e Quiz"
+              aria-label={c.restartActivity} title={c.restartActivity}
             >
               <RotateCcw className="w-4 h-4" />
             </button>
             <button
               onClick={() => setIsMuted(!isMuted)}
+              aria-label={isMuted ? c.unmute : c.mute} title={isMuted ? c.unmute : c.mute} aria-pressed={isMuted}
               className="p-2 rounded-xl bg-surface-soft hover:bg-surface-hover text-muted hover:text-ink transition cursor-pointer"
             >
               {isMuted ? <VolumeX className="w-4 h-4 text-rose-700" /> : <Volume2 className="w-4 h-4" />}

@@ -28,6 +28,8 @@
   }
   ::selection { background: #FF963B; color: #123c3f; }
   :focus-visible { outline: 3px solid #075E63; outline-offset: 3px; }
+  /* Pinch zoom stays available; quick repeated taps on a control do not zoom the page. */
+  button, [role="button"], a, input, select, textarea, label { touch-action: manipulation; }
 }
 
 .bg-qurioso-canvas { background: #fff; }

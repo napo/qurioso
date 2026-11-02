@@ -14,6 +14,7 @@ const it = {
   videoError: 'Impossibile riprodurre il video. Controlla la connessione e che il video consenta la riproduzione incorporata. Per i file locali verifica che il formato MP4/WebM sia supportato dal browser.',
   noTimeLimit: 'Discussione senza limite di tempo', beyondDuration: 'Alcune domande sono alla fine o oltre la durata del video. Controlla i checkpoint nell’editor.',
   checkpointAt: 'Checkpoint {n} a {time}', configureVideo: 'Configurazione video quiz', configureHint: 'Scegli YouTube, Vimeo, un link diretto o un file locale. Le domande restano collegate ai checkpoint del quiz. Per conservare la scelta tra le sessioni, impostala nell’editor e salva il quiz.',
+  play: 'Riproduci', pause: 'Pausa', mute: 'Disattiva audio', unmute: 'Attiva audio',
   fullscreen: 'Schermo intero', exitFullscreen: 'Esci da schermo intero', fullscreenError: 'Il browser non ha attivato lo schermo intero. L’attività continua normalmente.',
 };
 type Text = Record<keyof typeof it, string>;
@@ -31,6 +32,7 @@ const en: Text = {
   videoError: 'The video cannot be played. Check the connection and that the video allows embedded playback. For local files, check that the browser supports the MP4/WebM format.',
   noTimeLimit: 'Discussion without a time limit', beyondDuration: 'Some questions are at or beyond the end of the video. Check the checkpoints in the editor.',
   checkpointAt: 'Checkpoint {n} at {time}', configureVideo: 'Video quiz setup', configureHint: 'Choose YouTube, Vimeo, a direct link or a local file. Questions stay linked to the quiz checkpoints. To keep the choice across sessions, set it in the editor and save the quiz.',
+  play: 'Play', pause: 'Pause', mute: 'Mute', unmute: 'Unmute',
   fullscreen: 'Fullscreen', exitFullscreen: 'Exit fullscreen', fullscreenError: 'The browser did not enter fullscreen. The activity continues normally.',
 };
 const de: Text = {
@@ -47,6 +49,7 @@ const de: Text = {
   videoError: 'Das Video kann nicht abgespielt werden. Prüfe die Verbindung und ob das Video eingebettet werden darf. Prüfe bei lokalen Dateien, ob der Browser das Format MP4/WebM unterstützt.',
   noTimeLimit: 'Besprechung ohne Zeitlimit', beyondDuration: 'Einige Fragen liegen am Ende oder hinter dem Ende des Videos. Prüfe die Checkpoints im Editor.',
   checkpointAt: 'Checkpoint {n} bei {time}', configureVideo: 'Videoquiz einrichten', configureHint: 'Wähle YouTube, Vimeo, einen direkten Link oder eine lokale Datei. Die Fragen bleiben mit den Checkpoints des Quiz verknüpft. Um die Auswahl dauerhaft zu speichern, lege sie im Editor fest und speichere das Quiz.',
+  play: 'Abspielen', pause: 'Pause', mute: 'Ton aus', unmute: 'Ton an',
   fullscreen: 'Vollbild', exitFullscreen: 'Vollbild beenden', fullscreenError: 'Der Browser hat das Vollbild nicht aktiviert. Die Aktivität läuft normal weiter.',
 };
 export const classroomTranslations: Record<Language, Text> = { it, en, de };

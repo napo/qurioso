@@ -120,7 +120,7 @@ export function LandingPage() {
           </div>
           <a href="https://github.com/napo/qurioso/releases" target="_blank" rel="noopener noreferrer" className="inline-flex gap-2 items-center mt-5 text-sm font-bold text-petrolio underline">{t.allReleases} <ArrowUpRight size={16} /></a>
           <ol className="mt-8 grid sm:grid-cols-3 gap-6 list-none">
-            {[t.step1, t.step2, t.step3].map((step, i) => <li key={step} className="flex gap-3 text-sm leading-relaxed"><span className="text-mandarino text-2xl font-black">0{i + 1}</span><span>{step}</span></li>)}
+            {[t.step1, t.step2, t.step3].map((step, i) => <li key={step} className="flex gap-3 text-sm leading-relaxed"><span className="text-accent-ink text-2xl font-black">0{i + 1}</span><span>{step}</span></li>)}
           </ol>
         </div>
       </section>
