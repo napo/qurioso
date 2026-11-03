@@ -54,6 +54,16 @@ In addition to host-write revisions, an increasing server `sequence` orders stat
 
 The host grades accepted answer receipts that arrived while it was disconnected, even if it has locally entered the result view. Before advancing, it flushes pending writes and reconciles accepted answers. Advancing waits for this reconciliation instead of losing submissions. Socket recovery retains the same PIN and credentials; it does not create another game. These changes add no accounts, login screens or external services. Presenter refresh credentials are scoped to the current browser tab as documented above.
 
+## Homework
+
+Homework is created with `POST /api/assignment/create`, which only the teacher computer reaches; it is the one request with a larger body limit (32 MiB), because the private quiz carries each question's image (data images or `https` links only). The server grades every answer; a participant reads only their own next question and progress, never classmates, scores or the answer key. Participant credentials last until the deadline plus 24 hours.
+
+Open homework survives a restart: the desktop app passes `QURIOSO_ASSIGNMENTS_FILE`, and the server writes there, with mode `0600`, the private quiz, answers, presenter and participant credentials and device codes. Closed homework is dropped 30 days after its deadline. The desktop app also asks the server to reuse its previous port (`QURIOSO_PREFERRED_PORT`), so LAN links and the participants' saved credentials, bound to that origin, keep working. The teacher's homework list, with its presenter credential, is the one presenter credential kept in `localStorage`: presenter requests are accepted only from the teacher computer, and participants open the app on another origin.
+
+## Device codes
+
+Each join may carry `deviceId`, a random 32-hex code from the participant's browser. The server keeps it per participant, drops malformed codes and never returns it. The presenter's view carries `sharedDevices`: for each participant, the others who joined with the same code. It is a hint for the teacher, not an identity check.
+
 ## Remaining risks and deployment scope
 
 - HTTP/WS traffic is not encrypted. A network observer who can capture a bearer secret can impersonate its owner. Use a trusted LAN; Internet hosting requires TLS and deployment-level access controls.

@@ -13,8 +13,12 @@ import { FallbackImage } from '../common/FallbackImage';
 import { formatDeadline } from './homeworkTime';
 
 /** A participant's homework: one question at a time, at their own pace, on their own device. */
-export function HomeworkPlayer({ pin, playerId, token, title, nickname, avatar, sessionStatus, onLeave }: {
-  pin: string; playerId: string; token: string; title: string; nickname: string; avatar: string; sessionStatus: string; onLeave: () => void;
+/**
+ * `onLeave` keeps this device's identity, to continue later; `onDone` forgets it once the homework is handed in,
+ * so the next student on a shared device starts their own.
+ */
+export function HomeworkPlayer({ pin, playerId, token, title, nickname, avatar, sessionStatus, onLeave, onDone }: {
+  pin: string; playerId: string; token: string; title: string; nickname: string; avatar: string; sessionStatus: string; onLeave: () => void; onDone: () => void;
 }) {
   const { language } = useLanguage(), h = homeworkTranslations[language], p = playerTranslations[language], gameText = gameExperienceTranslations[language];
   const [view, setView] = useState<AssignmentView | null>(null);
@@ -57,11 +61,12 @@ export function HomeworkPlayer({ pin, playerId, token, title, nickname, avatar, 
     } finally { setSending(false); }
   };
 
+  const exit = view && view.done >= view.total ? onDone : onLeave;
   const header = view && <header className="flex items-center justify-between gap-3 border-b border-line pb-3">
     <div className="flex items-center gap-2 min-w-0"><span className="text-2xl" aria-hidden="true">{avatar}</span><span className="font-bold truncate">{nickname}</span></div>
     <div className="flex items-center gap-3">
       <div className="text-right text-xs text-muted"><p className="font-bold text-petrolio">{h.student} · {title}</p><p>{fill(h.dueBy, { date: formatDeadline(view.deadline, language) })}</p></div>
-      <button type="button" className="btn-quiet rounded-lg px-2 py-1 text-xs" onClick={onLeave}>{h.exitStudent}</button>
+      <button type="button" className="btn-quiet rounded-lg px-2 py-1 text-xs" onClick={exit}>{h.exitStudent}</button>
     </div>
   </header>;
   const frame = (content: React.ReactNode) => <main className="homework-player min-h-screen bg-qurioso-canvas text-ink p-4 flex flex-col gap-4 max-w-2xl mx-auto">{header}{content}</main>;
@@ -90,7 +95,7 @@ export function HomeworkPlayer({ pin, playerId, token, title, nickname, avatar, 
       <h1 className="text-2xl font-black text-petrolio">{finished ? h.finishedTitle : h.closedTitle}</h1>
       {!finished && <p>{h.closedText}</p>}
       <p className="font-bold">{fill(h.finishedScore, { score: view.score.toLocaleString(language), correct: view.correct, scored: view.scored })}</p>
-      <button type="button" className="btn-secondary rounded-xl px-4 py-2" onClick={onLeave}>{h.exitStudent}</button>
+      <button type="button" className="btn-secondary rounded-xl px-4 py-2" onClick={exit}>{h.exitStudent}</button>
     </section>);
   }
 

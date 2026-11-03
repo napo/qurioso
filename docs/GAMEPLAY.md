@@ -31,11 +31,15 @@ In the lobby the presenter picks **Teams**: none (the default) or 2–6 teams, n
 
 ## Homework
 
-From the teacher app's library, assign a classic quiz as homework and set a deadline. Video quizzes are not supported as homework. Students open the LAN or Cloudflare link, join with a name, and answer each question alone at their own pace. They can leave and return on the same device; the server keeps their position and grades each answer once, in quiz order, without a speed bonus.
+From the teacher app's library, assign a classic quiz as homework and set a deadline. Video quizzes are not supported as homework. Students open the LAN or Cloudflare link, join with a name, and answer each question alone at their own pace. They can leave and return on the same device; the server keeps their position and grades each answer once, in quiz order, without a speed bonus. Once a student has handed it in, leaving forgets their identity on the device, so on a shared tablet the next student with the same PIN starts their own homework; their answers stay with the teacher.
 
 The server holds the private quiz definition and grades submissions. Students receive only the current public question, never the answer key. The teacher's homework page shows each student's progress and a class report by question, and can export student results or the question report as CSV. The teacher can close the homework early or extend its deadline. Results remain on the teacher's computer until the homework is deleted (or the retention period expires).
 
 The teacher computer and Qurioso server must remain available until the deadline so students can submit. The desktop app prevents suspension while homework is open and warns before quitting. If the app is restarted, saved homework and its results are restored; a Cloudflare link may need to be shared again.
+
+## Shared devices
+
+Each browser keeps a random code (`src/services/deviceId.ts`, in `localStorage`) and sends it when joining a live game or homework. The code says nothing about the device. The server keeps it per participant and never sends it out: the presenter receives only `sharedDevices`, the other participants who joined from the same browser, and the lobby and the homework page mark them ("Same device as …"). It is a hint, not a proof: a shared school tablet is normal, while a private window or cleared site data gives a new code. Homework saves the codes with its answers; a live game forgets them with the room.
 
 ## Question report and review
 

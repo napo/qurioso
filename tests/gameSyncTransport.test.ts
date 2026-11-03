@@ -81,7 +81,10 @@ test('real transport authenticates automatic reconnects, ignores local spoofing 
   assert.ok(hostRegistration?.token);
   assert.notEqual(hostRegistration.token, playerRegistration.token);
   assert.equal(JSON.stringify(playerEvents).includes(hostRegistration.token), false);
-  assert.equal(localStorage.length, 2, 'only the player recovery record and last-room pointer are persisted');
+  // Besides them, only the random device code, which carries no credential.
+  const persisted = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)!).filter(key => key !== 'qurioso_device_v1');
+  assert.equal(persisted.length, 2, 'only the player recovery record and last-room pointer are persisted');
+  assert.match(localStorage.getItem('qurioso_device_v1')!, /^[a-f0-9]{32}$/);
   assert.equal(localStorage.getItem('qurioso_presenter_recovery_v1'), null);
   assert.equal(JSON.stringify(localStorage).includes(hostRegistration.token), false, 'presenter secret is never persisted in localStorage');
   assert.deepEqual(Object.keys(JSON.parse(localStorage.getItem('qurioso_player_recovery_v1:' + state.pin)!)).sort(), ['expiresAt', 'pin', 'playerId', 'token']);

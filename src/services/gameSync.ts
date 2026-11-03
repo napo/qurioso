@@ -2,6 +2,7 @@ import { GameSession, Player, Question, Quiz, type Team } from '../types/quiz';
 import { makeChoice, type Choice } from './questionTypes';
 import type { VideoSelection } from './videoQuiz';
 import { presenterQuiz } from './quizStorage';
+import { deviceId } from './deviceId';
 import { readPresenterCredential, savePresenterCredential, clearPresenterCredential } from './presenterRecovery';
 import { readPlayerCredential, savePlayerCredential, clearPlayerCredential } from './playerRecovery';
 import type { PlayerCredential } from '../types/playerCredential';
@@ -19,7 +20,8 @@ export type GameSyncMessage =
   | { type: 'PLAYER_JOIN'; pin: string; player: Player }
   | { type: 'PLAYER_DISCONNECTED'; pin: string; playerId: string }
   | { type: 'PLAYER_ANSWER'; pin: string; playerId: string; questionId: string; optionId: string; optionIds?: string[]; timeTakenMs: number; questionStartTime?: number; roundId?: string }
-  | { type: 'SESSION_STATE_UPDATE'; session: GameSession; revision?: number; sequence?: number; clock?: RoundClockSample; ownAnswer?: { questionId: string; optionId: string; optionIds?: string[]; timeTakenMs: number } }
+  /** `sharedDevices` reaches the presenter only: for each participant, the others who joined from the same browser. */
+  | { type: 'SESSION_STATE_UPDATE'; session: GameSession; revision?: number; sequence?: number; clock?: RoundClockSample; ownAnswer?: { questionId: string; optionId: string; optionIds?: string[]; timeTakenMs: number }; sharedDevices?: Record<string, string[]> }
   | { type: 'REQUEST_SESSION_SYNC'; pin: string; playerId: string }
   | { type: 'REACTION'; pin: string; playerId: string; emoji: string };
 
@@ -342,7 +344,7 @@ export class GameSyncManager {
       const key = this.playerKey(pin, player.id);
       const res = await fetch(`/api/session/${encodeURIComponent(pin)}/join`, {
         method: 'POST', signal: AbortSignal.timeout(5000), headers: this.headers(this.playerTokens.get(key)),
-        body: JSON.stringify({ player }),
+        body: JSON.stringify({ player, deviceId: deviceId() }),
       });
       if (!res.ok) return false;
       const data = await res.json();

@@ -12,6 +12,7 @@ import { closeHomework, deleteHomework, extendHomework, forgetHomework, homework
 import { getSessionJoinAddresses } from '../../utils/connectionUrl';
 import { JoinInstructions } from '../common/JoinInstructions';
 import { QRCodeDisplay } from '../common/QRCodeDisplay';
+import { SharedDevice } from '../common/SharedDevice';
 import { QuestionReportList } from '../leaderboard/QuestionReportList';
 import { useInternetSharing } from '../host/useInternetSharing';
 import { InternetSharingPanel } from '../host/InternetSharingPanel';
@@ -115,7 +116,8 @@ export function HomeworkScreen({ homework, onExit }: { homework: SavedHomework; 
       {students.length ? <div className="overflow-x-auto"><table className="homework-students w-full text-sm">
         <thead><tr className="text-left text-muted"><th className="py-1 pr-3">{h.name}</th><th className="pr-3">{h.questions}</th><th className="pr-3">{h.points}</th><th className="pr-3">{h.state}</th><th><span className="sr-only">{h.remove}</span></th></tr></thead>
         <tbody>{students.map(({ player, done, score }) => <tr key={player.id} className="border-t border-line">
-          <td className="py-2 pr-3 font-bold"><span aria-hidden="true">{player.avatar} </span>{player.name || player.nickname}</td>
+          <td className="py-2 pr-3 font-bold"><span className="inline-flex items-center gap-2"><span><span aria-hidden="true">{player.avatar} </span>{player.name || player.nickname}</span>
+            <SharedDevice others={state.sharedDevices?.[player.id]} players={state.session.players} /></span></td>
           <td className="pr-3">{done} / {total}</td><td className="pr-3 font-mono">{score.toLocaleString(language)}</td><td className="pr-3">{stateOf(done)}</td>
           <td className="text-right"><button type="button" disabled={busy} onClick={() => void act(async () => { await removeStudent(saved, player.id); return readHomework(saved); })}
             aria-label={fill(h.remove, { name: player.name || player.nickname })} title={fill(h.remove, { name: player.name || player.nickname })}

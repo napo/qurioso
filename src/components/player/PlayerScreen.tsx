@@ -280,7 +280,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
       <p>{p.recUnavailable}</p>
       <button type="button" className="btn-secondary rounded-xl px-5 py-3" onClick={pauseHomework}>{p.backToEntry}</button>
     </main>;
-    return <HomeworkPlayer pin={pin} playerId={playerId} token={token} title={session.quizTitle} nickname={nickname} avatar={avatar} sessionStatus={session.status} onLeave={pauseHomework} />;
+    return <HomeworkPlayer pin={pin} playerId={playerId} token={token} title={session.quizTitle} nickname={nickname} avatar={avatar} sessionStatus={session.status} onLeave={pauseHomework} onDone={() => void leave()} />;
   }
 
   // 1. JOIN FORM VIEW

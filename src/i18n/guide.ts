@@ -164,7 +164,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Attendi gli ingressi e avvia",
-          "body": "Controlla i nomi nella lobby: la × accanto a un nome toglie quel partecipante dalla partita, e i nomi offensivi vengono già rifiutati all’ingresso. Per giocare a squadre scegli da 2 a 6 squadre in Squadre: ogni studente sceglie la sua entrando e puoi spostarlo dal menu sul suo nome; chi non ne ha una va nella più piccola all’avvio. Conta la media dei punti, così una squadra numerosa non è avvantaggiata. Quando tutti sono pronti premi il pulsante per iniziare. I partecipanti vedono i comandi per rispondere; le domande e le risposte complete sono sullo schermo del docente."
+          "body": "Controlla i nomi nella lobby: la × accanto a un nome toglie quel partecipante dalla partita, e i nomi offensivi vengono già rifiutati all’ingresso. Un triangolo accanto a un nome indica che è entrato dallo stesso browser di un altro partecipante: normale con un tablet condiviso, altrimenti verifica. Per giocare a squadre scegli da 2 a 6 squadre in Squadre: ogni studente sceglie la sua entrando e puoi spostarlo dal menu sul suo nome; chi non ne ha una va nella più piccola all’avvio. Conta la media dei punti, così una squadra numerosa non è avvantaggiata. Quando tutti sono pronti premi il pulsante per iniziare. I partecipanti vedono i comandi per rispondere; le domande e le risposte complete sono sullo schermo del docente."
         },
         {
           "title": "Gestisci la gara",
@@ -458,7 +458,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Wait for participants and start",
-          "body": "Check the names in the lobby: the × next to a name removes that participant from the game, and offensive names are already refused on entry. To play in teams, choose 2 to 6 teams under Teams: each student picks one when joining and you can move them with the menu on their name; anyone without a team joins the smallest at the start. The average score counts, so a larger team has no advantage. When everyone is ready, press the start button. Participants see answer controls; complete questions and answers appear on the teacher’s screen."
+          "body": "Check the names in the lobby: the × next to a name removes that participant from the game, and offensive names are already refused on entry. A triangle next to a name means that participant joined from the same browser as another one: normal on a shared tablet, otherwise worth checking. To play in teams, choose 2 to 6 teams under Teams: each student picks one when joining and you can move them with the menu on their name; anyone without a team joins the smallest at the start. The average score counts, so a larger team has no advantage. When everyone is ready, press the start button. Participants see answer controls; complete questions and answers appear on the teacher’s screen."
         },
         {
           "title": "Run the game",
@@ -752,7 +752,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Auf Beitritte warten und starten",
-          "body": "Prüfe die Namen in der Lobby: Mit dem × neben einem Namen entfernst du diese Person aus dem Spiel; anstößige Namen werden schon beim Beitritt abgelehnt. Für ein Teamspiel wählst du unter Teams 2 bis 6 Teams: Alle wählen beim Beitreten ihr Team, und du kannst sie über das Menü an ihrem Namen verschieben; wer keines hat, kommt beim Start ins kleinste. Es zählt der Punktedurchschnitt, ein großes Team ist also nicht im Vorteil. Starte das Spiel, wenn alle bereit sind. Die Teilnehmenden sehen die Antwortschaltflächen; vollständige Fragen und Antworten stehen auf dem Bildschirm der Lehrkraft."
+          "body": "Prüfe die Namen in der Lobby: Mit dem × neben einem Namen entfernst du diese Person aus dem Spiel; anstößige Namen werden schon beim Beitritt abgelehnt. Ein Dreieck neben einem Namen bedeutet, dass die Person über denselben Browser wie eine andere beigetreten ist: normal bei einem gemeinsamen Tablet, sonst lohnt sich ein Blick. Für ein Teamspiel wählst du unter Teams 2 bis 6 Teams: Alle wählen beim Beitreten ihr Team, und du kannst sie über das Menü an ihrem Namen verschieben; wer keines hat, kommt beim Start ins kleinste. Es zählt der Punktedurchschnitt, ein großes Team ist also nicht im Vorteil. Starte das Spiel, wenn alle bereit sind. Die Teilnehmenden sehen die Antwortschaltflächen; vollständige Fragen und Antworten stehen auf dem Bildschirm der Lehrkraft."
         },
         {
           "title": "Das Spiel leiten",

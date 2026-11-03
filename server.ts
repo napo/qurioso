@@ -53,6 +53,8 @@ interface Room {
   /** Homework: the private quiz with its images, and every participant's graded answers. */
   assignmentQuiz?: Quiz;
   assignmentAnswers: Record<string, AssignmentProgress>;
+  /** Random device code sent with each join. It never leaves the server: the presenter sees only who shares a device. */
+  devices: Map<string, string>;
 }
 const REMOVED = 'Removed by the presenter';
 interface ConnectedClient {
@@ -95,7 +97,7 @@ function flushAssignments() {
   try {
     writeAssignmentsFile(assignmentsFile, [...sessions.values()].filter(room => room.assignmentQuiz).map(room => ({
       session: room.session, quiz: room.assignmentQuiz, hostToken: room.hostToken, answers: room.assignmentAnswers,
-      playerTokens: [...room.playerTokens], playerExpiries: [...room.playerExpiries], removed: [...room.removed], removedTokens: [...room.removedTokens],
+      playerTokens: [...room.playerTokens], playerExpiries: [...room.playerExpiries], removed: [...room.removed], removedTokens: [...room.removedTokens], devices: [...room.devices],
     })));
   } catch (error) { console.error('Unable to save homework:', (error as Error).message); }
 }
@@ -119,7 +121,9 @@ function restoreAssignments() {
       check(session.mode === 'assignment' && quiz.id === session.quizId && !sessions.has(session.pin));
       if (session.assignment!.deadline + KEEP_CLOSED_MS < Date.now()) continue;
       const answers = object(record.answers) as Record<string, AssignmentProgress>;
-      sessions.set(session.pin, { session, assignmentQuiz: quiz, assignmentAnswers: answers, openedQuestions: 0, hostToken: credential(record.hostToken),
+      const devices = new Map<string, string>();
+      for (const [player, code] of (record.devices ?? []) as [string, unknown][]) { const device = deviceCode(code); if (device) devices.set(id(player), device); }
+      sessions.set(session.pin, { session, assignmentQuiz: quiz, assignmentAnswers: answers, devices, openedQuestions: 0, hostToken: credential(record.hostToken),
         playerTokens: new Map((record.playerTokens as [string, unknown][]).map(([player, token]) => [id(player), credential(token)])),
         playerExpiries: new Map((record.playerExpiries as [string, number][]).map(([player, expiry]) => [id(player), Number(expiry)])),
         removed: new Set((record.removed as string[]).map(player => id(player))), removedTokens: new Set((record.removedTokens as unknown[]).map(credential)),
@@ -167,6 +171,18 @@ function reader(room: Room, req: express.Request): { host: boolean; playerId?: s
   for (const [playerId, expected] of room.playerTokens) if (matches(credential, expected)) { requirePlayer(room, playerId, credential); return { host: false, playerId }; }
   throw new ProtocolError(403, credential && room.removedTokens.has(credential) ? REMOVED : 'Invalid authorization');
 }
+function deviceCode(value: unknown) {
+  return typeof value === 'string' && /^[a-f0-9]{32}$/.test(value) ? value : undefined;
+}
+/** For each participant, the others who joined from the same browser. A hint for the presenter, not a proof. */
+function sharedDevices(room: Room) {
+  const byCode = new Map<string, string[]>();
+  for (const [player, code] of room.devices) if (room.session.players[player]) byCode.set(code, [...(byCode.get(code) ?? []), player]);
+  const shared: Record<string, string[]> = {};
+  for (const players of byCode.values()) if (players.length > 1) for (const player of players) shared[player] = players.filter(other => other !== player);
+  return shared;
+}
+const sharedField = (room: Room) => { const shared = sharedDevices(room); return Object.keys(shared).length ? { sharedDevices: shared } : {}; };
 function envelope(room: Room, host: boolean, playerId?: string) {
   const visible = host ? { ...room.session } : participantSession(room.session, room.roundPlayers);
   // Homework is private: a participant sees no classmates, names or scores.
@@ -183,7 +199,8 @@ function envelope(room: Room, host: boolean, playerId?: string) {
     clock: room.round ? { roundId: room.session.roundId, questionStartTime: room.session.questionStartTime,
       remainingMs: remainingMs(room.round, performance.now()), durationMs: room.round.durationMs } : undefined,
     ownAnswer: own ? { questionId: own.questionId, optionId: own.optionId, ...(own.optionIds ? { optionIds: own.optionIds } : {}), timeTakenMs: own.timeTakenMs } : undefined,
-    session: visible, ...(host && room.assignmentQuiz ? { assignmentAnswers: room.assignmentAnswers } : {}) };
+    session: visible, ...(host && room.assignmentQuiz ? { assignmentAnswers: room.assignmentAnswers } : {}),
+    ...(host ? sharedField(room) : {}) };
 }
 function send(ws: WebSocket, data: unknown) {
   if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data));
@@ -426,7 +443,7 @@ app.post('/api/session/create', (req, res) => {
   check(session.mode !== 'assignment', 'Homework has its own creation request');
   const videoQuiz = session.mode === 'video' ? videoQuizDefinition(body.videoQuiz) : undefined;
   if (videoQuiz) check(session.status === 'lobby' && videoQuiz.id === session.quizId && videoQuiz.questions.length === session.totalQuestions, 'Invalid video setup');
-  const room: Room = { session, videoQuiz, openedQuestions: 0, hostToken: credential!, playerTokens: new Map(), playerExpiries: new Map(), roundPlayers: structuredClone(session.players), revision: 0, sequence: 0, operations: new Map(), removed: new Set(), removedTokens: new Set(), assignmentAnswers: {} };
+  const room: Room = { session, videoQuiz, openedQuestions: 0, hostToken: credential!, playerTokens: new Map(), playerExpiries: new Map(), roundPlayers: structuredClone(session.players), revision: 0, sequence: 0, operations: new Map(), removed: new Set(), removedTokens: new Set(), assignmentAnswers: {}, devices: new Map() };
   if (body.operationId !== undefined) id(body.operationId);
   if (session.status === 'question') startRound(room);
   remember(room, body.operationId, body.session, body.revision);
@@ -466,6 +483,8 @@ app.post('/api/session/:pin/join', (req, res) => {
     // A homework credential lasts until the deadline, so a participant can finish it another day.
     room.playerExpiries.set(player.id, room.session.assignment ? room.session.assignment.deadline + ASSIGNMENT_GRACE_MS : Date.now() + PLAYER_CREDENTIAL_TTL_MS);
     room.session.players[player.id] = player;
+    const device = deviceCode(object(req.body).deviceId);
+    if (device) room.devices.set(player.id, device);
     room.sequence++;
     // Only the presenter needs join events containing the private player record.
     broadcast(req.params.pin, { type: 'PLAYER_JOIN', pin: req.params.pin, player }, true);
@@ -502,7 +521,7 @@ app.post('/api/session/:pin/player/:playerId/remove', (req, res) => {
   room.removed.add(playerId);
   room.playerTokens.delete(playerId); room.playerExpiries.delete(playerId);
   delete room.session.players[playerId]; delete room.roundPlayers[playerId]; delete room.session.answersForCurrentQuestion[playerId];
-  delete room.assignmentAnswers[playerId];
+  delete room.assignmentAnswers[playerId]; room.devices.delete(playerId);
   if (room.assignmentQuiz) saveAssignments();
   for (const client of sessionClients.get(req.params.pin) || []) {
     if (client.role === 'player' && client.playerId === playerId) client.ws.close(4003, REMOVED);
@@ -576,7 +595,7 @@ app.post('/api/assignment/create', (req, res) => {
   check(quiz.id === session.quizId && quiz.questions.length === session.totalQuestions, 'Invalid homework');
   check(deadlineAllowed(session.assignment!.deadline), 'Invalid deadline');
   check(!sessions.has(session.pin), 'PIN in use');
-  const room: Room = { session: { ...session, currentQuestion: undefined, answersForCurrentQuestion: {} }, assignmentQuiz: quiz, assignmentAnswers: {}, openedQuestions: 0,
+  const room: Room = { session: { ...session, currentQuestion: undefined, answersForCurrentQuestion: {} }, assignmentQuiz: quiz, assignmentAnswers: {}, devices: new Map(), openedQuestions: 0,
     hostToken: credential!, playerTokens: new Map(), playerExpiries: new Map(), roundPlayers: {}, revision: 0, sequence: 0, operations: new Map(), removed: new Set(), removedTokens: new Set() };
   creationTokens.delete(credential!);
   sessions.set(session.pin, room);

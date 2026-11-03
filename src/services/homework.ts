@@ -9,7 +9,7 @@ export const MAX_DEADLINE_MS = 7 * 24 * 60 * 60 * 1000;
 /** Homework the teacher has given from this computer, to reopen its page after a restart. */
 export interface SavedHomework { pin: string; token: string; quizId: string; title: string; deadline: number }
 /** `quiz` is the quiz as assigned, without images; only a full read returns it. */
-export interface HomeworkState { session: GameSession; answers: Record<string, Record<string, AssignmentAnswer>>; quiz?: Quiz }
+export interface HomeworkState { session: GameSession; answers: Record<string, Record<string, AssignmentAnswer>>; quiz?: Quiz; sharedDevices?: Record<string, string[]> }
 
 // The one presenter credential kept beyond the tab: homework lasts days. The server accepts presenter requests
 // only from this computer, and participants open the app on another origin, so they cannot read it.
@@ -52,8 +52,8 @@ export async function createHomework(quiz: Quiz, pin: string, deadline: number, 
   return saved;
 }
 
-const toState = (data: { session: GameSession; assignmentAnswers?: HomeworkState['answers']; assignmentQuiz?: Quiz }): HomeworkState =>
-  ({ session: data.session, answers: data.assignmentAnswers ?? {}, ...(data.assignmentQuiz ? { quiz: data.assignmentQuiz } : {}) });
+const toState = (data: { session: GameSession; assignmentAnswers?: HomeworkState['answers']; assignmentQuiz?: Quiz; sharedDevices?: Record<string, string[]> }): HomeworkState =>
+  ({ session: data.session, answers: data.assignmentAnswers ?? {}, sharedDevices: data.sharedDevices ?? {}, ...(data.assignmentQuiz ? { quiz: data.assignmentQuiz } : {}) });
 
 /** The class report, question by question, from every participant's answers: counts only, as in a live game. */
 export function homeworkReports(quiz: Quiz, state: HomeworkState): QuestionReport[] {

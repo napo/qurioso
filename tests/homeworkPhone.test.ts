@@ -8,7 +8,7 @@ import { WebSocket } from 'ws';
 import type { GameSession, Quiz } from '../src/types/quiz';
 import { startLanServer } from './helpers/lanServer';
 
-test('a participant can answer homework on their phone, leave, resume and keep the result', { timeout: 30000 }, async t => {
+test('a participant answers homework on their phone; once it is handed in, leaving frees the device for the next student', { timeout: 30000 }, async t => {
   const { base, request, mint } = await startLanServer(t);
   const pin = '468024', quiz: Quiz = {
     id: 'phone-homework', title: 'Compito telefono', description: '', category: '', author: '', createdAt: 1,
@@ -109,8 +109,9 @@ test('a participant can answer homework on their phone, leave, resume and keep t
   const [answers] = Object.values(report.assignmentAnswers) as Array<Record<string, { isCorrect?: boolean }>>;
   assert.deepEqual([answers.q1.isCorrect, answers.q2.isCorrect], [true, true], 'leaving does not delete homework progress');
 
-  const closedAgain = await request(`/api/session/${pin}/assignment/close`, 'POST', {}, hostToken);
-  assert.equal(closedAgain.status, 200);
+  // A shared tablet: the next student with the same PIN starts their own homework, not the previous one.
   await submitName();
-  await waitFor(() => document.querySelector('.homework-end')?.textContent?.includes('Compito consegnato!'), 'recover completed homework after the teacher closes it');
+  await waitFor(() => document.querySelector('.homework-question')?.textContent?.includes('Capitale d’Italia?'), 'a fresh homework for the next student');
+  const after = await (await request(`/api/session/${pin}/presenter`, 'GET', undefined, hostToken)).json();
+  assert.equal(Object.keys(after.session.players).length, 2);
 });

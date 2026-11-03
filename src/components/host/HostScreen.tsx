@@ -29,6 +29,7 @@ import {
 import { Quiz, GameSession, Player, Question, type Team } from '../../types/quiz';
 import { assignTeams, makeTeams, randomlyAssignTeams } from '../../services/teams';
 import { TeamRanking } from '../leaderboard/TeamRanking';
+import { SharedDevice } from '../common/SharedDevice';
 import { gameSync, BOT_PLAYERS, generateBotAnswer, ServerInfo } from '../../services/gameSync';
 import { sounds } from '../../services/soundEffects';
 import { OPTION_COLORS, SHAPE_ICONS, COLOR_KEYS, SHAPE_KEYS } from '../../utils/quizStyles';
@@ -85,6 +86,8 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
   const [status, setStatus] = useState<GameSession['status']>(recoveredSession?.status || 'lobby');
   const [players, setPlayers] = useState<Record<string, Player>>(recoveredSession?.players || {});
   const [teams, setTeams] = useState<Team[] | undefined>(recoveredSession?.teams);
+  // Participants who joined from the same browser, as reported by the server: a hint, not a proof.
+  const [sharedDevices, setSharedDevices] = useState<Record<string, string[]>>({});
   const [teamNameDrafts, setTeamNameDrafts] = useState<Record<string, string>>({});
   const [draggedPlayerId, setDraggedPlayerId] = useState<string>();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(recoveredSession?.currentQuestionIndex || 0);
@@ -203,6 +206,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
       }
       // Polling recovers joins/answers when the presenter's WebSocket is unavailable.
       if (msg.type === 'SESSION_STATE_UPDATE' && msg.session.pin === pin) {
+        setSharedDevices(msg.sharedDevices ?? {});
         const remote = msg.session;
         const missing = Object.fromEntries(Object.entries(remote.players).filter(([id]) => !sessionRef.current.players[id]));
         if (Object.keys(missing).length) {
@@ -315,6 +319,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
       className="shrink-0 cursor-grab touch-none text-muted active:cursor-grabbing"><GripVertical className="w-4 h-4" aria-hidden="true" /></button>}
     <span className="text-2xl">{player.avatar}</span>
     <span className="font-bold text-xs text-ink truncate">{player.name}</span>
+    <SharedDevice others={sharedDevices[player.id]} players={players} />
     {teams && <select aria-label={fill(lobby.teamOf, { name: player.name || player.nickname })} value={player.teamId ?? ''} onChange={event => moveToTeam(player.id, event.target.value)}
       className="ml-auto min-w-0 max-w-24 rounded-lg border border-line bg-white text-xs">
       <option value="">{lobby.noTeam}</option>
