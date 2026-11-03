@@ -2,8 +2,11 @@ import type { Question, Quiz, ImageAttribution } from '../types/quiz';
 import type { ImportIssue, ImportMessageKey } from '../i18n/questionImport';
 import { COLOR_KEYS, SHAPE_KEYS } from '../utils/quizStyles';
 import { editableVideoQuiz, parseVideoTime } from './videoQuiz';
+import { OPTION_LIMITS, isScored } from './questionTypes';
 
 export const IMPORT_LIMITS = { bytes: 5 * 1024 * 1024, records: 1000, columns: 64 } as const;
+/** A complete quiz carries its embedded images, so its file may be larger than a list of questions. */
+export const COMPLETE_QUIZ_BYTES = 32 * 1024 * 1024;
 export const OPTION_FIELDS = Array.from({ length: 12 }, (_, i) => `option${String.fromCharCode(65 + i)}`);
 export const IMPORT_FIELDS = ['text', 'type', ...OPTION_FIELDS, 'options', 'correct', 'explanation', 'points', 'timeLimit', 'videoTime', 'mediaUrl', 'mediaType', 'id'];
 export type Mapping = Record<string, string>;
@@ -19,7 +22,7 @@ function fail(key: ImportMessageKey, args?: ImportIssue['args']): never { throw 
 const object = (value: unknown): value is Record<string, any> => Boolean(value && typeof value === 'object' && !Array.isArray(value));
 
 export async function readQuestionFile(file: File): Promise<string> {
-  if (file.size > IMPORT_LIMITS.bytes) fail('tooLarge');
+  if (file.size > (/\.json$/i.test(file.name) ? COMPLETE_QUIZ_BYTES : IMPORT_LIMITS.bytes)) fail('tooLarge');
   if (!/\.(csv|tsv|json)$/i.test(file.name)) fail('fileType');
   let buffer: ArrayBuffer;
   try { buffer = typeof file.arrayBuffer === 'function' ? await file.arrayBuffer() : await new Promise<ArrayBuffer>((resolve, reject) => {
@@ -89,6 +92,16 @@ export function jsonImportSource(text: string): ImportSource {
   return { kind: canonical ? 'canonical' : 'flat', fullQuiz, records, columns, lines: records.map((_, i) => i + 1) };
 }
 
+/** The whole quiz in a Qurioso JSON file, with settings, video and checkpoints, under a new id; undefined when it is not one. */
+export function completeQuiz(text: string, newId = `quiz-${Date.now()}`): Quiz | undefined {
+  let imported: any;
+  try { imported = JSON.parse(text); } catch { return undefined; }
+  if (!object(imported) || typeof imported.title !== 'string' || !object(imported.settings) || !Array.isArray(imported.questions) || !imported.questions.length ||
+      imported.questions.some((q: Question) => !object(q) || typeof q.id !== 'string' || typeof q.text !== 'string' || !Array.isArray(q.options) || q.options.length < 2) ||
+      (imported.videoConfig && (typeof imported.videoConfig.videoUrl !== 'string' || !Array.isArray(imported.videoConfig.checkpoints)))) return undefined;
+  return editableVideoQuiz({ ...imported, id: newId } as Quiz);
+}
+
 export function suggestQuestionMapping(columns: string[], csv = true): Mapping {
   const aliases: Record<string, string[]> = {
     text: ['text', 'question', 'domanda', 'testodomanda'], type: ['type', 'tipo'], correct: ['correct', 'correctanswer', 'rispostacorretta', 'corretta'],
@@ -125,11 +138,16 @@ function videoTime(value: unknown): number {
 const httpUrl = (value: string) => { try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password; } catch { return false; } };
 function validateQuestion(raw: Record<string, any>, config: ImportConfig, canonical: boolean, warnings: ImportIssue[]): Question {
   const text = textValue(raw.text, 'text', 20000);
-  const types: Record<string, Question['type']> = { multiple_choice: 'multiple_choice', 'multiple choice': 'multiple_choice', scelta_multipla: 'multiple_choice', 'scelta multipla': 'multiple_choice', true_false: 'true_false', 'true/false': 'true_false', 'vero/falso': 'true_false', vero_falso: 'true_false' };
+  const types: Record<string, Question['type']> = { multiple_choice: 'multiple_choice', 'multiple choice': 'multiple_choice', scelta_multipla: 'multiple_choice', 'scelta multipla': 'multiple_choice', true_false: 'true_false', 'true/false': 'true_false', 'vero/falso': 'true_false', vero_falso: 'true_false',
+    multiple_select: 'multiple_select', 'più risposte': 'multiple_select', 'piu risposte': 'multiple_select', risposta_multipla: 'multiple_select', mehrfachauswahl: 'multiple_select',
+    poll: 'poll', sondaggio: 'poll', umfrage: 'poll', ordering: 'ordering', ordinamento: 'ordering', reihenfolge: 'ordering' };
   const inputType = !canonical && (raw.type === undefined || raw.type === '') ? config.defaultType : raw.type;
   const type = typeof inputType === 'string' ? types[inputType.trim().toLowerCase()] : undefined;
   if (!type) fail('invalidType', { value: String(inputType).slice(0, 100) });
-  const checkCount = (actual: number) => { if (type === 'true_false' ? actual !== 2 : actual < 2 || actual > 12) fail('optionCount', { count: type === 'true_false' ? '2' : '2–12', actual }); };
+  const [fewest, most] = OPTION_LIMITS[type];
+  const checkCount = (actual: number) => { if (actual < fewest || actual > most) fail('optionCount', { count: fewest === most ? String(fewest) : `${fewest}–${most}`, actual }); };
+  // A poll has no correct answer; an ordering's answer is the order of its options. Both ignore correct marks.
+  const marksCorrect = isScored({ type }) && type !== 'ordering';
   let options: Question['options'];
   if (canonical) {
     if (!Array.isArray(raw.options)) fail('optionType');
@@ -150,10 +168,10 @@ function validateQuestion(raw: Record<string, any>, config: ImportConfig, canoni
     }
     checkCount(values.length);
     options = values.map((value, i) => ({ id: `source-option-${i}`, text: textValue(value, `option${String.fromCharCode(65 + i)}`, 10000), isCorrect: false, color: COLOR_KEYS[i % 6], shape: SHAPE_KEYS[i % 6] }));
-    if (typeof raw.correct !== 'string' && typeof raw.correct !== 'number') fail('correctMissing');
-    const correct = String(raw.correct).trim();
-    if (!correct) fail('correctMissing');
-    if (config.correctMode === 'texts') {
+    const correct = typeof raw.correct === 'string' || typeof raw.correct === 'number' ? String(raw.correct).trim() : '';
+    if (!correct && marksCorrect) fail('correctMissing');
+    if (!marksCorrect) { /* Correct marks do not apply to this type. */ }
+    else if (config.correctMode === 'texts') {
       const matches = options.map((option, i) => option.text === correct ? i : -1).filter(i => i >= 0);
       if (matches.length !== 1) fail('correctAmbiguous'); options[matches[0]].isCorrect = true;
     } else for (const token of correct.split('|').map(part => part.trim())) {
@@ -162,10 +180,11 @@ function validateQuestion(raw: Record<string, any>, config: ImportConfig, canoni
       options[index].isCorrect = true;
     }
   }
-  if (type === 'true_false' ? options.length !== 2 : options.length < 2 || options.length > 12) fail('optionCount', { count: type === 'true_false' ? '2' : '2–12', actual: options.length });
+  checkCount(options.length);
   if (new Set(options.map(option => option.id)).size !== options.length) fail('optionIds');
+  if (!marksCorrect) options = options.map(option => ({ ...option, isCorrect: false }));
   const correct = options.filter(option => option.isCorrect).length;
-  if (!correct || type === 'true_false' && correct !== 1) fail('correctMissing');
+  if (marksCorrect && (!correct || type === 'true_false' && correct !== 1)) fail('correctMissing');
   if (raw.id !== undefined && typeof raw.id !== 'string') fail('optionalType', { field: 'id' });
   const question: Question = { id: raw.id || '', text, type, options, points: numeric(raw.points, 'points', 0, 1000000, 1000), timeLimit: numeric(raw.timeLimit, 'timeLimit', 0.001, 86400, 20) };
   if (!canonical && raw.videoTime !== undefined && String(raw.videoTime).trim() !== '') question.videoTimestamp = videoTime(raw.videoTime);

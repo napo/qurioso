@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, net, safeStorage, session, shell, utilityProcess, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, net, powerSaveBlocker, safeStorage, session, shell, utilityProcess, Menu, ipcMain } = require('electron');
 const { randomBytes } = require('node:crypto');
 const { MENU_TEXT, menuLanguage } = require('./menuText.cjs');
 const path = require('node:path');
@@ -15,6 +15,8 @@ let updater;
 let sharing;
 // Menu and default interface language: the system language when supported, English otherwise.
 let menuLanguageCode;
+// Open homework needs this computer awake until its deadline, and a confirmation before quitting.
+let openHomework = 0, keepAwake, quitConfirmed = false;
 const sharingToken = randomBytes(32).toString('hex');
 
 app.setName('Qurioso');
@@ -41,9 +43,15 @@ async function start() {
   const root = app.isPackaged ? process.resourcesPath : app.getAppPath();
   const serverFile = app.isPackaged ? path.join(root, 'server.mjs') : path.join(root, 'build/desktop/server.mjs');
   fs.mkdirSync(app.getPath('userData'), { recursive: true });
+  // The same port as last time keeps the LAN link of open homework, and the participants' saved credentials, valid.
+  const portFile = path.join(app.getPath('userData'), 'server-port.json');
+  let previousPort = 0;
+  try { previousPort = Number(JSON.parse(fs.readFileSync(portFile, 'utf8')).port) || 0; } catch { /* First start. */ }
   backend = utilityProcess.fork(serverFile, [], {
     cwd: app.getPath('userData'),
-    env: { ...process.env, NODE_ENV: 'production', PORT: '0', QURIOSO_DIST_PATH: path.join(root, 'dist'), QURIOSO_PUBLIC_TUNNEL_TOKEN: sharingToken },
+    env: { ...process.env, NODE_ENV: 'production', PORT: '0', QURIOSO_PREFERRED_PORT: String(previousPort),
+      QURIOSO_ASSIGNMENTS_FILE: path.join(app.getPath('userData'), 'homework.json'),
+      QURIOSO_DIST_PATH: path.join(root, 'dist'), QURIOSO_PUBLIC_TUNNEL_TOKEN: sharingToken },
     stdio: 'pipe',
     serviceName: 'Qurioso local quiz server',
   });
@@ -59,6 +67,13 @@ async function start() {
     backend.once('exit', code => { clearTimeout(timer); reject(new Error(`Server locale terminato (${code}).`)); });
   });
   backend.on('exit', code => { if (!quitting) fail(new Error(`Il server locale si è fermato (${code}). Riavvia Qurioso.`)); });
+  try { fs.writeFileSync(portFile, JSON.stringify({ port: backendPort })); } catch { /* A new port next time. */ }
+  backend.on('message', message => {
+    if (message?.type !== 'homework' || !Number.isInteger(message.open)) return;
+    openHomework = message.open;
+    if (openHomework && keepAwake === undefined) keepAwake = powerSaveBlocker.start('prevent-app-suspension');
+    else if (!openHomework && keepAwake !== undefined) { powerSaveBlocker.stop(keepAwake); keepAwake = undefined; }
+  });
 
   // A fixed browser origin preserves IndexedDB while the LAN server gets a new free port.
   const browserSession = session.fromPartition('persist:qurioso');
@@ -99,6 +114,7 @@ async function start() {
   });
   window.once('ready-to-show', () => { if (!smoke && !captureGuide) window.show(); });
   window.on('closed', () => { window = null; });
+  window.on('close', event => { if (!confirmQuit()) event.preventDefault(); });
   let configuration = Promise.resolve();
   sharing = require('./internetSharing.cjs').createInternetSharing({
     directory: path.join(app.getPath('userData'), 'components'), port: backendPort,
@@ -205,6 +221,18 @@ async function start() {
   }
 }
 
+/** True when quitting may go on: no open homework, or the teacher confirmed. */
+function confirmQuit() {
+  if (quitConfirmed || !openHomework || smoke || captureGuide || !window || window.isDestroyed()) return true;
+  const text = MENU_TEXT[menuLanguageCode] || MENU_TEXT.en;
+  const choice = dialog.showMessageBoxSync(window, { type: 'warning', title: 'Qurioso', message: text.homeworkOpen,
+    detail: text.homeworkOpenDetail, buttons: [text.homeworkQuit, text.homeworkStay], defaultId: 1, cancelId: 1, noLink: true });
+  quitConfirmed = choice === 0;
+  return quitConfirmed;
+}
+
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => { quitting = true; sharing?.shutdown(); updater?.stop(); window?.destroy(); backend?.kill(); });
+app.on('before-quit', event => {
+  if (!confirmQuit()) { event.preventDefault(); return; }
+  quitting = true; sharing?.shutdown(); updater?.stop(); window?.destroy(); backend?.kill(); });
 app.on('will-quit', () => { sharing?.shutdown(); backend?.kill(); });

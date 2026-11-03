@@ -16,7 +16,8 @@ import {
   Upload,
   HelpCircle
 } from 'lucide-react';
-import { Quiz, Question, QuestionOption } from '../../types/quiz';
+import { Quiz, Question, QuestionOption, type QuestionType } from '../../types/quiz';
+import { isScored } from '../../services/questionTypes';
 import { OPTION_COLORS, SHAPE_ICONS } from '../../utils/quizStyles';
 import { DEFAULT_QUIZ_COVER } from '../../data/defaultQuizzes';
 import { VideoTimelineEditor } from './VideoTimelineEditor';
@@ -49,7 +50,6 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
   const categoryId = useId();
   const categoryListId = useId();
   const [importingQuestions, setImportingQuestions] = useState(false);
-  const quizImportInput = useRef<HTMLInputElement>(null);
   const [quiz, setQuiz] = useState<Quiz>(() => {
     if (initialQuiz) return editableVideoQuiz(JSON.parse(JSON.stringify(initialQuiz)));
     return {
@@ -92,6 +92,9 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
   const [saveError, setSaveError] = useState('');
   const [activeQuestionIndex, setActiveQuestionIndex] = useState<number>(0);
   const currentQuestion: Question | undefined = quiz.questions[activeQuestionIndex];
+  // Polls and orderings have no correct mark: an ordering's answer is the order of its items.
+  const marksCorrect = Boolean(currentQuestion && isScored(currentQuestion) && currentQuestion.type !== 'ordering');
+  const typeLabels: Record<QuestionType, string> = { multiple_choice: ed.typeMultipleChoice, true_false: ed.typeTrueFalse, multiple_select: ed.typeMultipleSelect, poll: ed.typePoll, ordering: ed.typeOrdering };
 
   const [videoDuration, setVideoDuration] = useState(0);
   const [timelinePending, setTimelinePending] = useState(false);
@@ -140,7 +143,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
   };
 
   // Add Question
-  const addQuestion = (type: 'multiple_choice' | 'true_false' = 'multiple_choice', timestamp?: number) => {
+  const addQuestion = (type: QuestionType = 'multiple_choice', timestamp?: number) => {
     let newOptions: QuestionOption[] = [];
     if (type === 'true_false') {
       newOptions = [
@@ -153,7 +156,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
         { id: `opt-${Date.now()}-2`, text: '', isCorrect: false, color: 'blue', shape: 'diamond' },
         { id: `opt-${Date.now()}-3`, text: '', isCorrect: false, color: 'yellow', shape: 'circle' },
         { id: `opt-${Date.now()}-4`, text: '', isCorrect: false, color: 'green', shape: 'square' },
-      ];
+      ].map(option => ({ ...option, isCorrect: option.isCorrect && isScored({ type }) && type !== 'ordering' })) as QuestionOption[];
     }
 
     const newQ: Question = {
@@ -221,6 +224,20 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
       question.id === questionId ? { ...question, ...updates } : question) }));
   };
 
+  /** Changing type keeps the options; correct marks follow the new type (one, any, or none). */
+  const changeType = (type: QuestionType) => {
+    if (!currentQuestion) return;
+    const first = Math.max(0, currentQuestion.options.findIndex(option => option.isCorrect));
+    updateCurrentQuestion({ type, options: currentQuestion.options.map((option, i) => ({ ...option,
+      isCorrect: type === 'multiple_select' ? option.isCorrect || i === first : type === 'multiple_choice' ? i === first : false })) });
+  };
+  const moveOption = (index: number, step: -1 | 1) => {
+    if (!currentQuestion || index + step < 0 || index + step >= currentQuestion.options.length) return;
+    const options = [...currentQuestion.options];
+    [options[index], options[index + step]] = [options[index + step], options[index]];
+    updateCurrentQuestion({ options });
+  };
+
   // Update Option
   const updateOption = (optionId: string, updates: Partial<QuestionOption>) => {
     if (!currentQuestion) return;
@@ -235,31 +252,19 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
 
   const prepareQuiz = () => {
     if (!quiz.title.trim()) throw new Error(ed.titleRequired);
-    const invalidIndex = quiz.questions.findIndex(question => question.options.filter(option => option.isCorrect).length !== 1);
+    const correctCount = (question: Question) => question.options.filter(option => option.isCorrect).length;
+    const severalMissing = quiz.questions.findIndex(question => question.type === 'multiple_select' && !correctCount(question));
+    if (severalMissing >= 0) throw new Error(fill(ed.atLeastOneCorrect, { n: severalMissing + 1 }));
+    const invalidIndex = quiz.questions.findIndex(question => ['multiple_choice', 'true_false'].includes(question.type) && correctCount(question) !== 1);
     if (invalidIndex >= 0) throw new Error(fill(ed.oneCorrect, { n: invalidIndex + 1 }));
     return prepareVideoQuiz({ ...quiz, title: quiz.title.trim(), category: (quiz.category || '').trim() }, videoDuration);
   };
 
   // Import JSON quiz
-  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file || (dirty && !window.confirm(ed.replaceWithImport))) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const imported = JSON.parse(event.target?.result as string);
-        if (!imported || typeof imported.title !== 'string' || !imported.settings || !Array.isArray(imported.questions) || !imported.questions.length ||
-            imported.questions.some((q: Question) => !q || typeof q.id !== 'string' || typeof q.text !== 'string' || !Array.isArray(q.options) || q.options.length < 2) ||
-            (imported.videoConfig && (typeof imported.videoConfig.videoUrl !== 'string' || !Array.isArray(imported.videoConfig.checkpoints)))) throw new Error(ed.invalidQuizFile);
-        setQuiz(editableVideoQuiz({ ...imported, id: `quiz-${Date.now()}` }));
-        setVideoDuration(0); setActiveQuestionIndex(0); setSaveError('');
-      } catch (error) {
-        setSaveError(error instanceof Error ? error.message : ed.importFailed);
-      }
-    };
-    reader.readAsText(file);
+  const openCompleteQuiz = (imported: Quiz) => {
+    if (dirty && !window.confirm(ed.replaceWithImport)) return;
+    setQuiz(imported);
+    setVideoDuration(0); setActiveQuestionIndex(0); setSaveError(''); setImportingQuestions(false);
   };
 
   // Export JSON quiz
@@ -367,7 +372,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
 
   return (
     <div className={`quiz-editor flex flex-col h-full w-full bg-white text-ink overflow-hidden ${quiz.videoConfig ? 'quiz-editor-video' : ''}`}>
-      {importingQuestions && <QuestionImportDialog initialQuiz={quiz} onCancel={() => setImportingQuestions(false)} onConfirm={next => { setQuiz(next); setActiveQuestionIndex(quiz.questions.length); setImportingQuestions(false); }} />}
+      {importingQuestions && <QuestionImportDialog initialQuiz={quiz} onCancel={() => setImportingQuestions(false)} onConfirm={next => { setQuiz(next); setActiveQuestionIndex(quiz.questions.length); setImportingQuestions(false); }} onOpenQuiz={openCompleteQuiz} />}
       {/* Top Header */}
       <div className="shrink-0 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white border-b border-line">
         <div className="flex items-center gap-3">
@@ -394,12 +399,10 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" disabled={isSaving || videoBusy || timelinePending || !draftReady} onClick={() => setImportingQuestions(true)} className="btn-secondary inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm">{importText(language, 'importQuestions')}</button>
-          <button type="button" disabled={isSaving || videoBusy || timelinePending || !draftReady} onClick={() => quizImportInput.current?.click()} className="btn-secondary inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm">
+          <button type="button" disabled={isSaving || videoBusy || timelinePending || !draftReady} onClick={() => setImportingQuestions(true)} className="btn-secondary inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm">
             <Upload className="w-4 h-4" />
-            <span>{importText(language, 'fullQuiz')}</span>
+            <span>{importText(language, 'importAny')}</span>
           </button>
-          <input ref={quizImportInput} type="file" accept=".json" onChange={handleImportJSON} className="hidden" aria-label={importText(language, 'fullQuiz')} />
 
           <button
             disabled={isSaving || videoBusy || timelinePending || !draftReady}
@@ -476,7 +479,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                 }`}
               >
                 <div className={`flex items-center justify-between gap-2 text-[11px] font-bold mb-1 ${activeQuestionIndex === idx ? 'text-ink' : 'text-muted'}`}>
-                  <span className="min-w-0 truncate">#{idx + 1} • {q.type === 'true_false' ? t.trueFalse : t.multipleChoice}</span>
+                  <span className="min-w-0 truncate">#{idx + 1} • {typeLabels[q.type]}</span>
                   <span className="shrink-0 whitespace-nowrap">{q.timeLimit} s</span>
                 </div>
                 <div className="text-xs font-semibold text-ink line-clamp-2">
@@ -549,6 +552,11 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
               <Plus className="w-3.5 h-3.5 text-petrolio" />
               <span>{t.addTrueFalse}</span>
             </button>
+            <details className="text-xs"><summary className="cursor-pointer text-center font-semibold text-petrolio py-1">{ed.addOtherType}</summary>
+              <div className="space-y-1.5 pt-1">{(['multiple_select', 'poll', 'ordering'] as const).map(type => <button key={type} type="button" onClick={() => addQuestion(type)}
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 bg-surface-soft hover:bg-surface-hover text-muted rounded-xl font-semibold transition active:scale-95 cursor-pointer">
+                <Plus className="w-3.5 h-3.5 text-petrolio" /><span>{typeLabels[type]}</span></button>)}</div>
+            </details>
           </div>
         </div>
 
@@ -595,12 +603,16 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                 <span className="text-xs font-extrabold uppercase tracking-wider text-muted">
                   {t.responseOptionsLabel}
                 </span>
-                <span className="text-xs text-muted">
+                {marksCorrect && <span className="text-xs text-muted">
                   {currentQuestion.options.filter((o) => o.isCorrect).length} {t.correctCount}
-                </span>
+                </span>}
               </div>
 
-              <p className="mb-3 text-xs text-muted">{ed.singleCorrect}</p>
+              {currentQuestion.type !== 'true_false' && <label className="mb-3 flex items-center gap-2 text-xs font-bold text-muted">{ed.questionType}
+                <select value={currentQuestion.type} onChange={event => changeType(event.target.value as QuestionType)} className="rounded-lg border border-line bg-white px-2 py-1 text-sm text-ink">
+                  {(['multiple_choice', 'multiple_select', 'poll', 'ordering'] as const).map(type => <option key={type} value={type}>{typeLabels[type]}</option>)}
+                </select></label>}
+              <p className="mb-3 text-xs text-muted">{{ multiple_select: ed.severalCorrect, poll: ed.pollHint, ordering: ed.orderingHint }[currentQuestion.type as string] ?? ed.singleCorrect}</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 {currentQuestion.options.map((opt, optIdx) => {
                   const style = OPTION_COLORS[opt.color] || OPTION_COLORS.blue;
@@ -609,7 +621,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                     <div
                       key={opt.id}
                       className={`relative flex items-center gap-3 p-3.5 rounded-2xl transition border-2 ${
-                        opt.isCorrect
+                        marksCorrect && opt.isCorrect
                           ? 'border-emerald-400 bg-white ring-2 ring-emerald-500/20 shadow-lg'
                           : 'border-line bg-white'
                       }`}
@@ -626,10 +638,15 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                         type="text" value={opt.text} onChange={event => updateOption(opt.id, { text: event.target.value })} placeholder={fill(ed.optionPlaceholder, { n: optIdx + 1 })}
                         className="min-w-0 flex-1 bg-transparent border-0 focus:outline-none font-bold text-sm text-ink placeholder-muted" />}
 
-                      {/* Selecting an answer replaces the previous correct answer. */}
-                      <button
+                      {currentQuestion.type === 'ordering' && <div className="flex flex-col shrink-0">
+                        <button type="button" disabled={optIdx === 0} onClick={() => moveOption(optIdx, -1)} aria-label={fill(ed.moveItemUp, { n: optIdx + 1 })} className="px-1 text-petrolio disabled:opacity-30">▲</button>
+                        <button type="button" disabled={optIdx === currentQuestion.options.length - 1} onClick={() => moveOption(optIdx, 1)} aria-label={fill(ed.moveItemDown, { n: optIdx + 1 })} className="px-1 text-petrolio disabled:opacity-30">▼</button>
+                      </div>}
+                      {/* Single choice: selecting an answer replaces the previous one. Several answers: each toggles. */}
+                      {marksCorrect && <button
                         type="button"
-                        onClick={() => updateCurrentQuestion({ options: currentQuestion.options.map(option => ({ ...option, isCorrect: option.id === opt.id })) })}
+                        onClick={() => updateCurrentQuestion({ options: currentQuestion.options.map(option => currentQuestion.type === 'multiple_select'
+                          ? (option.id === opt.id ? { ...option, isCorrect: !option.isCorrect } : option) : { ...option, isCorrect: option.id === opt.id }) })}
                         aria-label={fill(ed.answerCorrectN, { n: optIdx + 1 })} aria-pressed={opt.isCorrect}
                         className={`shrink-0 w-7 h-7 rounded-xl flex items-center justify-center transition cursor-pointer ${
                           opt.isCorrect
@@ -639,7 +656,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                         title={opt.isCorrect ? t.correctBadge : t.responseOptionsLabel}
                       >
                         <Check className="w-4 h-4" />
-                      </button>
+                      </button>}
                     </div>
                   );
                 })}

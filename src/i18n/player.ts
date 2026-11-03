@@ -20,6 +20,7 @@ const it = {
   recExpired: 'La credenziale del partecipante è scaduta. Puoi effettuare un nuovo ingresso.', recEnded: 'Partita terminata. Puoi effettuare un nuovo ingresso.',
   recUnavailable: 'Recupero temporaneamente non disponibile. Controlla la connessione e riprova; la credenziale è stata conservata.',
   sessionEnded: 'Partita non più disponibile o credenziale scaduta. Puoi effettuare un nuovo ingresso.',
+  removed: 'Il docente ti ha tolto dalla partita.', chooseTeam: 'Scegli la tua squadra', teamRequired: 'Scegli una squadra per entrare.', pickAll: 'Scegli tutte le risposte giuste, poi conferma.', pickOrder: 'Tocca gli elementi in ordine, dal primo all’ultimo. Tocca di nuovo per togliere.', confirmChoice: 'Conferma', restartOrder: 'Ricomincia', pollThanks: 'Grazie, il tuo voto è stato contato!', pollWait: 'Guarda i risultati del sondaggio sullo schermo del docente.', orderPosition: 'posizione {n}', nicknameBlocked: 'Questo nome non è adatto. Scegline un altro.',
 };
 type Text = Record<keyof typeof it, string>;
 const en: Text = {
@@ -42,6 +43,7 @@ const en: Text = {
   recExpired: 'The participant credential has expired. You can join again.', recEnded: 'The game has ended. You can join again.',
   recUnavailable: 'Recovery is temporarily unavailable. Check the connection and try again; your credential has been kept.',
   sessionEnded: 'The game is no longer available or the credential has expired. You can join again.',
+  removed: 'The teacher removed you from the game.', chooseTeam: 'Choose your team', teamRequired: 'Choose a team to join.', pickAll: 'Choose all the right answers, then confirm.', pickOrder: 'Tap the items in order, from first to last. Tap again to remove.', confirmChoice: 'Confirm', restartOrder: 'Start over', pollThanks: 'Thanks, your vote was counted!', pollWait: 'Watch the poll results on the teacher’s screen.', orderPosition: 'position {n}', nicknameBlocked: 'This name is not appropriate. Choose another one.',
 };
 const de: Text = {
   leave: 'Spiel verlassen', joinError: 'Spiel nicht gefunden oder Server nicht erreichbar. Prüfe die PIN und versuche es erneut.',
@@ -63,6 +65,7 @@ const de: Text = {
   recExpired: 'Die Zugangsdaten der Teilnahme sind abgelaufen. Du kannst erneut beitreten.', recEnded: 'Das Spiel ist beendet. Du kannst erneut beitreten.',
   recUnavailable: 'Die Wiederherstellung ist vorübergehend nicht verfügbar. Prüfe die Verbindung und versuche es erneut; deine Zugangsdaten bleiben gespeichert.',
   sessionEnded: 'Das Spiel ist nicht mehr verfügbar oder die Zugangsdaten sind abgelaufen. Du kannst erneut beitreten.',
+  removed: 'Die Lehrkraft hat dich aus dem Spiel entfernt.', chooseTeam: 'Wähle dein Team', teamRequired: 'Wähle ein Team, um beizutreten.', pickAll: 'Wähle alle richtigen Antworten und bestätige dann.', pickOrder: 'Tippe die Elemente der Reihe nach an, vom ersten bis zum letzten. Erneut tippen entfernt sie.', confirmChoice: 'Bestätigen', restartOrder: 'Neu beginnen', pollThanks: 'Danke, deine Stimme wurde gezählt!', pollWait: 'Sieh dir die Ergebnisse der Umfrage auf dem Bildschirm der Lehrkraft an.', orderPosition: 'Position {n}', nicknameBlocked: 'Dieser Name ist nicht passend. Wähle einen anderen.',
 };
 export const playerTranslations: Record<Language, Text> = { it, en, de };
 

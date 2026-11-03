@@ -1,4 +1,5 @@
-import { GameSession, Player, Question, Quiz } from '../types/quiz';
+import { GameSession, Player, Question, Quiz, type Team } from '../types/quiz';
+import { makeChoice, type Choice } from './questionTypes';
 import type { VideoSelection } from './videoQuiz';
 import { presenterQuiz } from './quizStorage';
 import { readPresenterCredential, savePresenterCredential, clearPresenterCredential } from './presenterRecovery';
@@ -6,7 +7,7 @@ import { readPlayerCredential, savePlayerCredential, clearPlayerCredential } fro
 import type { PlayerCredential } from '../types/playerCredential';
 
 export type PlayerRecovery =
-  | { status: 'recovered'; session: GameSession; player: Player; ownAnswer?: { questionId: string; optionId: string; timeTakenMs: number } }
+  | { status: 'recovered'; session: GameSession; player: Player; ownAnswer?: { questionId: string; optionId: string; optionIds?: string[]; timeTakenMs: number } }
   | { status: 'none' | 'invalid' | 'gone' | 'ended' | 'expired' | 'unavailable'; message?: string };
 
 export type PresenterRecovery =
@@ -14,11 +15,11 @@ export type PresenterRecovery =
   | { status: 'none' | 'invalid' | 'gone' | 'unavailable' | 'context_missing'; message?: string };
 
 export type GameSyncMessage =
-  | { type: 'PLAYER_SESSION_ENDED'; pin: string; message: string }
+  | { type: 'PLAYER_SESSION_ENDED'; pin: string; message: string; removed?: boolean }
   | { type: 'PLAYER_JOIN'; pin: string; player: Player }
   | { type: 'PLAYER_DISCONNECTED'; pin: string; playerId: string }
-  | { type: 'PLAYER_ANSWER'; pin: string; playerId: string; questionId: string; optionId: string; timeTakenMs: number; questionStartTime?: number; roundId?: string }
-  | { type: 'SESSION_STATE_UPDATE'; session: GameSession; revision?: number; sequence?: number; clock?: RoundClockSample; ownAnswer?: { questionId: string; optionId: string; timeTakenMs: number } }
+  | { type: 'PLAYER_ANSWER'; pin: string; playerId: string; questionId: string; optionId: string; optionIds?: string[]; timeTakenMs: number; questionStartTime?: number; roundId?: string }
+  | { type: 'SESSION_STATE_UPDATE'; session: GameSession; revision?: number; sequence?: number; clock?: RoundClockSample; ownAnswer?: { questionId: string; optionId: string; optionIds?: string[]; timeTakenMs: number } }
   | { type: 'REQUEST_SESSION_SYNC'; pin: string; playerId: string }
   | { type: 'REACTION'; pin: string; playerId: string; emoji: string };
 
@@ -281,8 +282,21 @@ export class GameSyncManager {
       await this.removeSession(stored.pin);
     } else clearPresenterCredential();
   }
-  public async submitBotAnswer(pin: string, playerId: string, questionId: string, optionId: string): Promise<boolean> {
-    const body = JSON.stringify({ playerId, questionId, optionId, timeTakenMs: 0, roundId: this.getRoundId(pin) });
+  /** Serialized with the presenter's writes, so a pending snapshot is sent before the removal and cannot follow it. */
+  public removePlayer(pin: string, playerId: string): Promise<boolean> {
+    const remove = this.publishQueue.then(async () => {
+      const response = await this.retryRequest(() => fetch(`/api/session/${encodeURIComponent(pin)}/player/${encodeURIComponent(playerId)}/remove`, {
+        method: 'POST', headers: this.headers(this.hostTokens.get(pin)), body: '{}', signal: AbortSignal.timeout(5000),
+      }));
+      if (!response?.ok) return false;
+      this.handleIncomingMessage(await response.json());
+      return true;
+    }).catch(() => false);
+    this.publishQueue = remove;
+    return remove;
+  }
+  public async submitBotAnswer(pin: string, playerId: string, questionId: string, choice: Choice): Promise<boolean> {
+    const body = JSON.stringify({ playerId, questionId, ...choice, timeTakenMs: 0, roundId: this.getRoundId(pin) });
     const response = await this.retryRequest(() => fetch(`/api/session/${pin}/bot-answer`, {
       method: 'POST', headers: this.headers(this.hostTokens.get(pin)), body, signal: AbortSignal.timeout(5000),
     }));
@@ -295,12 +309,13 @@ export class GameSyncManager {
       });
       if (!res.ok) {
         if ([403, 404, 410].includes(res.status) && this.activePin === pin && this.activeRole === 'player') {
+          const removed = res.status === 403 && (await res.json().catch(() => ({}))).error === 'Removed by the presenter';
           const key = this.playerKey(pin, this.activePlayerId || '');
           const credential = this.playerCredentials.get(key);
           clearPlayerCredential(pin, credential);
           this.playerTokens.delete(key); this.playerCredentials.delete(key);
           this.unregister(pin);
-          this.handleIncomingMessage({ type: 'PLAYER_SESSION_ENDED', pin, message: 'Partita non più disponibile o credenziale scaduta. Puoi effettuare un nuovo ingresso.' });
+          this.handleIncomingMessage({ type: 'PLAYER_SESSION_ENDED', pin, message: 'Partita non più disponibile o credenziale scaduta. Puoi effettuare un nuovo ingresso.', removed });
         }
         return null;
       }
@@ -313,6 +328,13 @@ export class GameSyncManager {
       }
       return this.snapshots.get(pin) || null;
     } catch { return null; }
+  }
+  /** The teams of a game before joining it, from the participant view; undefined without teams or without the game. */
+  public async peekTeams(pin: string): Promise<Team[] | undefined> {
+    try {
+      const response = await fetch(`/api/session/${encodeURIComponent(pin)}`, { signal: AbortSignal.timeout(5000), cache: 'no-store' });
+      return response.ok ? (await response.json()).session?.teams : undefined;
+    } catch { return undefined; }
   }
   public async joinSessionOnServer(pin: string, player: Player): Promise<boolean> {
     const epoch = this.playerRecoveryEpoch;
@@ -338,6 +360,8 @@ export class GameSyncManager {
       return true;
     } catch { return false; }
   }
+  /** The participant's credential, for homework requests that do not go through the live-game channel. */
+  public playerCredential(pin: string, playerId: string): string | undefined { return this.playerTokens.get(this.playerKey(pin, playerId)); }
   public canRecoverPlayer(pin: string, playerId: string): boolean {
     const saved = readPlayerCredential(pin);
     return Boolean(saved && typeof saved === 'object' && saved.playerId === playerId && saved.token === this.playerTokens.get(this.playerKey(pin, playerId)));
@@ -369,7 +393,7 @@ export class GameSyncManager {
       if (epoch !== this.playerRecoveryEpoch) return { status: 'none' };
       const player = data.session?.players?.[saved.playerId];
       if (!player || data.session.pin !== saved.pin) throw new Error('Invalid recovery response');
-      if (data.session.status === 'finished') {
+      if (data.session.status === 'finished' && data.session.mode !== 'assignment') {
         // Read-only final result: revoke the credential and never reconnect a player socket.
         const cleanup = this.leavePlayer(saved.pin), completedEpoch = this.playerRecoveryEpoch;
         await cleanup;
@@ -407,11 +431,13 @@ export class GameSyncManager {
       });
     } catch { /* Local abandonment succeeds even when remote revocation is unreachable. */ }
   }
-  public async submitAnswerOnServer(pin: string, playerId: string, optionId: string, timeTakenMs: number, questionId: string, roundId = this.snapshots.get(pin)?.roundId): Promise<boolean> {
+  /** `choice` is an option id, or the whole choice of a multiple_select or ordering question. */
+  public async submitAnswerOnServer(pin: string, playerId: string, choice: string | Choice, timeTakenMs: number, questionId: string, roundId = this.snapshots.get(pin)?.roundId): Promise<boolean> {
+    const chosen = typeof choice === 'string' ? { optionId: choice } : choice;
     try {
       const res = await fetch(`/api/session/${encodeURIComponent(pin)}/answer`, {
         method: 'POST', signal: AbortSignal.timeout(5000), headers: this.headers(this.playerTokens.get(this.playerKey(pin, playerId))),
-        body: JSON.stringify({ playerId, questionId, optionId, timeTakenMs, roundId }),
+        body: JSON.stringify({ playerId, questionId, ...chosen, timeTakenMs, roundId }),
       });
       return res.ok;
     } catch { return false; }
@@ -490,19 +516,20 @@ export const BOT_PLAYERS: { name: string; avatar: string }[] = [
 export function generateBotAnswer(
   question: Question,
   _player: Player
-): { optionId: string; timeTakenMs: number } {
+): Choice & { timeTakenMs: number } {
   const isSmart = Math.random() < 0.8;
+  const timeTakenMs = Math.floor(1200 + Math.random() * (question.timeLimit * 600));
+  const shuffled = [...question.options].sort(() => Math.random() - 0.5);
+  if (question.type === 'ordering') return { ...makeChoice(question, (isSmart ? question.options : shuffled).map(option => option.id)), timeTakenMs };
+  if (question.type === 'multiple_select') {
+    const correct = question.options.filter(option => option.isCorrect);
+    return { ...makeChoice(question, (isSmart && correct.length ? correct : shuffled.slice(0, 1)).map(option => option.id)), timeTakenMs };
+  }
   const correctOption = question.options.find((o) => o.isCorrect);
   const incorrectOptions = question.options.filter((o) => !o.isCorrect);
-
-  let chosenOption = correctOption;
+  let chosenOption = question.type === 'poll' ? shuffled[0] : correctOption;
   if (!isSmart && incorrectOptions.length > 0) {
     chosenOption = incorrectOptions[Math.floor(Math.random() * incorrectOptions.length)];
   }
-
-  const timeTakenMs = Math.floor(1200 + Math.random() * (question.timeLimit * 600));
-  return {
-    optionId: chosenOption ? chosenOption.id : question.options[0].id,
-    timeTakenMs,
-  };
+  return { optionId: chosenOption ? chosenOption.id : question.options[0].id, timeTakenMs };
 }

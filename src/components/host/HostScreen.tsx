@@ -21,9 +21,12 @@ import {
   Radio,
   Wifi,
   Smartphone,
-  Globe
+  Globe,
+  X
 } from 'lucide-react';
-import { Quiz, GameSession, Player, Question } from '../../types/quiz';
+import { Quiz, GameSession, Player, Question, type Team } from '../../types/quiz';
+import { assignTeams, makeTeams } from '../../services/teams';
+import { TeamRanking } from '../leaderboard/TeamRanking';
 import { gameSync, BOT_PLAYERS, generateBotAnswer, ServerInfo } from '../../services/gameSync';
 import { sounds } from '../../services/soundEffects';
 import { OPTION_COLORS, SHAPE_ICONS, COLOR_KEYS, SHAPE_KEYS } from '../../utils/quizStyles';
@@ -31,6 +34,8 @@ import { QRCodeDisplay } from '../common/QRCodeDisplay';
 import { JoinInstructions } from '../common/JoinInstructions';
 import { getSessionJoinAddresses } from '../../utils/connectionUrl';
 import { FinalPodium } from '../leaderboard/FinalPodium';
+import { questionReport, reviewQuiz, type QuestionReport } from '../../services/gameReport';
+import { chosenIds, displayOrder, isScored, type Choice } from '../../services/questionTypes';
 import { applyPlayerAnswer, publicQuestion } from '../../services/sessionState';
 import { HostVideoPlayer, type HostVideoControls } from '../video/HostVideoPlayer';
 import { quizCheckpoints } from '../../services/videoQuiz';
@@ -49,9 +54,16 @@ interface HostScreenProps {
   quiz: Quiz;
   onExit: () => void;
   recoveredSession?: GameSession;
+  /** Ends this game and opens the classroom review of the questions the class got wrong. */
+  onReview?: (quiz: Quiz) => void;
 }
 
-export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit, recoveredSession }) => {
+const reportKey = (pin: string) => `qurioso_game_report_${pin}`;
+function readReports(pin: string): Record<string, QuestionReport> {
+  try { return JSON.parse(window.sessionStorage.getItem(reportKey(pin)) || '{}'); } catch { return {}; }
+}
+
+export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit, recoveredSession, onReview }) => {
   const isVideo = Boolean(sourceQuiz.videoConfig);
   // Runtime ordering only: saved quizzes and their question arrays are never changed.
   const quiz = useMemo(() => isVideo ? { ...sourceQuiz, questions: quizCheckpoints(sourceQuiz).map(cp => sourceQuiz.questions.find(q => q.id === cp.questionId)!) } : sourceQuiz, [sourceQuiz, isVideo]);
@@ -70,6 +82,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
   const [pin] = useState<string>(() => recoveredSession?.pin || gameSync.generatePin());
   const [status, setStatus] = useState<GameSession['status']>(recoveredSession?.status || 'lobby');
   const [players, setPlayers] = useState<Record<string, Player>>(recoveredSession?.players || {});
+  const [teams, setTeams] = useState<Team[] | undefined>(recoveredSession?.teams);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(recoveredSession?.currentQuestionIndex || 0);
   const [questionStartTime, setQuestionStartTime] = useState<number>(recoveredSession?.questionStartTime || 0);
   const [timeRemaining, setTimeRemaining] = useState<number>(recoveredSession?.timeRemaining || 20);
@@ -92,15 +105,24 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
   const [showSharing, setShowSharing] = useState(() => sharing.available && !recoveredSession);
   const sharingText = sharingTranslations[language];
   useEffect(() => { if (sharing.state.phase === 'active') setShowSharing(false); }, [sharing.state.phase]);
+  // Per-question results for the final report, kept in this tab so a presenter reload does not lose them.
+  const [reports, setReports] = useState<Record<string, QuestionReport>>(() => recoveredSession ? readReports(recoveredSession.pin) : {});
+  const saveReports = (next: Record<string, QuestionReport>) => {
+    setReports(next);
+    try { window.sessionStorage.setItem(reportKey(pin), JSON.stringify(next)); } catch { /* The report stays in memory. */ }
+  };
   const publicUrl = sharing.state.phase === 'active' && sharing.state.pin === pin ? sharing.state.url : undefined;
   const joinAddresses = getSessionJoinAddresses(window.location.origin, serverInfo, sharing.state, pin);
   const joinAddress = publicUrl || (joinAddresses.includes(selectedAddress) ? selectedAddress : joinAddresses[0] || '');
   const sharingBusy = ['downloading', 'connecting', 'reconnecting', 'stopping'].includes(sharing.state.phase);
   const sharingFailed = ['error', 'reconnecting'].includes(sharing.state.phase);
   const accessHelp = publicUrl ? sharingText.publicHelp : sharingFailed ? sharingText.failedHelp : sharingBusy ? sharingText.pendingHelp : sharingText.lanHelp;
+  // Plain LAN needs no notice of its own: the empty lobby already says who can join. The switch at the top controls Cloudflare.
+  const accessNotice = Boolean(publicUrl) || sharingFailed || sharingBusy;
   const joinInstructions = <JoinInstructions pin={pin} addresses={joinAddresses} address={joinAddress} onAddressChange={setSelectedAddress} />;
 
   const currentQuestion: Question | undefined = quiz.questions[currentQuestionIndex];
+  const typeHint = currentQuestion && { multiple_select: lobby.hintMultipleSelect, poll: lobby.hintPoll, ordering: lobby.hintOrdering }[currentQuestion.type as string];
   const totalQuestions = quiz.questions.length;
 
   // Event callbacks always read the current snapshot, independent of React renders.
@@ -119,6 +141,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
     sessionRef.current = next;
     setStatus(next.status);
     setPlayers(next.players);
+    setTeams(next.teams);
     setCurrentQuestionIndex(next.currentQuestionIndex);
     setQuestionStartTime(next.questionStartTime);
     setCurrentAnswers(next.answersForCurrentQuestion);
@@ -127,7 +150,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
       const remote = await gameSync.fetchSessionFromServer(pin, true);
       if (version === writeVersion.current) {
         const recovered = remote || previous;
-        sessionRef.current = recovered; setStatus(recovered.status); setPlayers(recovered.players);
+        sessionRef.current = recovered; setStatus(recovered.status); setPlayers(recovered.players); setTeams(recovered.teams);
         setCurrentQuestionIndex(recovered.currentQuestionIndex); setQuestionStartTime(recovered.questionStartTime);
         setCurrentAnswers(recovered.answersForCurrentQuestion);
       }
@@ -136,6 +159,17 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
     if (accepted && !gameSync.canRecoverPresenter(pin)) setRecoveryWarning(lobby.recoveryBlocked);
     return accepted;
   };
+
+  // Removed on the server first, so the participant's device stops at once and no later snapshot restores them.
+  const removePlayer = async (playerId: string) => {
+    if (!await gameSync.removePlayer(pin, playerId)) { setSyncError(lobby.removeFailed); return; }
+    const { [playerId]: _player, ...remaining } = sessionRef.current.players;
+    const { [playerId]: _answer, ...answers } = sessionRef.current.answersForCurrentQuestion;
+    await broadcastCurrentSession({ players: remaining, answersForCurrentQuestion: answers });
+  };
+  const removeButton = (player: Player) => <button type="button" onClick={() => void removePlayer(player.id)}
+    aria-label={fill(lobby.removePlayer, { name: player.name || player.nickname })} title={fill(lobby.removePlayer, { name: player.name || player.nickname })}
+    className="remove-player ml-auto shrink-0 rounded-lg p-1 text-muted hover:bg-rose-50 hover:text-rose-700"><X className="w-4 h-4" /></button>;
 
   // Fetch server info
   useEffect(() => {
@@ -158,7 +192,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
         }
       }
       if (msg.type === 'PLAYER_ANSWER' && msg.pin === pin) {
-        if (!isVideo) handlePlayerAnswerReceived(msg.playerId, msg.optionId, msg.timeTakenMs, msg.questionId, msg.questionStartTime, msg.roundId);
+        if (!isVideo) handlePlayerAnswerReceived(msg.playerId, { optionId: msg.optionId, ...(msg.optionIds ? { optionIds: msg.optionIds } : {}) }, msg.timeTakenMs, msg.questionId, msg.questionStartTime, msg.roundId);
       }
       // Polling recovers joins/answers when the presenter's WebSocket is unavailable.
       if (msg.type === 'SESSION_STATE_UPDATE' && msg.session.pin === pin) {
@@ -177,8 +211,9 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
         }
         if (remote.questionStartTime === sessionRef.current.questionStartTime) {
           for (const [id, answer] of Object.entries(remote.answersForCurrentQuestion)) {
-            if (answer.isCorrect === undefined) {
-              handlePlayerAnswerReceived(id, answer.optionId, answer.timeTakenMs, answer.questionId, remote.questionStartTime, remote.roundId);
+            // Graded answers carry points, even a poll's zero: only ungraded receipts are scored here.
+            if (answer.pointsEarned === undefined) {
+              handlePlayerAnswerReceived(id, { optionId: answer.optionId, ...(answer.optionIds ? { optionIds: answer.optionIds } : {}) }, answer.timeTakenMs, answer.questionId, remote.questionStartTime, remote.roundId);
             }
           }
         }
@@ -197,14 +232,14 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
     };
   }, [pin]);
 
-  const handlePlayerAnswerReceived = (playerId: string, optionId: string, timeTakenMs: number, questionId?: string, acceptedRound?: number, roundId?: string) => {
+  const handlePlayerAnswerReceived = (playerId: string, choice: Choice, timeTakenMs: number, questionId?: string, acceptedRound?: number, roundId?: string) => {
     const current = sessionRef.current;
     if ((acceptedRound !== undefined && acceptedRound !== current.questionStartTime) ||
         (roundId !== undefined && roundId !== gameSync.getRoundId(pin))) return;
     // A server-accepted answer can arrive while the presenter was offline or already showing results.
     const scoring = acceptedRound !== undefined && current.status !== 'question' ? { ...current, status: 'question' as const } : current;
     const next = applyPlayerAnswer(scoring, quiz, {
-      playerId, optionId, timeTakenMs,
+      playerId, ...choice, timeTakenMs,
       questionId: questionId || quiz.questions[current.currentQuestionIndex]?.id,
     });
     if (next === scoring) return;
@@ -212,19 +247,54 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
     broadcastCurrentSession({ ...next, status: current.status });
   };
 
-  const handleExit = async () => {
+  const handleExit = async (then: () => void = onExit) => {
     if (endingRef.current) return;
     endingRef.current = true;
     videoControls.current?.pause();
     setEnding(true);
     await sharing.release();
     await gameSync.removeSession(pin);
-    onExit();
+    try { window.sessionStorage.removeItem(reportKey(pin)); } catch { /* Nothing stored. */ }
+    then();
   };
 
+  // A question's result is recorded when it closes, and updated by answers accepted while its results are shown.
+  useEffect(() => {
+    if (status !== 'question_results') return;
+    const report = questionReport(quiz, currentQuestionIndex, sessionRef.current);
+    if (report && JSON.stringify(report) !== JSON.stringify(reports[report.questionId])) saveReports({ ...reports, [report.questionId]: report });
+  }, [status, currentQuestionIndex, currentAnswers]);
+  const reportList = Object.values(reports);
+  const review = onReview ? reviewQuiz(sourceQuiz, reportList, fill(lobby.reviewTitle, { title: sourceQuiz.title })) : undefined;
+
   // Launch Countdown
+  /** Teams for this game, or none. Participants of a removed team are left without one until the start. */
+  const changeTeams = (count: number) => {
+    const next = count ? makeTeams(count, lobby.teamNames) : undefined, ids = new Set(next?.map(team => team.id));
+    const players = Object.fromEntries(Object.entries(sessionRef.current.players).map(([id, { teamId, ...player }]) =>
+      [id, teamId && ids.has(teamId) ? { ...player, teamId } : player]));
+    void broadcastCurrentSession({ teams: next, players });
+  };
+  const moveToTeam = (playerId: string, teamId: string) => {
+    const player = sessionRef.current.players[playerId];
+    if (player) void broadcastCurrentSession({ players: { ...sessionRef.current.players, [playerId]: { ...player, teamId } } });
+  };
+  const playerCard = (player: Player) => <div key={player.id}
+    className="bg-surface-soft hover:bg-surface-hover border border-line p-3 rounded-xl flex items-center gap-2.5 transition transform hover:-translate-y-0.5 shadow-md">
+    <span className="text-2xl">{player.avatar}</span>
+    <span className="font-bold text-xs text-ink truncate">{player.name}</span>
+    {teams && <select aria-label={fill(lobby.teamOf, { name: player.name || player.nickname })} value={player.teamId ?? ''} onChange={event => moveToTeam(player.id, event.target.value)}
+      className="ml-auto min-w-0 max-w-24 rounded-lg border border-line bg-white text-xs">
+      {!player.teamId && <option value="">{lobby.noTeam}</option>}
+      {teams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
+    </select>}
+    {removeButton(player)}
+  </div>;
+
   const handleStartCountdown = () => {
     if (countdownRef.current) return;
+    // Everyone plays in a team: whoever has none joins the smallest.
+    if (sessionRef.current.teams && status === 'lobby') void broadcastCurrentSession({ players: assignTeams(sessionRef.current.players, sessionRef.current.teams) });
     if (isVideo && document.fullscreenElement !== screen.current) toggleFullscreen();
     sounds.playCountdown();
     setStatus('countdown');
@@ -360,9 +430,9 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
     botList.forEach((bot) => {
       const delay = Math.floor(1500 + Math.random() * ((currentQuestion.timeLimit - 2) * 1000));
       const t = setTimeout(() => {
-        const { optionId, timeTakenMs } = generateBotAnswer(currentQuestion, bot);
-        if (isVideo) void gameSync.submitBotAnswer(pin, bot.id, currentQuestion.id, optionId);
-        else handlePlayerAnswerReceived(bot.id, optionId, timeTakenMs);
+        const { timeTakenMs, ...choice } = generateBotAnswer(currentQuestion, bot);
+        if (isVideo) void gameSync.submitBotAnswer(pin, bot.id, currentQuestion.id, choice);
+        else handlePlayerAnswerReceived(bot.id, choice, timeTakenMs);
       }, delay);
       timeouts.push(t);
     });
@@ -451,7 +521,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
           </button>
 
           <button
-            onClick={handleExit}
+            onClick={() => void handleExit()}
             disabled={ending}
             className="px-3 py-1.5 rounded-xl bg-surface-soft hover:bg-surface-hover text-xs font-semibold text-muted transition cursor-pointer border border-line"
           >
@@ -487,10 +557,9 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
           <div className="w-full max-w-none flex flex-col items-center">
             <div className="host-lobby-banner w-full grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-4 items-center bg-white border-2 border-line rounded-2xl p-4 shadow-lg mb-3">
               <div className="min-w-0 space-y-3">
-                <div data-session-access={publicUrl ? 'public' : 'lan'} role="status" aria-live="polite" className={`rounded-xl border px-3 py-2 ${publicUrl ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : sharingFailed ? 'border-rose-300 bg-rose-50 text-rose-900' : 'border-line bg-surface-soft text-petrolio'}`}>
-                  <p className="font-black">{publicUrl ? sharingText.publicAccess : sharingText.lanAccess}</p>
-                  <p className="text-sm">{accessHelp}</p>
-                  {sharing.available && <button type="button" className="mt-1 underline font-bold text-sm" onClick={() => setShowSharing(true)}>{sharingText.openPanel}</button>}
+                <div data-session-access={publicUrl ? 'public' : 'lan'} role="status" aria-live="polite" className={accessNotice ? `rounded-xl border px-3 py-2 ${publicUrl ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : sharingFailed ? 'border-rose-300 bg-rose-50 text-rose-900' : 'border-line bg-surface-soft text-petrolio'}` : undefined}>
+                  {accessNotice && <><p className="font-black">{publicUrl ? sharingText.publicAccess : sharingText.lanAccess}</p>
+                  <p className="text-sm">{accessHelp}</p></>}
                 </div>
                 {joinInstructions}
                 {/* Host Controls */}
@@ -504,6 +573,13 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                     <span>{isVideo ? lobby.startVideo : lobby.start}</span>
                   </button>
 
+                  <label className="flex items-center gap-2 text-sm font-bold text-petrolio">{lobby.teams}
+                    <select value={teams?.length ?? 0} onChange={event => changeTeams(Number(event.target.value))} className="rounded-lg border border-line bg-white px-2 py-1 text-ink">
+                      <option value={0}>{lobby.noTeams}</option>
+                      {[2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </label>
+                  {teams && <p className="w-full text-xs text-muted">{lobby.teamsHint}</p>}
                   <button
                     onClick={handleAddBot}
                     className="btn-quiet px-2 py-3 text-sm flex items-center gap-2 cursor-pointer"
@@ -546,21 +622,19 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                     <Smartphone className="w-8 h-8 text-accent-ink animate-bounce" />
                   </div>
                   <p className="font-semibold text-ink">{lobby.noPlayers}</p>
-                  <p className="text-xs text-muted mt-1 max-w-sm">
-                    {accessHelp}
-                  </p>
+                  {!accessNotice && <p className="text-xs text-muted mt-1 max-w-sm">{accessHelp}</p>}
                 </div>
               ) : (
-                <div className="host-player-list grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                  {Object.values(players).map((player) => (
-                    <div
-                      key={player.id}
-                      className="bg-surface-soft hover:bg-surface-hover border border-line p-3 rounded-xl flex items-center gap-2.5 transition transform hover:-translate-y-0.5 shadow-md"
-                    >
-                      <span className="text-2xl">{player.avatar}</span>
-                      <span className="font-bold text-xs text-ink truncate">{player.name}</span>
-                    </div>
-                  ))}
+                teams ? <div className="host-team-list grid gap-3 md:grid-cols-2">
+                  {[...teams.map(team => ({ key: team.id, team, members: Object.values(players).filter(player => player.teamId === team.id) })),
+                    { key: 'none', team: undefined, members: Object.values(players).filter(player => !player.teamId || !teams.some(team => team.id === player.teamId)) }]
+                    .filter(group => group.team || group.members.length).map(group => <section key={group.key} aria-label={group.team?.name ?? lobby.noTeam}
+                      className={`rounded-xl border-2 p-2 ${group.team ? OPTION_COLORS[group.team.color].border : 'border-dashed border-line'}`}>
+                      <h4 className="font-black text-sm text-ink mb-2">{group.team?.name ?? lobby.noTeam} · {fill(lobby.teamMembers, { n: group.members.length })}</h4>
+                      <div className="host-player-list grid grid-cols-1 sm:grid-cols-2 gap-2">{group.members.map(playerCard)}</div>
+                    </section>)}
+                </div> : <div className="host-player-list grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                  {Object.values(players).map(playerCard)}
                 </div>
               )}
             </div>
@@ -623,9 +697,10 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
               </figure>
             )}
 
+            {typeHint && <p className="host-type-hint font-bold text-petrolio">{typeHint}</p>}
             {/* 4 Interactive Answer Blocks */}
             <div className="host-options grid grid-cols-1 md:grid-cols-2 gap-3">
-              {currentQuestion.options.map((option, idx) => {
+              {displayOrder(currentQuestion, currentQuestion.options).map((option, idx) => {
                 const colorKey = option.color;
                 const colorStyle = OPTION_COLORS[colorKey];
                 const shapeKey = option.shape;
@@ -671,11 +746,17 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                 {currentQuestion.text}
               </h2>
 
+              {typeHint && <p className="font-bold text-petrolio mb-3">{typeHint}</p>}
+              {currentQuestion.type === 'ordering' && <div className="host-order mb-4">
+                <p className="font-black text-ink">{lobby.correctOrder}</p>
+                <ol className="list-decimal pl-6 font-bold text-ink text-lg">{currentQuestion.options.map(option => <li key={option.id}>{option.text}</li>)}</ol>
+                <p className="text-sm text-muted mt-1">{fill(lobby.orderExact, { correct: Object.values(currentAnswers).filter(a => a.isCorrect).length, answered: Object.keys(currentAnswers).length })}</p>
+              </div>}
               {/* Answers Bar Chart */}
-              <div className="flex flex-col gap-3">
+              {currentQuestion.type !== 'ordering' && <div className="flex flex-col gap-3">
                 {currentQuestion.options.map((option, idx) => {
                   const votes = Object.values(currentAnswers).filter(
-                    (a) => a.optionId === option.id
+                    (a) => chosenIds(a).includes(option.id)
                   ).length;
                   const pct = playerCount > 0 ? Math.round((votes / playerCount) * 100) : 0;
                   const colorKey = option.color;
@@ -685,7 +766,8 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                     <div
                       key={option.id}
                       className={`p-4 rounded-xl border-2 flex items-center justify-between gap-4 relative overflow-hidden transition ${
-                        option.isCorrect
+                        !isScored(currentQuestion) ? 'border-line bg-surface-soft'
+                        : option.isCorrect
                           ? 'border-emerald-400 bg-emerald-50'
                           : 'border-line bg-surface-soft opacity-70'
                       }`}
@@ -697,7 +779,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                       ></div>
 
                       <div className="flex items-center gap-3 z-10">
-                        {option.isCorrect ? (
+                        {!isScored(currentQuestion) ? null : option.isCorrect ? (
                           <CheckCircle className="w-6 h-6 text-emerald-700 shrink-0" />
                         ) : (
                           <XCircle className="w-6 h-6 text-muted shrink-0" />
@@ -708,13 +790,13 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                       </div>
 
                       <div className="flex items-center gap-2 z-10 font-bold">
-                        <span className="text-ink text-sm md:text-base">{votes} voti</span>
+                        <span className="text-ink text-sm md:text-base">{fill(lobby.votes, { n: votes })}</span>
                         <span className="text-xs text-muted">({pct}%)</span>
                       </div>
                     </div>
                   );
                 })}
-              </div>
+              </div>}
 
               {quiz.settings.showExplanation && currentQuestion.explanation && <p className="mt-4 text-petrolio">{currentQuestion.explanation}</p>}
               {/* Next Action Button */}
@@ -743,7 +825,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                   <div>
                     <h2 className="text-2xl font-black text-ink">{lobby.playersRanking}</h2>
                     <p className="text-xs text-muted">
-                      Dopo la domanda {currentQuestionIndex + 1} di {totalQuestions}
+                      {fill(lobby.afterQuestion, { n: currentQuestionIndex + 1, total: totalQuestions })}
                     </p>
                   </div>
                 </div>
@@ -759,6 +841,7 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                 </button>
               </div>
 
+              {teams && <div className="mb-4"><TeamRanking teams={teams} players={Object.values(players)} /></div>}
               {/* Ranked list */}
               <div className="host-ranking flex flex-col gap-2.5">
                 {Object.values(players)
@@ -784,14 +867,14 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                         <span className="font-bold text-base">{p.name}</span>
                         {p.streak > 1 && (
                           <span className="text-[11px] px-2 py-0.5 rounded-full bg-mandarino/20 text-accent-ink border border-mandarino/30 font-bold">
-                            🔥 {p.streak} di fila
+                            🔥 {fill(lobby.streakRun, { n: p.streak })}
                           </span>
                         )}
                       </div>
 
-                      <span className="font-mono font-black text-lg text-ink">
+                      <span className="flex items-center gap-2"><span className="font-mono font-black text-lg text-ink">
                         {p.score.toLocaleString()} pt
-                      </span>
+                      </span>{removeButton(p)}</span>
                     </div>
                   ))}
               </div>
@@ -804,14 +887,18 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
           <div className="w-full max-w-4xl">
             <FinalPodium
               players={players}
-              totalQuestions={totalQuestions}
+              totalQuestions={quiz.questions.filter(isScored).length}
+              reports={reportList}
+              teams={teams}
+              onReview={review && onReview ? () => void handleExit(() => onReview(review)) : undefined}
               onRestart={() => {
+                saveReports({});
                 setStatus('lobby');
                 setCurrentQuestionIndex(0);
                 setCurrentAnswers({});
                 broadcastCurrentSession({ status: 'lobby', currentQuestionIndex: 0, currentQuestion: undefined, questionStartTime: 0, answersForCurrentQuestion: {}, ...(isVideo ? { videoState: { currentTime: 0, isPlaying: false, activeCheckpointIndex: 0, ended: false } } : {}) });
               }}
-              onExit={handleExit}
+              onExit={() => void handleExit()}
             />
           </div>
         )}

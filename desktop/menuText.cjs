@@ -2,6 +2,7 @@
 const MENU_TEXT = {
   it: {
     networkQuiz: 'Quiz sui dispositivi', classroom: 'Attività in classe', quit: 'Esci da Qurioso',
+    homeworkOpen: 'C’è un compito ancora aperto.', homeworkOpenDetail: 'Finché Qurioso è chiuso gli studenti non possono svolgerlo. Alla riapertura il compito riprende da dove era.', homeworkQuit: 'Esci comunque', homeworkStay: 'Resta aperto',
     checkUpdates: 'Verifica aggiornamenti…', autoUpdates: 'Controlla aggiornamenti all’avvio',
     cancelUpdate: 'Annulla controllo o download aggiornamento', updateFolder: 'Apri cartella aggiornamenti scaricati',
     file: 'File', newQuiz: 'Nuovo quiz', newVideoQuiz: 'Nuovo quiz video', importQuestions: 'Importa domande…', backup: 'Backup e ripristino…',
@@ -12,6 +13,7 @@ const MENU_TEXT = {
   },
   en: {
     networkQuiz: 'Device quizzes', classroom: 'Classroom activities', quit: 'Quit Qurioso',
+    homeworkOpen: 'A homework is still open.', homeworkOpenDetail: 'While Qurioso is closed, students cannot work on it. When you reopen Qurioso the homework continues where it was.', homeworkQuit: 'Quit anyway', homeworkStay: 'Keep it open',
     checkUpdates: 'Check for updates…', autoUpdates: 'Check for updates at startup',
     cancelUpdate: 'Cancel update check or download', updateFolder: 'Open downloaded updates folder',
     file: 'File', newQuiz: 'New quiz', newVideoQuiz: 'New video quiz', importQuestions: 'Import questions…', backup: 'Backup and restore…',
@@ -22,6 +24,7 @@ const MENU_TEXT = {
   },
   de: {
     networkQuiz: 'Quiz auf den Geräten', classroom: 'Klassenaktivitäten', quit: 'Qurioso beenden',
+    homeworkOpen: 'Eine Hausaufgabe ist noch offen.', homeworkOpenDetail: 'Solange Qurioso geschlossen ist, können die Schülerinnen und Schüler sie nicht bearbeiten. Beim nächsten Öffnen geht die Hausaufgabe dort weiter, wo sie war.', homeworkQuit: 'Trotzdem beenden', homeworkStay: 'Geöffnet lassen',
     checkUpdates: 'Nach Updates suchen…', autoUpdates: 'Beim Start nach Updates suchen',
     cancelUpdate: 'Updateprüfung oder Download abbrechen', updateFolder: 'Ordner mit heruntergeladenen Updates öffnen',
     file: 'Datei', newQuiz: 'Neues Quiz', newVideoQuiz: 'Neues Videoquiz', importQuestions: 'Fragen importieren…', backup: 'Sicherung und Wiederherstellung…',

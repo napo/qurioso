@@ -33,20 +33,20 @@ exports.run = async window => {
     button('Salva quiz').click();await wait(()=>!document.querySelector('.quiz-editor'),'save new quiz');
     const saved=await library(),created=saved.find(q=>q.title==='Collaudo import domande');if(!created||created.questions.length!==1)throw new Error('Partial import or double confirmation failed');
     const card=[...document.querySelectorAll('.group')].find(card=>card.textContent.includes('Collaudo video del docente'));[...card.querySelectorAll('button')].find(b=>b.textContent.trim()==='Modifica').click();
-    await wait(()=>button('Importa domande')&&!button('Importa domande').disabled,'video editor');
+    await wait(()=>button('Importa…')&&!button('Importa…').disabled,'video editor');
     set(document.querySelector('textarea[aria-label="Testo della domanda"]'),'Modifica conservata durante importazione');await new Promise(resolve=>setTimeout(resolve,0));
-    await wait(()=>!button('Importa domande').disabled,'import ready after edit');
-    button('Importa domande').focus();button('Importa domande').click();await wait(()=>document.querySelector('.question-import-dialog'),'cancel dialog');
+    await wait(()=>!button('Importa…').disabled,'import ready after edit');
+    button('Importa…').focus();button('Importa…').click();await wait(()=>document.querySelector('.question-import-dialog'),'cancel dialog');
     button('Annulla').focus();document.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));
     if(document.activeElement!==button('Scarica modello CSV'))throw new Error('Dialog keyboard focus escaped');
     document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));await wait(()=>!document.querySelector('.question-import-dialog'),'cancelled');
-    if(document.activeElement!==button('Importa domande'))throw new Error('Dialog did not restore keyboard focus');
+    if(document.activeElement!==button('Importa…'))throw new Error('Dialog did not restore keyboard focus');
     if(document.querySelector('textarea[aria-label="Testo della domanda"]').value!=='Modifica conservata durante importazione')throw new Error('Cancel lost editor changes');
     const original=(await library()).find(q=>q.id==='presenter-layout-video');
     // The presenter layout fixture uses an SVG data URL, outside the raster import formats.
     const question={...original.questions[0],text:'Domanda JSON senza checkpoint',videoTimestamp:999,mediaUrl:undefined,mediaType:undefined,mediaAttribution:undefined};
     const source={...original,title:'Do not overwrite',videoConfig:{...original.videoConfig,videoUrl:'blob:missing',checkpoints:[{questionId:question.id,timestamp:999}]},questions:[question]};
-    button('Importa domande').click();await wait(()=>document.querySelector('.question-import-dialog'),'JSON dialog');upload(JSON.stringify(source),'quiz-completo.json');
+    button('Importa…').click();await wait(()=>document.querySelector('.question-import-dialog'),'JSON dialog');upload(JSON.stringify(source),'quiz-completo.json');
     await wait(()=>document.body.textContent.includes('Il file è un quiz Qurioso completo')&&button('Aggiungi le domande selezionate')&&!button('Aggiungi le domande selezionate').disabled,'full quiz extraction');layout();
     const appendConfirm=button('Aggiungi le domande selezionate');appendConfirm.click();appendConfirm.click();await wait(()=>!document.querySelector('.question-import-dialog'),'append to video');
     button('Salva quiz').click();await wait(()=>!document.querySelector('.quiz-editor'),'save video');

@@ -45,11 +45,11 @@ Multiplayer sessions are held in server memory and disappear when the server res
 
 ## Browser storage and portability
 
-The library and quiz editor provide **Import questions** for local CSV/JSON files,
-with column mapping, validation, duplicate review and an unsaved editor preview.
+The library (**Import questions**) and the quiz editor (**Import…**) open one dialog for local CSV/JSON files,
+with column mapping, validation, duplicate review, an unsaved editor preview and a keyless AI assistant request.
+A complete Qurioso quiz file can also be opened whole, replacing the editor's quiz after confirmation.
 See [QUESTION_IMPORT.md](QUESTION_IMPORT.md) for the reference CSV, JSON shapes,
-limits and video checkpoint behavior. **Import complete quiz** retains the existing
-whole-quiz JSON operation.
+limits and video checkpoint behavior.
 
 Quizzes, embedded images and uploaded videos are stored locally in **IndexedDB**, with migration support for quizzes previously stored in `localStorage`. Uploaded videos are stored as blobs. Uploaded images can be up to 15 MB and are resized to a maximum of 1600 pixels on the longest side.
 

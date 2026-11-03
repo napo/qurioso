@@ -32,6 +32,7 @@ import { gameExperienceTranslations } from '../../i18n/gameExperience';
 import { fill } from '../../i18n/format';
 import { ImageCredit } from '../common/ImageCredit';
 import { QuriosoIcon } from '../common/QuriosoLogo';
+import { choiceCorrect, displayOrder, isScored, makeChoice, takesSeveral } from '../../services/questionTypes';
 
 interface VideoQuizPlayerProps {
   quiz: Quiz;
@@ -82,8 +83,11 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
 
   // Active quiz pause modal state
   const [activeQuestion, setActiveQuestion] = useState<Question | null>(null);
+  const several = Boolean(activeQuestion && takesSeveral(activeQuestion));
   const [questionTimer, setQuestionTimer] = useState<number>(15);
-  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+  // The submitted choice (null before answering), and the options picked so far for several answers or an ordering.
+  const [selectedIds, setSelectedIds] = useState<string[] | null>(null);
+  const [picked, setPicked] = useState<string[]>([]);
   const [showExplanation, setShowExplanation] = useState<boolean>(false);
   const [isAnswerCorrect, setIsAnswerCorrect] = useState<boolean | null>(null);
 
@@ -109,7 +113,7 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
     activeQuestionRef.current = false;
     setActiveQuestion(null);
     setShowExplanation(false);
-    setSelectedOptionId(null);
+    setSelectedIds(null); setPicked([]);
     setIsAnswerCorrect(null);
     answerLockedRef.current = false;
     setScore(0);
@@ -174,7 +178,7 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
       answerLockedRef.current = false;
       setActiveQuestion(q);
       setQuestionTimer(q.timeLimit || 15);
-      setSelectedOptionId(null);
+      setSelectedIds(null); setPicked([]);
       setShowExplanation(false);
       setIsAnswerCorrect(null);
     }
@@ -202,18 +206,19 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
     return () => clearInterval(timer);
   }, [activeQuestion, questionTimer, showExplanation, classroom]);
 
-  const handleOptionSubmit = (optionId: string | null) => {
+  const handleOptionSubmit = (ids: string[] | null) => {
     if (!activeQuestion || showExplanation || answerLockedRef.current) return;
     answerLockedRef.current = true;
 
-    setSelectedOptionId(optionId);
+    setSelectedIds(ids ?? []);
     setShowExplanation(true);
     setAnsweredCount((c) => c + 1);
 
-    const selectedOption = activeQuestion.options.find((o) => o.id === optionId);
-    const correct = selectedOption ? selectedOption.isCorrect : false;
-
-    setIsAnswerCorrect(correct);
+    // A poll has no right answer: no sound of success or failure, no points, no streak change.
+    const verdict = ids?.length ? choiceCorrect(activeQuestion, makeChoice(activeQuestion, ids)) : false;
+    const correct = verdict === true;
+    setIsAnswerCorrect(verdict ?? null);
+    if (verdict === undefined) return;
 
     if (correct) {
       sounds.playCorrect();
@@ -230,7 +235,7 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
     activeQuestionRef.current = false;
     setActiveQuestion(null);
     setShowExplanation(false);
-    setSelectedOptionId(null);
+    setSelectedIds(null); setPicked([]);
     setIsAnswerCorrect(null);
 
     // Drain simultaneous/crossed checkpoints before restarting playback.
@@ -458,13 +463,17 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
               </figure>}
               {/* Options Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 my-2">
-                {activeQuestion.options.map((option) => {
+                {displayOrder(activeQuestion, activeQuestion.options).map((option) => {
                   const style = OPTION_COLORS[option.color] || OPTION_COLORS.blue;
-                  const isSelected = selectedOptionId === option.id;
-                  const isCorrect = option.isCorrect;
+                  const position = (selectedIds ?? picked).indexOf(option.id), isSelected = position >= 0;
+                  const ordering = activeQuestion.type === 'ordering', place = activeQuestion.options.indexOf(option) + 1;
+                  // Revealed: the correct options, or for an ordering every item with its place. A poll reveals nothing.
+                  const isCorrect = isScored(activeQuestion) && (ordering || option.isCorrect);
 
                   let cardState = style.bg;
-                  if (showExplanation) {
+                  if (!showExplanation && isSelected) cardState = `${style.bg} ring-4 ring-petrolio`;
+                  if (showExplanation && !isScored(activeQuestion)) cardState = isSelected ? `${style.bg} ring-4 ring-petrolio` : 'bg-surface-soft opacity-60';
+                  else if (showExplanation) {
                     if (isCorrect) {
                       cardState = 'bg-emerald-100 ring-4 ring-emerald-400 scale-[1.02] shadow-lg';
                     } else if (isSelected && !isCorrect) {
@@ -477,7 +486,8 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
                   return (
                     <button
                       key={option.id}
-                      onClick={() => handleOptionSubmit(option.id)}
+                      onClick={() => several ? setPicked(previous => previous.includes(option.id) ? previous.filter(id => id !== option.id) : [...previous, option.id]) : handleOptionSubmit([option.id])}
+                      aria-pressed={several ? isSelected : undefined}
                       disabled={showExplanation}
                       className={`relative flex items-center gap-3 p-4 rounded-2xl text-left transition duration-150 cursor-pointer ${cardState} ${
                         !showExplanation ? 'hover:scale-[1.02] active:scale-95' : ''
@@ -487,7 +497,7 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
                         {SHAPE_ICONS[option.shape] || '▲'}
                       </span>
                       <span className="flex-1 font-bold text-ink text-base">
-                        {option.text}
+                        {option.text}{ordering && isSelected && !showExplanation ? ` · ${position + 1}` : ''}{ordering && showExplanation ? ` · ${place}` : ''}
                       </span>
                       {showExplanation && isCorrect && (
                         <CheckCircle className="w-6 h-6 text-ink shrink-0" />
@@ -500,11 +510,19 @@ export const VideoQuizPlayer: React.FC<VideoQuizPlayerProps> = ({
                 })}
               </div>
 
+              {several && !showExplanation && <div className="mt-3 flex flex-wrap items-center gap-3">
+                <p className="text-sm font-bold text-petrolio">{activeQuestion.type === 'ordering' ? c.pickOrder : c.pickAll}</p>
+                <button type="button" disabled={!picked.length || (activeQuestion.type === 'ordering' && picked.length !== activeQuestion.options.length)}
+                  onClick={() => handleOptionSubmit(picked)} className="btn-primary rounded-xl px-5 py-2 font-bold text-sm">{c.confirm}</button>
+                {activeQuestion.type === 'ordering' && <button type="button" disabled={!picked.length} onClick={() => setPicked([])} className="rounded-xl border border-line px-4 py-2 text-sm">{c.restartOrder}</button>}
+              </div>}
               {/* Explanation & Continue Button */}
               {showExplanation && (
                 <div role="status" aria-live="polite" className="mt-5 p-4 rounded-2xl bg-surface-soft border border-line animate-in fade-in slide-in-from-bottom-2">
                   <div className="flex items-center gap-2 mb-2">
-                    {isAnswerCorrect ? (
+                    {isAnswerCorrect === null ? (
+                      <span className="text-petrolio font-extrabold text-sm">{c.pollDone}</span>
+                    ) : isAnswerCorrect ? (
                       <span className="text-emerald-700 font-extrabold flex items-center gap-1 text-sm">
                         <CheckCircle className="w-4 h-4" /> {t.greatJobCorrect}
                       </span>

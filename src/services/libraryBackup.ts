@@ -3,6 +3,7 @@ import type { Quiz, ImageAttribution } from '../types/quiz';
 import { commitLibraryRestore, inspectVideoAssets, readLibrarySnapshot, loadVideo, MissingVideoError } from './quizStorage';
 import { blobToDataUrl } from './images';
 import packageInfo from '../../package.json';
+import { QUESTION_TYPES } from './questionTypes';
 
 // Concrete resource ceilings, also enforced on untrusted archive metadata before extraction.
 export const BACKUP_LIMITS = { buffered: 512 * 1024 ** 2, total: 8 * 1024 ** 3, json: 32 * 1024 ** 2, images: 64 * 1024 ** 2, entries: 10000 };
@@ -45,7 +46,7 @@ export function portableQuiz(value: unknown): Quiz {
     coverImage: q.coverImage === undefined ? undefined : safeUrl(text(q.coverImage)), coverAttribution: credit(q.coverAttribution),
     settings: { pointsMultiplier: finite(s.pointsMultiplier), showExplanation: bool(s.showExplanation), streakBonus: bool(s.streakBonus) },
     questions: array(q.questions).map(v => { object(v); const question = {
-      id: text(v.id), text: text(v.text), type: choice(v.type, ['multiple_choice','true_false'] as const), timeLimit: finite(v.timeLimit), points: finite(v.points),
+      id: text(v.id), text: text(v.text), type: choice(v.type, QUESTION_TYPES), timeLimit: finite(v.timeLimit), points: finite(v.points),
       explanation: optional(v.explanation), mediaUrl: v.mediaUrl === undefined ? undefined : safeUrl(text(v.mediaUrl)), mediaAttribution: credit(v.mediaAttribution),
       mediaType: v.mediaType === undefined ? undefined : choice(v.mediaType, ['image','video'] as const), videoTimestamp: v.videoTimestamp === undefined ? undefined : finite(v.videoTimestamp),
       options: array(v.options).map(o => { object(o); return { id: text(o.id), text: text(o.text), isCorrect: bool(o.isCorrect),

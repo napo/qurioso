@@ -19,6 +19,7 @@ import {
   Trash2,
   Edit3,
   CheckCircle,
+  ClipboardList,
   Download,
 } from 'lucide-react';
 import { Quiz, GameSession } from './types/quiz';
@@ -43,10 +44,15 @@ import { workspaceTranslations } from './i18n/workspace';
 import { lobbyTranslations, presenterRecoveryText } from './i18n/lobby';
 import { withOfficialQuizzes, OFFICIAL_QUIZZES } from './services/officialQuizzes';
 import { resolveQuizLink } from './services/quizLink';
+import { AssignDialog } from './components/homework/AssignDialog';
+import { HomeworkScreen } from './components/homework/HomeworkScreen';
+import { homeworkTranslations } from './i18n/homework';
+import { savedHomework, type SavedHomework } from './services/homework';
 
 export default function App({ classroomOnly = false }: { classroomOnly?: boolean }) {
   const { t, language } = useLanguage();
   const labels = settingsTranslations[language];
+  const homeworkText = homeworkTranslations[language];
   const workspace = workspaceTranslations[language];
   const publicSite = isPublicWebsite();
   const desktop = !publicSite && Boolean(window.quriosoDesktop?.internetSharing);
@@ -67,12 +73,15 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
     : labels.browserEnvironment;
   const [importingQuestions, setImportingQuestions] = useState(false);
   // Navigation View State
-  const [view, setView] = useState<'dashboard' | 'classroom' | 'host' | 'player' | 'editor' | 'settings'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'classroom' | 'host' | 'player' | 'editor' | 'settings' | 'homework'>('dashboard');
 
   const [quizzes, setQuizzes] = useState<Quiz[]>(DEFAULT_QUIZZES);
   const availableQuizzes = withOfficialQuizzes(quizzes);
   const [libraryReady, setLibraryReady] = useState(false);
   const [storageError, setStorageError] = useState('');
+  const [assignedHomeworks, setAssignedHomeworks] = useState<SavedHomework[]>(savedHomework);
+  const [assigningQuiz, setAssigningQuiz] = useState<Quiz | null>(null);
+  const [activeHomework, setActiveHomework] = useState<SavedHomework | null>(null);
   useEffect(() => {
     let mounted = true;
     loadQuizzes().then(saved => { if (mounted && saved !== null) setQuizzes(saved); })
@@ -270,7 +279,14 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
     document.title = ['editor', 'classroom', 'host'].includes(view) ? `${selectedQuiz.title} — Qurioso` : 'Qurioso';
   }, [desktop, view, selectedQuiz.title]);
 
-  const importDialog = importingQuestions && <QuestionImportDialog quizzes={quizzes} onCancel={() => setImportingQuestions(false)} onConfirm={quiz => { setSelectedQuiz(quiz); setImportingQuestions(false); setView('editor'); }} />;
+  const openImported = (quiz: Quiz) => { setSelectedQuiz(quiz); setImportingQuestions(false); setView('editor'); };
+  const importDialog = importingQuestions && <QuestionImportDialog quizzes={quizzes} onCancel={() => setImportingQuestions(false)} onConfirm={openImported} onOpenQuiz={openImported} />;
+  const assignmentDialog = assigningQuiz && <AssignDialog quiz={assigningQuiz} desktop={desktop} onCancel={() => setAssigningQuiz(null)} onAssigned={homework => {
+    setAssignedHomeworks(previous => [...previous.filter(item => item.pin !== homework.pin), homework]);
+    setAssigningQuiz(null);
+    setActiveHomework(homework);
+    setView('homework');
+  }} />;
   const guide = showGuide && <MultiplatformGuide onClose={() => setShowGuide(false)} />;
 
   if (checkingRecovery) return <div role="status" className="min-h-screen bg-white text-petrolio p-8">{labels.recoveringPresenter}</div>;
@@ -286,9 +302,17 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
   if (view === 'host') {
     return (
       <div className="h-screen w-screen bg-white flex flex-col">
-        <HostScreen quiz={selectedQuiz} recoveredSession={recoveredSession} onExit={() => setView('dashboard')} />
+        <HostScreen quiz={selectedQuiz} recoveredSession={recoveredSession} onExit={() => setView('dashboard')} onReview={review => { setSelectedQuiz(review); setView('classroom'); }} />
       </div>
     );
+  }
+
+  if (view === 'homework' && activeHomework) {
+    return <HomeworkScreen homework={activeHomework} onExit={() => {
+      setAssignedHomeworks(savedHomework());
+      setActiveHomework(null);
+      setView('dashboard');
+    }} />;
   }
 
   // A PIN belongs to the teacher's server, not the public static website.
@@ -358,6 +382,7 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
               const warning = networkMode && (needsCheckpoint || !serverInfo) ? (needsCheckpoint ? labels.addCheckpoint : labels.networkRequiresServer) : '';
               const secondary = [
                 { label: t.editQuiz, icon: Edit3, onSelect: () => handleEditQuiz(quiz) },
+                ...(networkMode ? [{ label: homeworkText.assign, icon: ClipboardList, onSelect: () => setAssigningQuiz(quiz) }] : []),
                 { label: t.duplicateQuiz, icon: Copy, onSelect: () => handleDuplicateQuiz(quiz) },
                 ...(personal && !included ? [{ label: t.deleteQuiz, icon: Trash2, onSelect: () => handleDeleteQuiz(quiz.id), danger: true }] : []),
               ];
@@ -445,6 +470,10 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
                         </button>
 
                         <div className="flex items-center gap-2">
+                          {networkMode && <button type="button" onClick={() => setAssigningQuiz(quiz)}
+                            className="flex items-center gap-1 text-[11px] font-semibold text-muted hover:text-ink transition cursor-pointer" title={homeworkText.assign}>
+                            <ClipboardList className="w-3.5 h-3.5" /><span>{homeworkText.assign}</span>
+                          </button>}
                           <ImageCreditDetails attribution={quiz.coverAttribution} label={workspace.imageCredits} />
                           <button
                             onClick={() => handleDuplicateQuiz(quiz)}
@@ -482,9 +511,16 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
 
   if (desktop) return (
     <DesktopShell serverInfo={serverInfo} onCreateQuiz={handleCreateNewQuiz} onOpenSettings={() => openSettings()}>
-      {importDialog}
+      {importDialog}{assignmentDialog}
       {alerts}
       <ActivityModeSwitch mode={activityMode} onChange={changeActivityMode} />
+      {networkMode && assignedHomeworks.length > 0 && <section data-assigned-homework className="rounded-2xl border border-line bg-white p-4 space-y-3">
+        <h2 className="text-xl font-black text-petrolio">{homeworkText.list}</h2>
+        <ul className="space-y-2">{assignedHomeworks.map(item => <li key={item.pin} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-soft p-3">
+          <span className="font-bold">{item.title} · {new Date(item.deadline).toLocaleString(language)}</span>
+          <button type="button" className="btn-secondary rounded-xl px-4 py-2" onClick={() => { setActiveHomework(item); setView('homework'); }}>{homeworkText.open}</button>
+        </li>)}</ul>
+      </section>}
       {library}
     </DesktopShell>
   );
@@ -500,8 +536,15 @@ export default function App({ classroomOnly = false }: { classroomOnly?: boolean
       }}
       onShowGuide={() => setShowGuide(true)}
     >
-      {importDialog}
+      {importDialog}{assignmentDialog}
       {alerts}
+        {networkMode && assignedHomeworks.length > 0 && <section data-assigned-homework className="rounded-2xl border border-line bg-white p-4 space-y-3">
+          <h2 className="text-xl font-black text-petrolio">{homeworkText.list}</h2>
+          <ul className="space-y-2">{assignedHomeworks.map(item => <li key={item.pin} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-soft p-3">
+            <span className="font-bold">{item.title} · {new Date(item.deadline).toLocaleString(language)}</span>
+            <button type="button" className="btn-secondary rounded-xl px-4 py-2" onClick={() => { setActiveHomework(item); setView('homework'); }}>{homeworkText.open}</button>
+          </li>)}</ul>
+        </section>}
         <section data-workspace className="space-y-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-2 max-w-3xl">

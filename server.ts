@@ -9,11 +9,16 @@ import os from 'os';
 import { performance } from 'node:perf_hooks';
 import { createPublicAccess, loopback, participantRouteAllowed } from './server/internetSharing';
 import { remainingMs, receivedTimeMs, type RoundClock } from './server/roundClock';
+import { nicknameAllowed } from './src/services/nicknameFilter';
+import { sameChoice, validChoice } from './src/services/questionTypes';
 import type { GameSession, Player, Quiz } from './src/types/quiz';
 import { applyPlayerAnswer, publicQuestion } from './src/services/sessionState';
 import { PLAYER_CREDENTIAL_TTL_MS, playerCredentialExpired } from './src/types/playerCredential';
-import { MAX_MESSAGE_BYTES, MAX_PLAYERS, ProtocolError, check, object, id, pin as validatePin,
-  player as validatePlayer, session as validateSession, submission, participantSession, videoQuizDefinition } from './server/sessionProtocol';
+import { MAX_ASSIGNMENT_BYTES, MAX_MESSAGE_BYTES, MAX_PLAYERS, ProtocolError, check, object, id, pin as validatePin,
+  player as validatePlayer, session as validateSession, submission, participantSession, videoQuizDefinition,
+  assignmentQuizDefinition, assignmentSubmission } from './server/sessionProtocol';
+import { ASSIGNMENT_GRACE_MS, KEEP_CLOSED_MS, assignmentFeedback, assignmentOpen, assignmentTotals, assignmentView, deadlineAllowed,
+  gradeAssignmentAnswer, readAssignmentsFile, writeAssignmentsFile, type AssignmentProgress } from './server/assignments';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -42,7 +47,14 @@ interface Room {
   sequence: number;
   round?: RoundClock;
   operations: Map<string, string>;
+  /** Participants the presenter removed, and their revoked credentials: a stale host snapshot cannot bring them back. */
+  removed: Set<string>;
+  removedTokens: Set<string>;
+  /** Homework: the private quiz with its images, and every participant's graded answers. */
+  assignmentQuiz?: Quiz;
+  assignmentAnswers: Record<string, AssignmentProgress>;
 }
+const REMOVED = 'Removed by the presenter';
 interface ConnectedClient {
   ws: WebSocket;
   role: 'host' | 'player';
@@ -66,12 +78,66 @@ function roomFor(pin: string): Room {
   validatePin(pin);
   const room = sessions.get(pin);
   if (!room) throw new ProtocolError(404, 'Session not found');
+  // Homework ends by itself at the deadline: nobody has to be connected for it to close.
+  if (room.assignmentQuiz && room.session.status !== 'finished' && !assignmentOpen(room.session)) {
+    room.session.status = 'finished'; room.sequence++; saveAssignments();
+  }
   return room;
 }
+
+// Open homework survives a restart of the app: the native app names a private file in its profile.
+const assignmentsFile = process.env.QURIOSO_ASSIGNMENTS_FILE;
+let saveTimer: ReturnType<typeof setTimeout> | undefined;
+function flushAssignments() {
+  clearTimeout(saveTimer); saveTimer = undefined;
+  announceHomework();
+  if (!assignmentsFile) return;
+  try {
+    writeAssignmentsFile(assignmentsFile, [...sessions.values()].filter(room => room.assignmentQuiz).map(room => ({
+      session: room.session, quiz: room.assignmentQuiz, hostToken: room.hostToken, answers: room.assignmentAnswers,
+      playerTokens: [...room.playerTokens], playerExpiries: [...room.playerExpiries], removed: [...room.removed], removedTokens: [...room.removedTokens],
+    })));
+  } catch (error) { console.error('Unable to save homework:', (error as Error).message); }
+}
+/** Answers arrive in bursts: one write per second at most, and a final one on exit. */
+function saveAssignments() {
+  announceHomework();
+  if (assignmentsFile && !saveTimer) saveTimer = setTimeout(flushAssignments, 1000);
+}
+const parentPort = (process as NodeJS.Process & { parentPort?: { postMessage: (message: unknown) => void } }).parentPort;
+/** Tells the native app how many homework are open, so it keeps the computer awake and warns before quitting. */
+function announceHomework() {
+  const open = [...sessions.values()].filter(room => room.assignmentQuiz && assignmentOpen(room.session));
+  parentPort?.postMessage({ type: 'homework', open: open.length });
+}
+function restoreAssignments() {
+  if (!assignmentsFile) return;
+  const credential = (value: unknown) => { check(typeof value === 'string' && /^[a-f0-9]{64}$/.test(value)); return value as string; };
+  for (const value of readAssignmentsFile(assignmentsFile)) {
+    try {
+      const record = object(value), session = validateSession(record.session), quiz = assignmentQuizDefinition(record.quiz);
+      check(session.mode === 'assignment' && quiz.id === session.quizId && !sessions.has(session.pin));
+      if (session.assignment!.deadline + KEEP_CLOSED_MS < Date.now()) continue;
+      const answers = object(record.answers) as Record<string, AssignmentProgress>;
+      sessions.set(session.pin, { session, assignmentQuiz: quiz, assignmentAnswers: answers, openedQuestions: 0, hostToken: credential(record.hostToken),
+        playerTokens: new Map((record.playerTokens as [string, unknown][]).map(([player, token]) => [id(player), credential(token)])),
+        playerExpiries: new Map((record.playerExpiries as [string, number][]).map(([player, expiry]) => [id(player), Number(expiry)])),
+        removed: new Set((record.removed as string[]).map(player => id(player))), removedTokens: new Set((record.removedTokens as unknown[]).map(credential)),
+        roundPlayers: {}, revision: 0, sequence: 0, operations: new Map() });
+      sessionClients.set(session.pin, new Set());
+    } catch (error) { console.error('Unable to restore a homework record:', error instanceof Error ? error.message : String(error)); }
+  }
+}
+restoreAssignments();
+// Deadlines pass with nobody connected: check every minute.
+setInterval(() => { for (const pin of sessions.keys()) roomFor(pin); announceHomework(); }, 60_000).unref();
+process.on('SIGTERM', () => { flushAssignments(); process.exit(0); });
+process.on('beforeExit', flushAssignments);
 function requireHost(room: Room, credential: unknown) {
   if (!matches(credential, room.hostToken)) throw new ProtocolError(403, 'Presenter authorization required');
 }
 function requirePlayer(room: Room, playerId: string, credential: unknown) {
+  if (room.removed.has(playerId)) throw new ProtocolError(403, REMOVED);
   if (!matches(credential, room.playerTokens.get(playerId))) throw new ProtocolError(403, 'Player authorization required');
   if (playerCredentialExpired(room.playerExpiries.get(playerId))) throw new ProtocolError(410, 'Player credential expired');
 }
@@ -99,22 +165,25 @@ function reader(room: Room, req: express.Request): { host: boolean; playerId?: s
     return { host: true };
   }
   for (const [playerId, expected] of room.playerTokens) if (matches(credential, expected)) { requirePlayer(room, playerId, credential); return { host: false, playerId }; }
-  throw new ProtocolError(403, 'Invalid authorization');
+  throw new ProtocolError(403, credential && room.removedTokens.has(credential) ? REMOVED : 'Invalid authorization');
 }
 function envelope(room: Room, host: boolean, playerId?: string) {
   const visible = host ? { ...room.session } : participantSession(room.session, room.roundPlayers);
+  // Homework is private: a participant sees no classmates, names or scores.
+  if (room.assignmentQuiz && !host) visible.players = playerId && room.session.players[playerId] ? { [playerId]: room.session.players[playerId] } : {};
   if (room.videoQuiz) visible.videoQuestionsOpened = room.openedQuestions;
   if (room.videoQuiz && ['question_results', 'leaderboard'].includes(visible.status)) {
     const question = room.videoQuiz.questions[visible.currentQuestionIndex];
-    visible.questionResult = { correctOptionIds: question.options.filter(o => o.isCorrect).map(o => o.id),
+    // An ordering's solution is its saved order; a poll has none.
+    visible.questionResult = { correctOptionIds: question.type === 'ordering' ? question.options.map(o => o.id) : question.options.filter(o => o.isCorrect).map(o => o.id),
       ...(room.videoQuiz.settings.showExplanation ? { explanation: question.explanation } : {}) };
   }
   const own = playerId && room.session.answersForCurrentQuestion[playerId];
   return { type: 'SESSION_STATE_UPDATE', revision: room.revision, sequence: room.sequence,
     clock: room.round ? { roundId: room.session.roundId, questionStartTime: room.session.questionStartTime,
       remainingMs: remainingMs(room.round, performance.now()), durationMs: room.round.durationMs } : undefined,
-    ownAnswer: own ? { questionId: own.questionId, optionId: own.optionId, timeTakenMs: own.timeTakenMs } : undefined,
-    session: visible };
+    ownAnswer: own ? { questionId: own.questionId, optionId: own.optionId, ...(own.optionIds ? { optionIds: own.optionIds } : {}), timeTakenMs: own.timeTakenMs } : undefined,
+    session: visible, ...(host && room.assignmentQuiz ? { assignmentAnswers: room.assignmentAnswers } : {}) };
 }
 function send(ws: WebSocket, data: unknown) {
   if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data));
@@ -190,7 +259,10 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') { res.sendStatus(204); return; }
   next();
 });
-app.use(express.json({ limit: MAX_MESSAGE_BYTES, strict: true }));
+const smallJson = express.json({ limit: MAX_MESSAGE_BYTES, strict: true });
+// Homework carries its images. Only the teacher computer reaches this route: the checks above stop everyone else.
+const homeworkJson = express.json({ limit: MAX_ASSIGNMENT_BYTES, strict: true });
+app.use((req, res, next) => (req.method === 'POST' && req.path === '/api/assignment/create' ? homeworkJson : smallJson)(req, res, next));
 
 // Only the native app knows this credential. Never accepted through the public tunnel.
 app.post('/api/desktop/internet-sharing', (req, res) => {
@@ -204,7 +276,7 @@ app.post('/api/desktop/internet-sharing', (req, res) => {
 });
 
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', app: 'Qurioso', port: listeningPort, uptime: process.uptime(), activeSessions: sessions.size });
+  res.json({ status: 'ok', app: 'Qurioso', port: listeningPort, uptime: process.uptime(), activeSessions: [...sessions.values()].filter(room => !room.assignmentQuiz).length });
 });
 app.get('/api/server-info', (req, res) => {
   const localIps = Object.values(os.networkInterfaces()).flatMap(networks => (networks || [])
@@ -264,6 +336,7 @@ function validateTransition(previous: GameSession, next: GameSession) {
   }
 }
 function updateRoom(room: Room, value: unknown, revision: unknown, operationId?: unknown) {
+  if (room.assignmentQuiz) throw new ProtocolError(409, 'Homework is changed only through its own requests');
   if (replay(room, operationId, value, revision)) return;
   check(Number.isSafeInteger(revision), 'Invalid session revision');
   if (revision !== room.revision) throw new ProtocolError(409, 'Stale session revision');
@@ -294,20 +367,30 @@ function updateRoom(room: Room, value: unknown, revision: unknown, operationId?:
     next.currentQuestion?.id === room.session.currentQuestion?.id && next.currentQuestionIndex === room.session.currentQuestionIndex;
   // A host snapshot in flight must not erase a participant joining or submitting in the meantime.
   next.players = { ...room.session.players, ...next.players };
+  for (const id of room.removed) { delete next.players[id]; delete next.answersForCurrentQuestion[id]; }
+  // Someone who joined after this snapshot keeps their team only if the presenter did not just remove it.
+  const teamIds = new Set(next.teams?.map(team => team.id));
+  for (const [id, p] of Object.entries(next.players)) if (p.teamId !== undefined && !teamIds.has(p.teamId)) { const { teamId: _team, ...rest } = p; next.players[id] = rest; }
   check(Object.keys(next.players).length <= MAX_PLAYERS, 'Too many players');
   if (sameRound) {
     const incoming = next.answersForCurrentQuestion;
     next.answersForCurrentQuestion = { ...room.session.answersForCurrentQuestion, ...incoming };
     for (const [playerId, received] of Object.entries(room.session.answersForCurrentQuestion)) {
       const supplied = incoming[playerId];
-      if (!supplied || supplied.optionId !== received.optionId || supplied.questionId !== received.questionId || supplied.timeTakenMs !== received.timeTakenMs) {
+      if (!supplied || !sameChoice(supplied, received) || supplied.questionId !== received.questionId || supplied.timeTakenMs !== received.timeTakenMs) {
         next.answersForCurrentQuestion[playerId] = received;
       }
     }
   }
   if (room.videoQuiz) {
     // Scores/receipts are server-owned. Stale presenter snapshots cannot erase accepted answers.
-    next.players = Object.fromEntries(Object.entries(next.players).map(([id, p]) => [id, room.session.players[id] || validatePlayer(p, true)]));
+    // The presenter may still move a participant to another team.
+    next.players = Object.fromEntries(Object.entries(next.players).map(([id, p]) => {
+      const current = room.session.players[id];
+      if (!current) return [id, validatePlayer(p, true)];
+      const { teamId: _team, ...rest } = current;
+      return [id, p.teamId !== undefined ? { ...rest, teamId: p.teamId } : rest];
+    }));
     // Keep explicitly presenter-created bots distinguishable from authenticated students.
     for (const [id, p] of Object.entries(next.players)) if (!room.session.players[id] && !room.playerTokens.has(id)) p.isBot = true;
     next.answersForCurrentQuestion = sameRound ? room.session.answersForCurrentQuestion : {};
@@ -340,9 +423,10 @@ app.post('/api/session/create', (req, res) => {
   if (!expires || expires < Date.now()) throw new ProtocolError(403, 'Presenter creation credential required');
   if (sessions.size >= 100) throw new ProtocolError(429, 'Too many sessions');
   const session = validateSession(body.session);
+  check(session.mode !== 'assignment', 'Homework has its own creation request');
   const videoQuiz = session.mode === 'video' ? videoQuizDefinition(body.videoQuiz) : undefined;
   if (videoQuiz) check(session.status === 'lobby' && videoQuiz.id === session.quizId && videoQuiz.questions.length === session.totalQuestions, 'Invalid video setup');
-  const room: Room = { session, videoQuiz, openedQuestions: 0, hostToken: credential!, playerTokens: new Map(), playerExpiries: new Map(), roundPlayers: structuredClone(session.players), revision: 0, sequence: 0, operations: new Map() };
+  const room: Room = { session, videoQuiz, openedQuestions: 0, hostToken: credential!, playerTokens: new Map(), playerExpiries: new Map(), roundPlayers: structuredClone(session.players), revision: 0, sequence: 0, operations: new Map(), removed: new Set(), removedTokens: new Set(), assignmentAnswers: {} };
   if (body.operationId !== undefined) id(body.operationId);
   if (session.status === 'question') startRound(room);
   remember(room, body.operationId, body.session, body.revision);
@@ -359,7 +443,9 @@ app.get('/api/session/:pin', (req, res) => {
 app.get('/api/session/:pin/presenter', (req, res) => {
   const room = roomFor(req.params.pin);
   requireHost(room, bearer(req));
-  res.json({ success: true, ...envelope(room, true) });
+  // The homework report follows the quiz as it was assigned, even if the library copy changed since. Images stay out.
+  const quiz = room.assignmentQuiz && { ...room.assignmentQuiz, questions: room.assignmentQuiz.questions.map(({ mediaUrl: _image, ...question }) => question) };
+  res.json({ success: true, ...envelope(room, true), ...(quiz ? { assignmentQuiz: quiz } : {}) });
 });
 app.post('/api/session/:pin/join', (req, res) => {
   const room = roomFor(req.params.pin);
@@ -369,15 +455,22 @@ app.post('/api/session/:pin/join', (req, res) => {
   if (Object.hasOwn(room.session.players, player.id)) {
     requirePlayer(room, player.id, bearer(req)); // A public player ID is never a reconnect credential.
   } else {
+    if (room.removed.has(player.id)) throw new ProtocolError(403, REMOVED);
+    if (!nicknameAllowed(player.nickname)) throw new ProtocolError(400, 'Nickname not allowed');
+    // In a team game a new participant joins one of its teams; otherwise any team sent is dropped.
+    if (room.session.teams?.length) check(room.session.teams.some(team => team.id === player.teamId), 'Team required');
+    else delete player.teamId;
     if (Object.keys(room.session.players).length >= MAX_PLAYERS) throw new ProtocolError(429, 'Too many players');
     playerToken = secret();
     room.playerTokens.set(player.id, playerToken);
-    room.playerExpiries.set(player.id, Date.now() + PLAYER_CREDENTIAL_TTL_MS);
+    // A homework credential lasts until the deadline, so a participant can finish it another day.
+    room.playerExpiries.set(player.id, room.session.assignment ? room.session.assignment.deadline + ASSIGNMENT_GRACE_MS : Date.now() + PLAYER_CREDENTIAL_TTL_MS);
     room.session.players[player.id] = player;
     room.sequence++;
     // Only the presenter needs join events containing the private player record.
     broadcast(req.params.pin, { type: 'PLAYER_JOIN', pin: req.params.pin, player }, true);
     broadcastState(room);
+    if (room.assignmentQuiz) saveAssignments();
   }
   res.json({ success: true, playerToken, playerExpiresAt: room.playerExpiries.get(player.id), ...envelope(room, false, player.id) });
 });
@@ -400,6 +493,25 @@ app.post('/api/session/:pin/player/:playerId/leave', (req, res) => {
   res.json({ success: true });
 });
 
+// The presenter removes a participant: their name leaves the game and the ranking, their device returns to the PIN form.
+app.post('/api/session/:pin/player/:playerId/remove', (req, res) => {
+  const room = roomFor(req.params.pin), playerId = id(req.params.playerId);
+  requireHost(room, bearer(req));
+  const token = room.playerTokens.get(playerId);
+  if (token) room.removedTokens.add(token);
+  room.removed.add(playerId);
+  room.playerTokens.delete(playerId); room.playerExpiries.delete(playerId);
+  delete room.session.players[playerId]; delete room.roundPlayers[playerId]; delete room.session.answersForCurrentQuestion[playerId];
+  delete room.assignmentAnswers[playerId];
+  if (room.assignmentQuiz) saveAssignments();
+  for (const client of sessionClients.get(req.params.pin) || []) {
+    if (client.role === 'player' && client.playerId === playerId) client.ws.close(4003, REMOVED);
+  }
+  room.sequence++;
+  broadcastState(room);
+  res.json({ success: true, ...envelope(room, true) });
+});
+
 function receiveAnswer(room: Room, value: unknown, credential: unknown, registeredPlayerId?: string, bot = false) {
   const data = submission(value);
   if (bot) {
@@ -408,13 +520,12 @@ function receiveAnswer(room: Room, value: unknown, credential: unknown, register
   } else requirePlayer(room, data.playerId, credential);
   if (registeredPlayerId && registeredPlayerId !== data.playerId) throw new ProtocolError(403, 'Player identity mismatch');
   const session = room.session;
-  if (session.roundId !== data.roundId || session.currentQuestion?.id !== data.questionId ||
-      !session.currentQuestion.options.some(option => option.id === data.optionId)) {
+  if (session.roundId !== data.roundId || session.currentQuestion?.id !== data.questionId || !validChoice(session.currentQuestion, data)) {
     throw new ProtocolError(400, 'Invalid answer or question no longer active');
   }
   const previous = session.answersForCurrentQuestion[data.playerId];
   if (previous) {
-    if (previous.optionId !== data.optionId) throw new ProtocolError(409, 'Answer already submitted');
+    if (!sameChoice(previous, data)) throw new ProtocolError(409, 'Answer already submitted');
     return false; // Retries acknowledge the original submission, without scoring twice.
   }
   if (session.status !== 'question' || !room.round || remainingMs(room.round, performance.now()) <= 0) {
@@ -448,11 +559,83 @@ app.delete('/api/session/:pin', (req, res) => {
   const room = roomFor(req.params.pin);
   requireHost(room, bearer(req));
   sessions.delete(req.params.pin);
+  if (room.assignmentQuiz) saveAssignments();
   const clients = sessionClients.get(req.params.pin);
   sessionClients.delete(req.params.pin);
   for (const client of clients || []) client.ws.close(1000, 'Session ended');
   res.json({ success: true });
 });
+// Homework: created whole, then each participant moves through it alone. The presenter only reads, closes or extends it.
+app.post('/api/assignment/create', (req, res) => {
+  const body = object(req.body), credential = bearer(req);
+  const expires = credential && creationTokens.get(credential);
+  if (!expires || expires < Date.now()) throw new ProtocolError(403, 'Presenter creation credential required');
+  if (sessions.size >= 100) throw new ProtocolError(429, 'Too many sessions');
+  const session = validateSession(body.session), quiz = assignmentQuizDefinition(body.assignmentQuiz);
+  check(session.mode === 'assignment' && session.status === 'lobby' && !Object.keys(session.players).length && !session.assignment!.closed, 'Invalid homework');
+  check(quiz.id === session.quizId && quiz.questions.length === session.totalQuestions, 'Invalid homework');
+  check(deadlineAllowed(session.assignment!.deadline), 'Invalid deadline');
+  check(!sessions.has(session.pin), 'PIN in use');
+  const room: Room = { session: { ...session, currentQuestion: undefined, answersForCurrentQuestion: {} }, assignmentQuiz: quiz, assignmentAnswers: {}, openedQuestions: 0,
+    hostToken: credential!, playerTokens: new Map(), playerExpiries: new Map(), roundPlayers: {}, revision: 0, sequence: 0, operations: new Map(), removed: new Set(), removedTokens: new Set() };
+  creationTokens.delete(credential!);
+  sessions.set(session.pin, room);
+  sessionClients.set(session.pin, new Set());
+  flushAssignments();
+  res.json({ success: true, pin: session.pin, ...envelope(room, true) });
+});
+function homework(pin: string) {
+  const room = roomFor(pin);
+  if (!room.assignmentQuiz) throw new ProtocolError(404, 'Homework not found');
+  return room as Room & { assignmentQuiz: Quiz };
+}
+app.get('/api/session/:pin/assignment', (req, res) => {
+  const room = homework(req.params.pin), { playerId } = reader(room, req);
+  if (!playerId) throw new ProtocolError(403, 'Player authorization required');
+  res.json({ success: true, assignment: assignmentView(room.assignmentQuiz, room.session, room.assignmentAnswers[playerId]) });
+});
+app.post('/api/session/:pin/assignment/answer', (req, res) => {
+  const room = homework(req.params.pin), data = assignmentSubmission(req.body);
+  requirePlayer(room, data.playerId, bearer(req));
+  const answers = room.assignmentAnswers[data.playerId] ?? {};
+  // A retry of an answer already recorded is acknowledged even after the deadline; a new one is not.
+  if (!answers[data.questionId] && !assignmentOpen(room.session)) throw new ProtocolError(410, 'Homework closed');
+  const { playerId, questionId, ...choice } = data;
+  const { answer, fresh } = gradeAssignmentAnswer(room.assignmentQuiz, answers, questionId, choice);
+  if (fresh) {
+    room.assignmentAnswers[playerId] = { ...answers, [questionId]: answer };
+    const totals = assignmentTotals(room.assignmentQuiz, room.assignmentAnswers[playerId]), player = room.session.players[playerId];
+    if (player) room.session.players[playerId] = { ...player, score: totals.score, correctAnswersCount: totals.correct };
+    room.sequence++;
+    broadcastState(room);
+    saveAssignments();
+  }
+  res.json({ success: true, feedback: assignmentFeedback(room.assignmentQuiz, questionId, answer, room.session.assignment!.showFeedback),
+    assignment: assignmentView(room.assignmentQuiz, room.session, room.assignmentAnswers[playerId]) });
+});
+app.post('/api/session/:pin/assignment/close', (req, res) => {
+  const room = homework(req.params.pin);
+  requireHost(room, bearer(req));
+  room.session = { ...room.session, status: 'finished', assignment: { ...room.session.assignment!, closed: true } };
+  room.sequence++;
+  broadcastState(room);
+  flushAssignments();
+  res.json({ success: true, ...envelope(room, true) });
+});
+// A new deadline also reopens a closed homework; participant credentials follow it.
+app.post('/api/session/:pin/assignment/extend', (req, res) => {
+  const room = homework(req.params.pin);
+  requireHost(room, bearer(req));
+  const deadline = Number(object(req.body).deadline);
+  check(deadlineAllowed(deadline), 'Invalid deadline');
+  room.session = { ...room.session, status: 'lobby', assignment: { deadline, showFeedback: room.session.assignment!.showFeedback } };
+  for (const player of room.playerExpiries.keys()) room.playerExpiries.set(player, deadline + ASSIGNMENT_GRACE_MS);
+  room.sequence++;
+  broadcastState(room);
+  flushAssignments();
+  res.json({ success: true, ...envelope(room, true) });
+});
+
 // Every API error is JSON, including invalid JSON and oversized bodies. Never expose a stack trace.
 app.use('/api', (err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const status = err instanceof ProtocolError ? err.status : err.type === 'entity.too.large' ? 413 : err instanceof SyntaxError ? 400 : 500;
@@ -565,14 +748,19 @@ async function startServer() {
     });
   }
 
-  server.on('error', (error) => {
+  // The native app asks for the previous port: links and saved participant credentials of open homework keep working.
+  const preferredPort = Number(process.env.QURIOSO_PREFERRED_PORT ?? 0);
+  let fallback = requestedPort === 0 && Number.isInteger(preferredPort) && preferredPort > 0 && preferredPort <= 65535;
+  server.on('error', (error: NodeJS.ErrnoException) => {
+    if (fallback && ['EADDRINUSE', 'EACCES'].includes(error.code || '')) { fallback = false; server.listen(requestedPort, '0.0.0.0'); return; }
     console.error('Unable to start Qurioso:', error.message);
     process.exit(1);
   });
-  server.listen(requestedPort, '0.0.0.0', () => {
+  server.listen(fallback ? preferredPort : requestedPort, '0.0.0.0');
+  server.once('listening', () => {
     listeningPort = (server.address() as import('net').AddressInfo).port;
-    const parentPort = (process as NodeJS.Process & { parentPort?: { postMessage: (message: unknown) => void } }).parentPort;
     parentPort?.postMessage({ type: 'ready', port: listeningPort });
+    announceHomework();
     console.log(`Qurioso: http://localhost:${listeningPort}`);
     for (const networks of Object.values(os.networkInterfaces())) {
       for (const net of networks || []) {

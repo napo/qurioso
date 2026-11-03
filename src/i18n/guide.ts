@@ -156,7 +156,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Apri un quiz sui dispositivi",
-          "body": "Nell’app desktop seleziona Quiz sui dispositivi, poi Quiz video sui dispositivi nella scheda Tipi di vulcani con geopop. Il quiz incluso resta disponibile anche nelle biblioteche già salvate. Puoi avviare allo stesso modo i tuoi quiz con checkpoint validi."
+          "body": "Nell’app desktop seleziona Quiz sui dispositivi, poi Quiz video sui dispositivi nella scheda Tipi di vulcani con geopop. Il quiz incluso resta disponibile anche nelle biblioteche già salvate. Puoi avviare allo stesso modo i tuoi quiz con checkpoint validi. Per assegnare un quiz classico come compito, scegli Assegna come compito nella biblioteca e imposta la scadenza: gli studenti rispondono da soli via LAN o Cloudflare, mentre il computer del docente resta acceso e il server in esecuzione fino alla scadenza."
         },
         {
           "title": "Mostra indirizzo, PIN e QR",
@@ -164,11 +164,11 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Attendi gli ingressi e avvia",
-          "body": "Controlla i nomi nella lobby. Quando tutti sono pronti premi il pulsante per iniziare. I partecipanti vedono i comandi per rispondere; le domande e le risposte complete sono sullo schermo del docente."
+          "body": "Controlla i nomi nella lobby: la × accanto a un nome toglie quel partecipante dalla partita, e i nomi offensivi vengono già rifiutati all’ingresso. Per giocare a squadre scegli da 2 a 6 squadre in Squadre: ogni studente sceglie la sua entrando e puoi spostarlo dal menu sul suo nome; chi non ne ha una va nella più piccola all’avvio. Conta la media dei punti, così una squadra numerosa non è avvantaggiata. Quando tutti sono pronti premi il pulsante per iniziare. I partecipanti vedono i comandi per rispondere; le domande e le risposte complete sono sullo schermo del docente."
         },
         {
           "title": "Gestisci la gara",
-          "body": "Mostra risultati e classifica tra le domande, poi continua con la domanda successiva o riprendi il video. Alla fine mostra la classifica finale. Lascia l’app aperta durante tutta la partita."
+          "body": "Mostra risultati e classifica tra le domande, poi continua con la domanda successiva o riprendi il video. Alla fine mostra la classifica finale: sotto trovi com’è andata ogni domanda, il report in CSV e il pulsante per ripassare in classe le domande sbagliate. Lascia l’app aperta durante tutta la partita."
         }
       ]
     },
@@ -184,7 +184,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Scegli nome e avatar",
-          "body": "Inserisci il tuo nome o soprannome, scegli un avatar ed entra. Aspetta l’avvio della gara nella lobby. Evita di aprire più schede per la stessa partecipazione."
+          "body": "Inserisci il tuo nome o soprannome, scegli un avatar e, se la partita è a squadre, la tua squadra, poi entra. Aspetta l’avvio della gara nella lobby. Evita di aprire più schede per la stessa partecipazione."
         },
         {
           "title": "Guarda il docente e scegli",
@@ -213,7 +213,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Prepara le domande",
-          "body": "Aggiungi domande a scelta multipla o vero/falso. Scrivi risposte chiare, indica quella corretta e aggiungi una spiegazione quando serve. Controlla tempo e punteggio per la modalità in rete."
+          "body": "Aggiungi domande a scelta multipla o vero/falso; in Altri tipi trovi più risposte corrette (punti solo se si scelgono tutte), sondaggio (nessuna risposta giusta, nessun punto) e ordinamento (scrivi gli elementi nell’ordine giusto con le frecce: i partecipanti li vedono mescolati). Il tipo si cambia anche dal menu sopra le risposte. Scrivi risposte chiare, indica quelle corrette e aggiungi una spiegazione quando serve. Controlla tempo e punteggio per la modalità in rete."
         },
         {
           "title": "Aggiungi immagini e crediti",
@@ -315,11 +315,15 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       "title": "Importare domande o un quiz",
       "summary": "Usa CSV, JSON e anteprima senza sovrascrivere per errore.",
       "audience": "both",
-      "needs": "Un file CSV/TSV o JSON; per le sole domande, fino a 5 MiB e 1000 elementi.",
+      "needs": "Un file CSV/TSV o JSON (domande fino a 5 MiB e 1000 elementi, quiz completo fino a 32 MiB), oppure il testo da dare a un assistente IA.",
       "steps": [
         {
           "title": "Scegli il tipo di importazione",
-          "body": "Per aggiungere solo domande apri Importa domande nelle Impostazioni o nell’editor. Per ripristinare un quiz completo usa il comando di importazione del quiz nell’editor. Per un’intera biblioteca usa il backup ZIP."
+          "body": "Nell’editor premi Importa…, nelle Impostazioni Importa domande. Se il file è un quiz Qurioso completo puoi aprirlo intero, con video e checkpoint, oppure prenderne solo le domande. Per un’intera biblioteca usa il backup ZIP."
+        },
+        {
+          "title": "Oppure fai preparare le domande a un assistente IA",
+          "body": "Apri Crea le domande con un assistente IA, incolla la trascrizione del video con i suoi tempi o il testo della lezione e premi Copia la richiesta. Incollala in ChatGPT, Claude o Gemini, poi incolla qui la risposta e premi Controlla le domande. Non serve nessuna chiave; rileggi sempre le domande."
         },
         {
           "title": "Carica il file e configura",
@@ -331,7 +335,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Conferma e salva nell’editor",
-          "body": "Apri il risultato nell’editor, controlla domande e risposte e premi Salva quiz. Nei quiz video le domande importate non ricevono automaticamente un checkpoint: associale nella timeline."
+          "body": "Apri il risultato nell’editor, controlla domande e risposte e premi Salva quiz. Nei quiz video le domande con un tempo nel video ricevono il loro checkpoint; le altre si associano nella timeline."
         }
       ]
     },
@@ -446,7 +450,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Open a device quiz",
-          "body": "In the desktop app select Device quizzes, then Video device quiz on the Tipi di vulcani con geopop card. This included quiz remains available in previously saved libraries too. Start your own quizzes with valid checkpoints in the same way."
+          "body": "In the desktop app select Device quizzes, then Video device quiz on the Tipi di vulcani con geopop card. This included quiz remains available in previously saved libraries too. Start your own quizzes with valid checkpoints in the same way. To assign a classic quiz as homework, choose Assign as homework in the library and set a deadline. Students answer alone over LAN or Cloudflare while the teacher’s computer stays on and the server keeps running until the deadline."
         },
         {
           "title": "Show the address, PIN and QR code",
@@ -454,11 +458,11 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Wait for participants and start",
-          "body": "Check the names in the lobby. When everyone is ready, press the start button. Participants see answer controls; complete questions and answers appear on the teacher’s screen."
+          "body": "Check the names in the lobby: the × next to a name removes that participant from the game, and offensive names are already refused on entry. To play in teams, choose 2 to 6 teams under Teams: each student picks one when joining and you can move them with the menu on their name; anyone without a team joins the smallest at the start. The average score counts, so a larger team has no advantage. When everyone is ready, press the start button. Participants see answer controls; complete questions and answers appear on the teacher’s screen."
         },
         {
           "title": "Run the game",
-          "body": "Show results and rankings between questions, then continue to the next question or resume the video. Show the final ranking at the end. Keep the app open throughout the game."
+          "body": "Show results and rankings between questions, then continue to the next question or resume the video. Show the final ranking at the end: below it you find how each question went, the CSV report and the button to review the missed questions in class. Keep the app open throughout the game."
         }
       ]
     },
@@ -474,7 +478,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Choose a name and avatar",
-          "body": "Enter your name or nickname, choose an avatar and join. Wait in the lobby for the game to start. Avoid opening several tabs for the same participation."
+          "body": "Enter your name or nickname, choose an avatar and, in a team game, your team, then join. Wait in the lobby for the game to start. Avoid opening several tabs for the same participation."
         },
         {
           "title": "Look at the teacher’s screen and choose",
@@ -503,7 +507,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Prepare the questions",
-          "body": "Add multiple-choice or true/false questions. Write clear options, select the correct answer and add an explanation when useful. Check the time limit and points for network play."
+          "body": "Add multiple-choice or true/false questions; Other types offers several correct answers (points only when all are chosen), poll (no right answer, no points) and ordering (write the items in the right order with the arrows: participants see them shuffled). The type can also be changed from the menu above the answers. Write clear options, select the correct answers and add an explanation when useful. Check the time limit and points for network play."
         },
         {
           "title": "Add images and credits",
@@ -605,11 +609,15 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       "title": "Import questions or a quiz",
       "summary": "Use CSV, JSON and preview without accidentally overwriting content.",
       "audience": "both",
-      "needs": "A CSV/TSV or JSON file; question imports support up to 5 MiB and 1000 records.",
+      "needs": "A CSV/TSV or JSON file (questions up to 5 MiB and 1000 records, a complete quiz up to 32 MiB), or the text to give an AI assistant.",
       "steps": [
         {
           "title": "Choose what to import",
-          "body": "To add questions only, open Import questions in Settings or the editor. To restore a complete quiz, use the editor’s complete quiz import. Use a ZIP backup for a whole library."
+          "body": "In the editor press Import…, in Settings Import questions. If the file is a complete Qurioso quiz you can open it whole, with video and checkpoints, or take only its questions. Use a ZIP backup for a whole library."
+        },
+        {
+          "title": "Or have an AI assistant write the questions",
+          "body": "Open Create questions with an AI assistant, paste the video transcript with its times or the lesson text and press Copy the request. Paste it into ChatGPT, Claude or Gemini, then paste the answer back here and press Check the questions. No key is needed; always reread the questions."
         },
         {
           "title": "Load and configure the file",
@@ -621,7 +629,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Confirm and save in the editor",
-          "body": "Open the result in the editor, check questions and answers, then press Save Quiz. In video quizzes, imported questions do not automatically receive a checkpoint: attach them in the timeline."
+          "body": "Open the result in the editor, check questions and answers, then press Save Quiz. In video quizzes, questions with a time in the video get their checkpoint; attach the others in the timeline."
         }
       ]
     },
@@ -736,7 +744,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Geräte-Quiz öffnen",
-          "body": "Wähle in der Desktop-App Quiz auf den Geräten und dann Video-Quiz auf den Geräten auf der Karte Tipi di vulcani con geopop. Dieses enthaltene Quiz bleibt auch in gespeicherten Bibliotheken verfügbar. Eigene Quiz mit gültigen Checkpoints startest du genauso."
+          "body": "Wähle in der Desktop-App Quiz auf den Geräten und dann Video-Quiz auf den Geräten auf der Karte Tipi di vulcani con geopop. Dieses enthaltene Quiz bleibt auch in gespeicherten Bibliotheken verfügbar. Eigene Quiz mit gültigen Checkpoints startest du genauso. Um ein klassisches Quiz als Hausaufgabe zu geben, wählst du in der Bibliothek Als Hausaufgabe geben und legst den Abgabetermin fest. Die Lernenden antworten allein über LAN oder Cloudflare; der Computer der Lehrkraft bleibt bis zum Abgabetermin eingeschaltet und der Server läuft weiter."
         },
         {
           "title": "Adresse, PIN und QR-Code zeigen",
@@ -744,11 +752,11 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Auf Beitritte warten und starten",
-          "body": "Prüfe die Namen in der Lobby. Starte das Spiel, wenn alle bereit sind. Die Teilnehmenden sehen die Antwortschaltflächen; vollständige Fragen und Antworten stehen auf dem Bildschirm der Lehrkraft."
+          "body": "Prüfe die Namen in der Lobby: Mit dem × neben einem Namen entfernst du diese Person aus dem Spiel; anstößige Namen werden schon beim Beitritt abgelehnt. Für ein Teamspiel wählst du unter Teams 2 bis 6 Teams: Alle wählen beim Beitreten ihr Team, und du kannst sie über das Menü an ihrem Namen verschieben; wer keines hat, kommt beim Start ins kleinste. Es zählt der Punktedurchschnitt, ein großes Team ist also nicht im Vorteil. Starte das Spiel, wenn alle bereit sind. Die Teilnehmenden sehen die Antwortschaltflächen; vollständige Fragen und Antworten stehen auf dem Bildschirm der Lehrkraft."
         },
         {
           "title": "Das Spiel leiten",
-          "body": "Zeige zwischen den Fragen Ergebnisse und Ranglisten und gehe dann zur nächsten Frage oder setze das Video fort. Zeige am Ende die Endrangliste. Lass die App während des gesamten Spiels geöffnet."
+          "body": "Zeige zwischen den Fragen Ergebnisse und Ranglisten und gehe dann zur nächsten Frage oder setze das Video fort. Zeige am Ende die Endrangliste: Darunter siehst du, wie jede Frage lief, den CSV-Bericht und die Schaltfläche, um die falsch beantworteten Fragen in der Klasse zu wiederholen. Lass die App während des gesamten Spiels geöffnet."
         }
       ]
     },
@@ -764,7 +772,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Name und Avatar wählen",
-          "body": "Gib deinen Namen oder Spitznamen ein, wähle einen Avatar und tritt bei. Warte in der Lobby auf den Spielstart. Öffne möglichst nicht mehrere Tabs für dieselbe Teilnahme."
+          "body": "Gib deinen Namen oder Spitznamen ein, wähle einen Avatar und bei einem Teamspiel dein Team, dann tritt bei. Warte in der Lobby auf den Spielstart. Öffne möglichst nicht mehrere Tabs für dieselbe Teilnahme."
         },
         {
           "title": "Auf den Bildschirm schauen und wählen",
@@ -793,7 +801,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Fragen vorbereiten",
-          "body": "Füge Multiple-Choice- oder Wahr/Falsch-Fragen hinzu. Schreibe klare Antworten, markiere die richtige und ergänze bei Bedarf eine Erklärung. Prüfe Zeitlimit und Punkte für das Netzwerkspiel."
+          "body": "Füge Multiple-Choice- oder Wahr/Falsch-Fragen hinzu; unter Weitere Typen findest du mehrere richtige Antworten (Punkte nur, wenn alle gewählt werden), Umfrage (keine richtige Antwort, keine Punkte) und Reihenfolge (schreibe die Elemente mit den Pfeilen in der richtigen Reihenfolge: Die Teilnehmenden sehen sie gemischt). Den Typ kannst du auch im Menü über den Antworten ändern. Schreibe klare Antworten, markiere die richtigen und ergänze bei Bedarf eine Erklärung. Prüfe Zeitlimit und Punkte für das Netzwerkspiel."
         },
         {
           "title": "Bilder und Nachweise hinzufügen",
@@ -895,11 +903,15 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
       "title": "Fragen oder ein Quiz importieren",
       "summary": "Nutze CSV, JSON und Vorschau ohne versehentliches Überschreiben.",
       "audience": "both",
-      "needs": "Eine CSV/TSV- oder JSON-Datei; für Fragen bis zu 5 MiB und 1000 Datensätze.",
+      "needs": "Eine CSV/TSV- oder JSON-Datei (Fragen bis zu 5 MiB und 1000 Datensätze, ein vollständiges Quiz bis zu 32 MiB) oder der Text für einen KI-Assistenten.",
       "steps": [
         {
           "title": "Importart wählen",
-          "body": "Für einzelne Fragen öffnest du Fragen importieren in den Einstellungen oder im Editor. Für ein vollständiges Quiz verwendest du den entsprechenden Import im Editor. Für eine ganze Bibliothek nutzt du ein ZIP-Backup."
+          "body": "Im Editor drückst du Importieren…, in den Einstellungen Fragen importieren. Ist die Datei ein vollständiges Qurioso-Quiz, kannst du es ganz öffnen, mit Video und Checkpoints, oder nur seine Fragen übernehmen. Für eine ganze Bibliothek nutzt du ein ZIP-Backup."
+        },
+        {
+          "title": "Oder die Fragen von einem KI-Assistenten erstellen lassen",
+          "body": "Öffne Fragen mit einem KI-Assistenten erstellen, füge das Transkript des Videos mit seinen Zeiten oder den Text der Stunde ein und drücke Anfrage kopieren. Füge sie in ChatGPT, Claude oder Gemini ein, dann die Antwort hier und drücke Fragen prüfen. Ein Schlüssel ist nicht nötig; lies die Fragen immer gegen."
         },
         {
           "title": "Datei laden und konfigurieren",
@@ -911,7 +923,7 @@ export const guideLessons: Record<Language, Record<TutorialId, GuideLesson>> = {
         },
         {
           "title": "Bestätigen und im Editor speichern",
-          "body": "Öffne das Ergebnis im Editor, prüfe Fragen und Antworten und speichere das Quiz. Importierte Fragen erhalten in Videoquiz nicht automatisch einen Checkpoint: Ordne sie in der Zeitleiste zu."
+          "body": "Öffne das Ergebnis im Editor, prüfe Fragen und Antworten und speichere das Quiz. In Videoquiz erhalten Fragen mit einer Zeit im Video ihren Checkpoint; die anderen ordnest du in der Zeitleiste zu."
         }
       ]
     },

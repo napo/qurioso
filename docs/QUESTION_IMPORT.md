@@ -8,7 +8,7 @@ bonus serie. La conferma apre il risultato nell'editor: **Salva Quiz** lo scrive
 nella biblioteca. Un nuovo quiz non contiene la domanda dimostrativa del normale
 comando **Nuovo quiz**.
 
-**Editor → Importa domande** usa come destinazione il quiz aperto, comprese le
+**Editor → Importa…** usa come destinazione il quiz aperto, comprese le
 modifiche non salvate. Il flusso è: scegli file, configura colonne se necessario,
 anteprima, scegli domande, conferma. Annulla/Esc non cambia il quiz. Indietro
 conserva la mappatura e la selezione finché non cambia la configurazione.
@@ -17,9 +17,13 @@ sincrono evita importazioni ripetute con doppio clic. Le bozze dell'editor
 continuano a funzionare dopo la conferma. Non viene modificata la biblioteca
 durante lettura, configurazione o anteprima.
 
-**Importa quiz completo** è il precedente importatore JSON del quiz, ora
-etichettato esplicitamente. Sostituisce il quiz nell'editor e mantiene le
-impostazioni/video/checkpoint del file. Non va confuso con l'aggiunta di domande.
+Se il file JSON è un **quiz Qurioso completo** (`completeQuiz` in
+`src/services/questionImport.ts`), il dialogo lo dice e offre di aprirlo intero,
+con impostazioni, video e checkpoint: nell'editor **Sostituisci con il quiz
+completo** chiede conferma se ci sono modifiche non salvate e poi lo sostituisce;
+dalla biblioteca **Apri il quiz completo** lo apre nell'editor come nuovo quiz.
+In alternativa se ne aggiungono solo le domande. Un quiz completo può arrivare a
+32 MiB perché contiene le immagini; oltre 5 MiB si può solo aprire intero.
 
 Interfaccia, messaggi e modello scaricabile sono disponibili in italiano e
 inglese tramite il selettore lingua già esistente. Con lingua tedesca,
@@ -101,6 +105,10 @@ proprietà separate per le opzioni. Non si attraversano strutture annidate né s
 interpretano formati esterni arbitrari. I nomi delle proprietà mappabili hanno
 un limite di 200 caratteri. Per strutture non supportate viene spiegato come
 preparare un elenco compatibile.
+
+## Tipi di domanda
+
+La colonna o il campo `tipo` accetta `multiple_choice`, `true_false`, `multiple_select` (anche `più risposte`, `risposta_multipla`, `Mehrfachauswahl`), `poll` (`sondaggio`, `Umfrage`) e `ordering` (`ordinamento`, `Reihenfolge`). Scelta multipla e più risposte richiedono almeno una risposta corretta, vero/falso esattamente una. Sondaggio e ordinamento ignorano la colonna della risposta corretta: l'ordinamento prende le risposte nell'ordine del file come ordine giusto, da 2 a 8 elementi.
 
 ## Validazione, ID e duplicati
 

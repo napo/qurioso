@@ -5,8 +5,8 @@ const it = {
   lanHelp: 'Link e QR funzionano per chi è sulla stessa rete del docente.',
   publicHelp: 'Link e QR ora usano l’indirizzo pubblico. Possono partecipare anche persone fuori dalla LAN. Mantieni Qurioso aperto e Internet connesso.',
   pendingHelp: 'Il tunnel non è ancora pronto: link e QR restano della LAN. Attendi la conferma di attivazione prima di invitare partecipanti da Internet.',
-  failedHelp: 'Il link pubblico non è disponibile. Link e QR mostrati sono tornati alla LAN. Apri il pannello Cloudflare per controllare il problema e riprovare.',
-  tunnelButton: 'Tunnel Internet', configure: 'Configura Cloudflare', openPanel: 'Apri controlli Cloudflare',
+  failedHelp: 'Il link pubblico non è disponibile. Link e QR mostrati sono tornati alla LAN. Premi l’interruttore Cloudflare in alto per vedere il problema e riprovare.',
+  tunnelButton: 'Tunnel Internet', configure: 'Configura Cloudflare',
   qrUpdated: 'Link e QR aggiornati all’indirizzo pubblico',
 
   title: 'Condividi su Internet', experimental: 'Sperimentale', technical: 'Dettagli tecnici', close: 'Chiudi', start: 'Attiva condivisione', retry: 'Riprova', stop: 'Interrompi condivisione', reconnectHelp: 'Il collegamento a Cloudflare non risponde. I partecipanti esterni potrebbero essere disconnessi. Qurioso tenta il ripristino automatico; puoi interrompere la condivisione e riprovare. Controlla la connessione e la guida Cloudflare.',
@@ -34,8 +34,8 @@ const en: Text = {
   lanHelp: 'The link and QR code work for people on the teacher’s network.',
   publicHelp: 'The link and QR code now use the public address. People outside the LAN can join too. Keep Qurioso open and connected to the Internet.',
   pendingHelp: 'The tunnel is not ready yet: the link and QR code still use the LAN address. Wait for activation to be confirmed before inviting people over the Internet.',
-  failedHelp: 'The public link is unavailable. The displayed link and QR code have returned to the LAN address. Open the Cloudflare panel to check the problem and retry.',
-  tunnelButton: 'Internet tunnel', configure: 'Configure Cloudflare', openPanel: 'Open Cloudflare controls',
+  failedHelp: 'The public link is unavailable. The displayed link and QR code have returned to the LAN address. Press the Cloudflare switch at the top to see the problem and retry.',
+  tunnelButton: 'Internet tunnel', configure: 'Configure Cloudflare',
   qrUpdated: 'Link and QR code updated to the public address',
 
   title: 'Share over the Internet', experimental: 'Experimental', technical: 'Technical details', close: 'Close', start: 'Start sharing', retry: 'Retry', stop: 'Stop sharing', reconnectHelp: 'The Cloudflare connection is not responding. Remote participants may be disconnected. Qurioso is reconnecting automatically; you can stop sharing and retry. Check Internet access and the Cloudflare guide.',
@@ -62,8 +62,8 @@ const de: Text = {
   lanHelp: 'Link und QR-Code funktionieren für Personen im Netzwerk der Lehrkraft.',
   publicHelp: 'Link und QR-Code verwenden jetzt die öffentliche Adresse. Auch Personen außerhalb des LANs können teilnehmen. Qurioso und die Internetverbindung müssen aktiv bleiben.',
   pendingHelp: 'Der Tunnel ist noch nicht bereit: Link und QR-Code verwenden weiterhin die LAN-Adresse. Warte auf die Aktivierungsbestätigung, bevor du Personen über das Internet einlädst.',
-  failedHelp: 'Der öffentliche Link ist nicht verfügbar. Link und QR-Code zeigen wieder die LAN-Adresse. Öffne das Cloudflare-Fenster, um das Problem zu prüfen und es erneut zu versuchen.',
-  tunnelButton: 'Internet-Tunnel', configure: 'Cloudflare einrichten', openPanel: 'Cloudflare-Steuerung öffnen',
+  failedHelp: 'Der öffentliche Link ist nicht verfügbar. Link und QR-Code zeigen wieder die LAN-Adresse. Drücke oben den Cloudflare-Schalter, um das Problem zu sehen und es erneut zu versuchen.',
+  tunnelButton: 'Internet-Tunnel', configure: 'Cloudflare einrichten',
   qrUpdated: 'Link und QR-Code auf die öffentliche Adresse aktualisiert',
 
   title: 'Über das Internet teilen', experimental: 'Experimentell', technical: 'Technische Details', close: 'Schließen', start: 'Freigabe starten', retry: 'Erneut versuchen', stop: 'Freigabe beenden', reconnectHelp: 'Die Cloudflare-Verbindung antwortet nicht. Externe Teilnehmende könnten getrennt sein. Qurioso versucht die Verbindung automatisch wiederherzustellen; du kannst die Freigabe beenden und erneut versuchen. Prüfe die Internetverbindung und die Cloudflare-Anleitung.',

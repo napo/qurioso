@@ -189,11 +189,11 @@ test('editor cancellation preserves unsaved text; confirmed append is saved only
   const initial=classic();await storeQuizzes([initial]);const before=JSON.stringify(await loadQuizzes());
   const root=createRoot(document.getElementById('app')!);env.cleanup(async()=>{await act(async()=>root.unmount());});
   await act(async()=>root.render(React.createElement(LanguageProvider,null,React.createElement(QuizEditor,{initialQuiz:initial,onCancel(){},onSave:async q=>{await storeQuizzes([q]);}}))));
-  await env.wait(()=>![...document.querySelectorAll('button')].find(b=>b.textContent==='Importa domande')?.disabled);
+  await env.wait(()=>![...document.querySelectorAll('button')].find(b=>b.textContent==='Importa…')?.disabled);
   await env.input(document.querySelector('textarea[aria-label="Testo della domanda"]')!,'Modifica locale da conservare');
-  await env.click('Importa domande');await env.upload(new File([JSON.stringify([question()])],'domande.json'));
+  await env.click('Importa…');await env.upload(new File([JSON.stringify([question()])],'domande.json'));
   assert.equal(JSON.stringify(await loadQuizzes()),before);await env.click('Annulla');assert.equal((document.querySelector('textarea[aria-label="Testo della domanda"]') as HTMLTextAreaElement).value,'Modifica locale da conservare');
-  await env.click('Importa domande');await env.upload(new File([JSON.stringify([question()])],'domande.json'));await env.click('Aggiungi le domande selezionate');
+  await env.click('Importa…');await env.upload(new File([JSON.stringify([question()])],'domande.json'));await env.click('Aggiungi le domande selezionate');
   assert.equal(JSON.stringify(await loadQuizzes()),before);await env.click('Salva quiz');
   const saved=(await loadQuizzes())![0];assert.equal(saved.questions.length,initial.questions.length+1);assert.equal(saved.questions[0].text,'Modifica locale da conservare');assert.equal(saved.questions.at(-1)!.text,'Domanda importata');assert.equal(env.requests(),0);
 });
@@ -246,4 +246,55 @@ test('wizard copies the assistant request and turns the pasted answer into video
   await env.click('Aggiungi le domande selezionate');
   const added=result!.questions.at(-1)!;assert.equal(added.text,'Com’è la lava basaltica?');assert.equal(added.videoTimestamp,35);
   assert.ok(result!.videoConfig!.checkpoints.some(cp=>cp.questionId===added.id&&cp.timestamp===35));assert.equal(env.requests(),0);
+});
+
+test('one Import button: a complete quiz file replaces the editor quiz after confirmation, or gives only its questions', async t => {
+  const env=browser(t),{createRoot}=await import('react-dom/client'),{LanguageProvider}=await import('../src/context/LanguageContext'),{QuizEditor}=await import('../src/components/builder/QuizEditor');
+  const initial=classic();const root=createRoot(document.getElementById('app')!);env.cleanup(async()=>{await act(async()=>root.unmount());});
+  await act(async()=>root.render(React.createElement(LanguageProvider,null,React.createElement(QuizEditor,{initialQuiz:initial,onCancel(){},onSave:async()=>{}}))));
+  await env.wait(()=>![...document.querySelectorAll('button')].find(b=>b.textContent==='Importa…')?.disabled);
+  assert.equal([...document.querySelectorAll('button')].filter(b=>/Importa/.test(b.textContent!)).length,1,'a single import button');
+  const source={...structuredClone(DEFAULT_QUIZZES[0]),title:'Quiz completo importato'};
+  const replaced=()=>{const label=[...document.querySelectorAll('label')].find(l=>l.textContent==='Titolo del quiz')!;return (document.getElementById(label.htmlFor) as HTMLInputElement).value;};
+  await env.click('Importa…');await env.upload(new File([JSON.stringify(source)],'quiz.json'));
+  assert.match(document.body.textContent!,/Il file è un quiz Qurioso completo[\s\S]*Oppure aggiungi solo le sue domande/);
+  await env.click('Sostituisci con il quiz completo');
+  assert.equal(document.querySelector('.question-import-dialog'),null);assert.equal(replaced(),'Quiz completo importato');
+  // With unsaved changes the replacement asks first; declining keeps the dialog and the quiz.
+  await env.input(document.querySelector('textarea[aria-label="Testo della domanda"]')!,'Modifica da non perdere');
+  await env.click('Importa…');await env.upload(new File([JSON.stringify({...source,title:'Altro'})],'altro.json'));
+  await env.click('Sostituisci con il quiz completo');assert.ok(document.querySelector('.question-import-dialog'));assert.equal(replaced(),'Quiz completo importato');
+  assert.equal(env.requests(),0);
+});
+
+test('a complete quiz larger than a question list can still be opened, and a non-quiz file is not offered', async () => {
+  const { completeQuiz } = await import('../src/services/questionImport');
+  const big = { ...structuredClone(DEFAULT_QUIZZES[0]), description: 'x'.repeat(IMPORT_LIMITS.bytes) };
+  const opened = completeQuiz(JSON.stringify(big), 'quiz-new');
+  assert.equal(opened!.id, 'quiz-new'); assert.equal(opened!.videoConfig!.checkpointMode, 'explicit');
+  assert.equal(completeQuiz(JSON.stringify([question()])), undefined);
+  assert.equal(completeQuiz('{not json'), undefined);
+});
+
+test('editor: the question type changes the correct marks, orderings move items, and saving checks each type', async t => {
+  const env=browser(t),{createRoot}=await import('react-dom/client'),{LanguageProvider}=await import('../src/context/LanguageContext'),{QuizEditor}=await import('../src/components/builder/QuizEditor');
+  const initial={...classic(),questions:[{...question('Quale ordine?'),options:['Uno','Due','Tre'].map((text,i)=>({id:`o${i}`,text,isCorrect:i===0,color:'red' as const,shape:'triangle' as const}))}]};
+  const root=createRoot(document.getElementById('app')!);env.cleanup(async()=>{await act(async()=>root.unmount());});let saved:Quiz|undefined;
+  await act(async()=>root.render(React.createElement(LanguageProvider,null,React.createElement(QuizEditor,{initialQuiz:initial,onCancel(){},onSave:async q=>{saved=q;}}))));
+  const typeSelect=()=>[...document.querySelectorAll('label')].find(l=>l.textContent!.startsWith('Tipo di domanda'))!.querySelector('select')!;
+  const marks=()=>document.querySelectorAll('button[aria-label^="Risposta corretta"], button[aria-label*="corretta"][aria-pressed]').length;
+  await env.wait(()=>typeSelect());
+  await env.input(typeSelect(),'ordering');
+  assert.equal(marks(),0,'an ordering has no correct marks');
+  await env.click('▼');
+  const texts=()=>[...document.querySelectorAll<HTMLInputElement>('.editor-question-canvas input[placeholder^="Opzione"]')].map(i=>i.value);
+  assert.deepEqual(texts(),['Due','Uno','Tre']);
+  await env.input(typeSelect(),'multiple_select');
+  await env.click('Salva quiz');await env.wait(()=>saved);
+  assert.equal(saved!.questions[0].type,'multiple_select');assert.equal(saved!.questions[0].options.filter(o=>o.isCorrect).length,1,'the first option becomes correct');
+  const saveReady=()=>[...document.querySelectorAll('button')].find(b=>b.textContent?.trim()==='Salva quiz')?.disabled===false;
+  await env.input(typeSelect(),'poll');await env.wait(saveReady);await env.click('Salva quiz');
+  assert.equal(saved!.questions[0].type,'poll');assert.ok(saved!.questions[0].options.every(o=>!o.isCorrect));
+  // The editor finishes saving before the page goes away.
+  await env.wait(saveReady);await act(async()=>{await delay(300);});
 });

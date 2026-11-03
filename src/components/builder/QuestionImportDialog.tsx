@@ -5,16 +5,18 @@ import { AI_TRANSCRIPT_MAX, aiQuestionPrompt, csvFromAiAnswer } from '../../serv
 import type { Quiz, Question } from '../../types/quiz';
 import { useLanguage } from '../../context/LanguageContext';
 import { importText, type ImportIssue, type ImportMessageKey } from '../../i18n/questionImport';
-import { IMPORT_FIELDS, IMPORT_LIMITS, OPTION_FIELDS, appendImportedQuestions, csvImportSource, detectQuestionSeparator, importId, jsonImportSource, previewQuestionImport, questionCsvTemplate, readQuestionFile, suggestQuestionMapping, QuestionImportError, type ImportConfig, type ImportSource } from '../../services/questionImport';
+import { IMPORT_FIELDS, IMPORT_LIMITS, OPTION_FIELDS, appendImportedQuestions, completeQuiz, csvImportSource, detectQuestionSeparator, importId, jsonImportSource, previewQuestionImport, questionCsvTemplate, readQuestionFile, suggestQuestionMapping, QuestionImportError, type ImportConfig, type ImportSource } from '../../services/questionImport';
 
 const EMPTY_QUESTIONS: Question[] = [];
 const inputClass = 'w-full min-w-0 rounded-xl border border-line bg-white px-3 py-2 text-sm';
-interface Props { initialQuiz?: Quiz; quizzes?: Quiz[]; onCancel: () => void; onConfirm: (quiz: Quiz) => void | Promise<void> }
+/** `onOpenQuiz` receives a complete quiz file: the editor replaces its quiz, the library opens it as a new one. */
+interface Props { initialQuiz?: Quiz; quizzes?: Quiz[]; onCancel: () => void; onConfirm: (quiz: Quiz) => void | Promise<void>; onOpenQuiz?: (quiz: Quiz) => void }
 
-export function QuestionImportDialog({ initialQuiz, quizzes = [], onCancel, onConfirm }: Props) {
+export function QuestionImportDialog({ initialQuiz, quizzes = [], onCancel, onConfirm, onOpenQuiz }: Props) {
   const { language } = useLanguage();
   const t = (key: ImportMessageKey, args?: Record<string, string | number>) => importText(language, key, args);
   const [fileData, setFileData] = useState<{ text: string; name: string }>();
+  const [complete, setComplete] = useState<Quiz>();
   const [source, setSource] = useState<ImportSource>();
   const [separator, setSeparator] = useState(';'), [header, setHeader] = useState(true);
   const [config, setConfig] = useState<ImportConfig>({ mapping: {}, defaultType: 'multiple_choice', correctMode: 'letters' });
@@ -64,13 +66,16 @@ export function QuestionImportDialog({ initialQuiz, quizzes = [], onCancel, onCo
   };
   const chooseFile = async (file?: File) => {
     if (!file) return;
-    const request = ++sequence.current; setReading(true); setIssue(undefined); setSource(undefined); setFileData(undefined); setStep('file');
+    const request = ++sequence.current; setReading(true); setIssue(undefined); setSource(undefined); setFileData(undefined); setComplete(undefined); setStep('file');
     try {
       const text = await readQuestionFile(file);
       if (request !== sequence.current) return;
       setFileData({ text, name: file.name });
       setTitle(previous => previous || file.name.replace(/\.(csv|tsv|json)$/i, ''));
       if (/\.json$/i.test(file.name)) {
+        const whole = completeQuiz(text); setComplete(whole);
+        // Too large for its questions alone, a complete quiz can still be opened.
+        if (whole && text.length > IMPORT_LIMITS.bytes) return;
         const next = jsonImportSource(text); setSource(next); setConfig(prev => ({ ...prev, mapping: suggestQuestionMapping(next.columns, false) })); setStep(next.kind === 'canonical' ? 'preview' : 'configure');
       } else { const delimiter = /\.tsv$/i.test(file.name) ? '\t' : detectQuestionSeparator(text); configureCsv(text, delimiter, true); setStep('configure'); }
     } catch (error) { if (request === sequence.current) errorIssue(error); }
@@ -83,7 +88,7 @@ export function QuestionImportDialog({ initialQuiz, quizzes = [], onCancel, onCo
   // The answer is read like a CSV file, so it gets the same mapping, checks and preview.
   const useAiAnswer = () => {
     const text = csvFromAiAnswer(aiAnswer);
-    ++sequence.current; setFileData({ text, name: `${t('aiAnswer')}.csv` });
+    ++sequence.current; setFileData({ text, name: `${t('aiAnswer')}.csv` }); setComplete(undefined);
     configureCsv(text, detectQuestionSeparator(text), true); setStep('preview');
   };
   const downloadTemplate = () => {
@@ -146,7 +151,12 @@ export function QuestionImportDialog({ initialQuiz, quizzes = [], onCancel, onCo
           <label className="text-sm font-bold">{t('separator')}<select aria-label={t('separator')} className={inputClass} value={separator} onChange={event => configureCsv(fileData.text, event.target.value, header)}>{[',',';','\t'].map((value, i) => <option key={value} value={value}>{t((['comma','semicolon','tab'] as const)[i])}</option>)}</select></label>
           <label className="text-sm"><input type="checkbox" checked={header} onChange={event => configureCsv(fileData.text, separator, event.target.checked)} /> {t('header')}</label>
         </div>}
-        {source?.fullQuiz && <p className="rounded-xl bg-amber-50 p-3 text-sm">{t('sourceQuiz')} {t('fullQuizHint')}</p>}
+        {complete && onOpenQuiz && <div className="complete-quiz rounded-xl bg-amber-50 p-3 text-sm space-y-2">
+          <p>{t('completeQuiz')}</p>
+          <button type="button" disabled={confirming} className="btn-primary rounded-xl px-3 py-2 text-sm font-bold" onClick={() => onOpenQuiz(complete)}>{t(initialQuiz ? 'replaceQuiz' : 'openQuiz')}</button>
+          {source && <p>{t('orExtract')}</p>}
+        </div>}
+        {source?.fullQuiz && !(complete && onOpenQuiz) && <p className="rounded-xl bg-amber-50 p-3 text-sm">{t('completeQuiz')} {t('orExtract')}</p>}
         {source?.kind === 'canonical' && <p className="text-sm text-petrolio">{t('sourceQuestions')}</p>}
         {source && source.kind !== 'canonical' && step !== 'preview' && <>
           <div className="overflow-x-auto border border-line rounded-xl"><table className="w-full text-xs"><caption className="text-left p-2 font-bold">{t('sample')}</caption><thead><tr>{source.columns.slice(0,12).map((column,i) => <th key={i} className="p-2 text-left border-b border-line">{source.kind === 'csv' && !header ? t('column',{n:i+1}) : (column || t('column',{n:i+1})).slice(0,120)}</th>)}</tr></thead><tbody>{source.records.slice(0,5).map((record,i) => <tr key={i}>{source.columns.slice(0,12).map((column,j) => <td key={j} className="p-2 border-b border-line max-w-48 whitespace-pre-wrap break-words">{String(source.kind === 'csv' ? (record as string[])[j] ?? '' : (record as Record<string,unknown>)[column] ?? '').slice(0,200)}</td>)}</tr>)}</tbody></table></div>

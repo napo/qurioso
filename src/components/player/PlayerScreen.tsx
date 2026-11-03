@@ -14,8 +14,10 @@ import {
   Send,
   Zap
 } from 'lucide-react';
-import { GameSession, Player, Question } from '../../types/quiz';
+import { GameSession, Player, Question, type Team } from '../../types/quiz';
 import { gameSync, type PlayerRecovery } from '../../services/gameSync';
+import { nicknameAllowed } from '../../services/nicknameFilter';
+import { isScored, makeChoice, takesSeveral } from '../../services/questionTypes';
 import { sounds } from '../../services/soundEffects';
 import { OPTION_COLORS, SHAPE_ICONS, COLOR_KEYS, SHAPE_KEYS } from '../../utils/quizStyles';
 import { useLanguage } from '../../context/LanguageContext';
@@ -23,6 +25,7 @@ import { playerTranslations, playerRecoveryText } from '../../i18n/player';
 import { fill } from '../../i18n/format';
 import { gameExperienceTranslations } from '../../i18n/gameExperience';
 import { PlayerFinalResult } from './PlayerFinalResult';
+import { HomeworkPlayer } from '../homework/HomeworkPlayer';
 import { finalResult, readFinalResult, saveFinalResult, clearFinalResult, type FinalResult } from '../../services/finalResult';
 import { QuriosoIcon, BRAND_COLORS } from '../common/QuriosoLogo';
 
@@ -46,9 +49,16 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
     const result = finalResult(value, id); saveFinalResult(result); completedRef.current = result; setCompleted(result);
     void gameSync.leavePlayer(value.pin, id);
   };
+  const pauseHomework = () => {
+    setIsJoined(false); setSession(null); setSelectedOptionId(null); setJoinError('');
+    updatePublicUrl();
+  };
   const [pin, setPin] = useState<string>(initialPin);
   const [nickname, setNickname] = useState<string>('');
   const [avatar, setAvatar] = useState<string>('🦊');
+  // Teams of the game being joined, read once the PIN is complete; empty when it is not a team game.
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [teamId, setTeamId] = useState('');
   const [isJoined, setIsJoined] = useState<boolean>(false);
   const [isJoining, setIsJoining] = useState<boolean>(false);
   const [joinError, setJoinError] = useState<string>('');
@@ -62,6 +72,8 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
   // Synchronized session state
   const [session, setSession] = useState<GameSession | null>(null);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+  // Options picked so far in a multiple_select or ordering question, before confirming.
+  const [picked, setPicked] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [answerError, setAnswerError] = useState('');
   const submittingRef = useRef(false);
@@ -78,7 +90,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
   const applyRecovery = (result: PlayerRecovery) => {
     if (result.status === 'recovered') {
       const { session: restored, player, ownAnswer } = result;
-      if (restored.status === 'finished') { complete(restored, player.id); return; }
+      if (restored.status === 'finished' && restored.mode !== 'assignment') { complete(restored, player.id); return; }
       setPin(restored.pin); setPlayerId(player.id); setNickname(player.nickname); setAvatar(player.avatar);
       activeRoundRef.current = restored.roundId || String(restored.questionStartTime);
       ownAnswerRef.current = ownAnswer ? { roundId: restored.roundId, optionId: ownAnswer.optionId } : undefined;
@@ -106,6 +118,13 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
   const leaveControl = <div className="py-2 text-center"><button type="button" onClick={() => void leave()} className="rounded-xl border border-line bg-white px-4 py-2 text-sm font-bold text-petrolio">{p.leave}</button>
     {storageWarning && <p role="status" className="mt-2 text-sm text-muted">{storageWarning}</p>}</div>;
 
+  useEffect(() => {
+    if (isJoined || !/^\d{6}$/.test(pin.trim())) { setTeams([]); return; }
+    let current = true;
+    void gameSync.peekTeams(pin.trim()).then(found => { if (current) setTeams(found ?? []); });
+    return () => { current = false; };
+  }, [pin, isJoined]);
+
   // Subscribe to room updates
   useEffect(() => {
     if (!isJoined || !pin || completed) return;
@@ -116,11 +135,11 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
     const unsubscribe = gameSync.subscribe((msg) => {
       if (completedRef.current) return;
       if (msg.type === 'PLAYER_SESSION_ENDED' && msg.pin === pin) {
-        setIsJoined(false); setSession(null); setRecoveryProblem(p.sessionEnded); setCanRetry(false);
+        setIsJoined(false); setSession(null); setRecoveryProblem(msg.removed ? p.removed : p.sessionEnded); setCanRetry(false);
         return;
       }
       if (msg.type === 'SESSION_STATE_UPDATE' && msg.session.pin === pin) {
-        if (msg.session.status === 'finished') { complete(msg.session, playerId); return; }
+        if (msg.session.status === 'finished' && msg.session.mode !== 'assignment') { complete(msg.session, playerId); return; }
         activeRoundRef.current = msg.session.roundId || String(msg.session.questionStartTime);
         ownAnswerRef.current = msg.ownAnswer ? { roundId: msg.session.roundId, optionId: msg.ownAnswer.optionId } : undefined;
         setSession(msg.session);
@@ -144,6 +163,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
   useEffect(() => {
     const restored = ownAnswerRef.current?.roundId === session?.roundId ? ownAnswerRef.current : undefined;
     setSelectedOptionId(restored?.optionId || null);
+    setPicked([]);
     setAnswerSubmittedAt(restored ? Date.now() : null);
     setAnswerError('');
   }, [session?.roundId, session?.questionStartTime]);
@@ -157,6 +177,9 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
     const formattedPin = pin.trim();
     const cleanNick = nickname.trim();
+    // The server refuses it as well; checking here tells the student why.
+    if (!nicknameAllowed(cleanNick)) { setIsJoining(false); setJoinError(p.nicknameBlocked); return; }
+    if (teams.length && !teams.some(team => team.id === teamId)) { setIsJoining(false); setJoinError(p.teamRequired); return; }
 
     // A different typed PIN may also have a saved identity. Never replace it with a fresh join.
     const recovery = await gameSync.recoverPlayer(formattedPin);
@@ -173,6 +196,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
       totalTimeTakenMs: 0,
       joinedAt: Date.now(),
       connected: true,
+      ...(teamId && teams.length ? { teamId } : {}),
     };
 
     // Join first: only the returned player credential can authenticate a connection.
@@ -180,7 +204,10 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
     setIsJoining(false);
     if (!joined) {
-      setJoinError(p.joinError);
+      // The presenter may have turned teams on or off meanwhile.
+      const current = await gameSync.peekTeams(formattedPin) ?? [];
+      setTeams(current);
+      setJoinError(current.length && !current.some(team => team.id === teamId) ? p.teamRequired : p.joinError);
       return;
     }
     setStorageWarning(gameSync.canRecoverPlayer(formattedPin, playerId) ? '' : p.storageWarning);
@@ -199,15 +226,16 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
     }
   };
 
-  const handleSelectOption = async (optionId: string) => {
-    if (selectedOptionId !== null || submittingRef.current || !session?.currentQuestion) return;
+  const handleSelectOption = async (ids: string[]) => {
+    if (selectedOptionId !== null || submittingRef.current || !session?.currentQuestion || !ids.length) return;
+    const choice = makeChoice(session.currentQuestion, ids), optionId = choice.optionId;
     const round = session.roundId || String(session.questionStartTime);
     // Retained for protocol diagnostics only; the server measures the scoring time itself.
     const timeTakenMs = Math.max(0, Date.now() - session.questionStartTime);
     submittingRef.current = true;
     setIsSubmitting(true);
     setAnswerError('');
-    const received = await gameSync.submitAnswerOnServer(pin, playerId, optionId, timeTakenMs, session.currentQuestion.id, session.roundId);
+    const received = await gameSync.submitAnswerOnServer(pin, playerId, choice, timeTakenMs, session.currentQuestion.id, session.roundId);
     submittingRef.current = false;
     setIsSubmitting(false);
     if (activeRoundRef.current !== round) return;
@@ -221,7 +249,12 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(60);
   };
 
+  const several = Boolean(session?.currentQuestion && takesSeveral(session.currentQuestion));
+  const ordering = session?.currentQuestion?.type === 'ordering';
+  // Several answers: a tap selects or deselects. Ordering: a tap appends, a second tap removes and renumbers.
+  const togglePicked = (optionId: string) => setPicked(previous => previous.includes(optionId) ? previous.filter(id => id !== optionId) : [...previous, optionId]);
   const myPlayer = session?.players ? session.players[playerId] : null;
+  const myTeam = session?.teams?.find(team => team.id === myPlayer?.teamId);
   const currentQIndex = session?.currentQuestionIndex ?? 0;
   const isQuestionActive = session?.status === 'question';
   const isResults = session?.status === 'question_results';
@@ -241,6 +274,14 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
   if (isJoined && !session) return <main className="min-h-screen bg-qurioso-canvas p-6 flex flex-col items-center justify-center text-petrolio">
     <p role="status">{p.syncing}</p>{leaveControl}
   </main>;
+  if (isJoined && session?.mode === 'assignment') {
+    const token = gameSync.playerCredential(pin, playerId);
+    if (!token) return <main role="alert" className="min-h-screen bg-qurioso-canvas p-6 flex flex-col items-center justify-center gap-4 text-center text-petrolio">
+      <p>{p.recUnavailable}</p>
+      <button type="button" className="btn-secondary rounded-xl px-5 py-3" onClick={pauseHomework}>{p.backToEntry}</button>
+    </main>;
+    return <HomeworkPlayer pin={pin} playerId={playerId} token={token} title={session.quizTitle} nickname={nickname} avatar={avatar} sessionStatus={session.status} onLeave={pauseHomework} />;
+  }
 
   // 1. JOIN FORM VIEW
   if (!isJoined) {
@@ -328,6 +369,12 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
                   ))}
                 </div>
               </div>
+
+              {teams.length > 0 && <fieldset>
+                <legend className="block w-full text-xs font-bold uppercase tracking-wider text-muted mb-2 text-center">{p.chooseTeam}</legend>
+                <div className="grid grid-cols-2 gap-2">{teams.map(team => <button key={team.id} type="button" aria-pressed={teamId === team.id} onClick={() => setTeamId(team.id)}
+                  className={`rounded-xl border-2 px-3 py-2 font-bold text-sm text-ink ${OPTION_COLORS[team.color].bg} ${teamId === team.id ? 'border-petrolio ring-4 ring-petrolio/40' : OPTION_COLORS[team.color].border}`}>{team.name}</button>)}</div>
+              </fieldset>}
 
               {joinError && (
                 <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-600 text-rose-700 text-xs text-center">
@@ -433,6 +480,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-2xl shrink-0">{avatar}</span>
             <span className="font-bold text-sm text-ink truncate max-w-[35vw]">{nickname}</span>
+            {myTeam && <span className={`player-team rounded-full border px-2 py-0.5 text-xs font-bold text-ink ${OPTION_COLORS[myTeam.color].bg} ${OPTION_COLORS[myTeam.color].border}`}>{myTeam.name}</span>}
           </div>
 
           <div className="flex items-center gap-3">
@@ -467,19 +515,23 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
 
             {answerError && <p role="alert" className="text-sm text-rose-700">{answerError}</p>}
             {isSubmitting && <p role="status" className="text-sm text-petrolio">{p.sending}</p>}
+            {several && <p className="text-sm font-bold text-petrolio text-center">{ordering ? p.pickOrder : p.pickAll}</p>}
             <div data-answer-count={session.currentQuestion?.options.length} className="player-answer-grid grid grid-cols-2 gap-3 w-full">
               {session.currentQuestion?.options.map((option, idx) => {
                 const colorStyle = OPTION_COLORS[option.color];
                 const shapeSymbol = SHAPE_ICONS[option.shape];
 
+                const position = picked.indexOf(option.id);
                 return (
                   <button
                     key={option.id}
-                    aria-label={`${gameText.answer} ${String.fromCharCode(65 + idx)}: ${option.text}`}
+                    aria-label={`${gameText.answer} ${String.fromCharCode(65 + idx)}: ${option.text}${ordering && position >= 0 ? ` · ${fill(p.orderPosition, { n: position + 1 })}` : ''}`}
+                    aria-pressed={several ? position >= 0 : undefined}
                     disabled={isSubmitting}
-                    onClick={() => handleSelectOption(option.id)}
-                    className={`player-answer min-w-0 min-h-0 p-3 rounded-2xl border-2 grid items-center justify-items-center gap-2 transition-transform active:scale-95 shadow-md cursor-pointer ${colorStyle.bg} ${colorStyle.border}`}
+                    onClick={() => several ? togglePicked(option.id) : handleSelectOption([option.id])}
+                    className={`player-answer relative min-w-0 min-h-0 p-3 rounded-2xl border-2 grid items-center justify-items-center gap-2 transition-transform active:scale-95 shadow-md cursor-pointer ${colorStyle.bg} ${position >= 0 ? 'border-petrolio ring-4 ring-petrolio/40' : colorStyle.border}`}
                   >
+                    {position >= 0 && <span aria-hidden="true" className="absolute top-2 right-2 w-8 h-8 rounded-full bg-petrolio text-white font-black flex items-center justify-center">{ordering ? position + 1 : '✓'}</span>}
                     <div aria-hidden="true" className="player-answer-heading flex items-center justify-center gap-2"><div className={`player-answer-symbol w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center text-3xl font-black ${colorStyle.badge}`}>
                       {shapeSymbol}
                     </div>
@@ -489,6 +541,11 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
                 );
               })}
             </div>
+            {several && <div className="flex justify-center gap-3">
+              {ordering && <button type="button" disabled={!picked.length || isSubmitting} onClick={() => setPicked([])} className="btn-secondary rounded-xl px-4 py-3 font-bold">{p.restartOrder}</button>}
+              <button type="button" disabled={isSubmitting || !picked.length || (ordering && picked.length !== session.currentQuestion!.options.length)}
+                onClick={() => handleSelectOption(picked)} className="btn-primary rounded-xl px-6 py-3 font-bold">{p.confirmChoice}</button>
+            </div>}
           </div>
         )}
 
@@ -504,6 +561,8 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
   // 5. RESULTS & LEADERBOARD VIEW
   if (isResults || isLeaderboard) {
     const isCorrect = myPlayer?.lastAnswer?.questionId === session?.currentQuestion?.id && myPlayer?.lastAnswer?.isCorrect;
+    const poll = Boolean(session?.currentQuestion && !isScored(session.currentQuestion));
+    const solution = session?.questionResult?.correctOptionIds.map(id => session.currentQuestion?.options.find(o => o.id === id)?.text).filter(Boolean) ?? [];
 
     return (
       <div className="min-h-screen bg-qurioso-canvas text-ink flex flex-col justify-between p-6 select-none">
@@ -517,20 +576,20 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
         <div className="my-auto flex flex-col items-center justify-center text-center">
           <div
             className={`w-24 h-24 rounded-3xl flex items-center justify-center text-4xl mb-4 shadow-lg border-4 ${
-              isCorrect
+              poll ? 'bg-surface-soft border-petrolio text-petrolio' : isCorrect
                 ? 'bg-emerald-50 border-emerald-400 text-emerald-700'
                 : 'bg-rose-50 border-rose-500 text-rose-700'
             }`}
           >
-            {isCorrect ? '🎉' : '💡'}
+            {poll ? '🗳️' : isCorrect ? '🎉' : '💡'}
           </div>
 
           <h2 className="text-3xl font-black text-ink mb-2">
-            {isCorrect ? p.correct : p.wrong}
+            {poll ? p.pollThanks : isCorrect ? p.correct : p.wrong}
           </h2>
 
-          {session?.questionResult && <div className="max-w-sm text-sm text-petrolio mt-3" role="status">
-            <p>{fill(p.correctAnswerIs, { answer: session.currentQuestion?.options.filter(o => session.questionResult!.correctOptionIds.includes(o.id)).map(o => o.text).join(', ') ?? '' })}</p>
+          {session?.questionResult && !poll && <div className="max-w-sm text-sm text-petrolio mt-3" role="status">
+            <p>{fill(p.correctAnswerIs, { answer: solution.join(session.currentQuestion?.type === 'ordering' ? ' → ' : ', ') })}</p>
             {session.questionResult.explanation && <p className="mt-2">{session.questionResult.explanation}</p>}
           </div>}
 
@@ -542,7 +601,7 @@ export const PlayerScreen: React.FC<PlayerScreenProps> = ({ initialPin = '', onE
           ) : null}
 
           <div className="p-4 rounded-2xl bg-white border border-line max-w-xs text-xs text-muted mt-2">
-            {p.watchRanking}
+            {poll ? p.pollWait : p.watchRanking}
           </div>
         </div>
 

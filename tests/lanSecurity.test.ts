@@ -217,7 +217,7 @@ test('LAN devices reach only participant features; presenter features stay on th
   assert.equal((await request('/api/session/create', 'POST', { session: initial }, hostToken)).status, 200);
 
   for (const [url, method] of [['/api/presenter-token', 'POST'], ['/api/session/create', 'POST'], [path + '/presenter', 'GET'],
-    [path + '/state', 'POST'], [path, 'DELETE'], [path + '/bot-answer', 'POST'], ['/api/server-info', 'GET'], ['/api/health', 'GET'],
+    [path + '/state', 'POST'], [path, 'DELETE'], [path + '/bot-answer', 'POST'], [path + '/player/alice/remove', 'POST'], ['/api/server-info', 'GET'], ['/api/health', 'GET'],
     ['/API/SESSION/' + initial.pin + '/PRESENTER', 'GET'], ['/api/desktop/internet-sharing', 'POST']]) {
     assert.equal((await lanRequest(url, method, method === 'POST' ? {} : undefined, hostToken)).status, 403, url);
   }
@@ -259,4 +259,40 @@ test('a rebound hostname on loopback gets only participant features', { timeout:
   assert.equal((await rebound('/api/server-info')).status, 403);
   assert.deepEqual(await rebound('/?app=network'), { status: 302, location: '/?role=player' });
   assert.match(await mint(), /^[a-f0-9]{64}$/, 'localhost keeps every feature');
+});
+
+test('the presenter removes a participant: credential revoked, socket closed, name gone, no comeback through a stale snapshot', { timeout: 15000 }, async t => {
+  const { request, mint, socket } = await startLanServer(t);
+  const initial = { ...round(), status: 'lobby' as const }, path = `/api/session/${initial.pin}`, hostToken = await mint();
+  assert.equal((await request('/api/session/create', 'POST', { session: initial }, hostToken)).status, 200);
+  const join = async (p: ReturnType<typeof player>) => (await (await request(path + '/join', 'POST', { player: p })).json()).playerToken as string;
+  const aliceToken = await join(player('alice')), bobToken = await join(player('bob'));
+  const alice = await socket();
+  await alice.next({ type: 'REGISTER', pin: initial.pin, role: 'player', playerId: 'alice', token: aliceToken }, isState);
+  const host = await (await request(path, 'GET', undefined, hostToken)).json();
+
+  assert.equal((await request(path + '/player/alice/remove', 'POST', {}, bobToken)).status, 403, 'only the presenter removes');
+  const closed = once(alice.ws, 'close');
+  const removed = await request(path + '/player/alice/remove', 'POST', {}, hostToken);
+  assert.equal(removed.status, 200);
+  assert.deepEqual(Object.keys((await removed.json()).session.players), ['bob']);
+  assert.deepEqual((await closed).map(String), ['4003', 'Removed by the presenter']);
+
+  for (const response of [await request(path, 'GET', undefined, aliceToken), await request(path + '/player/alice', 'GET', undefined, aliceToken), await request(path + '/join', 'POST', { player: player('alice') }, aliceToken)]) {
+    assert.equal(response.status, 403); assert.equal((await response.json()).error, 'Removed by the presenter');
+  }
+  // A presenter snapshot sent before the removal still lists alice: she must not come back.
+  const stale = await request('/api/session/create', 'POST', { session: host.session, revision: host.revision }, hostToken);
+  assert.equal(stale.status, 200);
+  assert.deepEqual(Object.keys((await stale.json()).session.players), ['bob']);
+  assert.equal((await request(path + '/join', 'POST', { player: player('alice2') })).status, 200, 'a new identity may join again');
+});
+
+test('offensive nicknames are refused on join, ordinary names that contain the letters are not', { timeout: 15000 }, async t => {
+  const { request, mint } = await startLanServer(t);
+  const initial = { ...round(), status: 'lobby' as const }, path = `/api/session/${initial.pin}`;
+  assert.equal((await request('/api/session/create', 'POST', { session: initial }, await mint())).status, 200);
+  const refused = await request(path + '/join', 'POST', { player: { ...player('rude'), nickname: 'C4ZZ0ne' } });
+  assert.equal(refused.status, 400); assert.equal((await refused.json()).error, 'Nickname not allowed');
+  assert.equal((await request(path + '/join', 'POST', { player: { ...player('massimo'), nickname: 'Massimo' } })).status, 200);
 });

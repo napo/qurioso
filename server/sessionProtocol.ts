@@ -1,4 +1,5 @@
 import type { GameSession, Player, Quiz } from '../src/types/quiz';
+import { OPTION_LIMITS, QUESTION_TYPES } from '../src/services/questionTypes';
 
 export const MAX_MESSAGE_BYTES = 1024 * 1024;
 export const MAX_PLAYERS = 500;
@@ -39,18 +40,29 @@ function integer(value: unknown, max = Number.MAX_SAFE_INTEGER): number {
   const result = number(value, max); check(Number.isSafeInteger(result)); return result;
 }
 function bool(value: unknown): boolean { check(typeof value === 'boolean'); return value; }
+/** The whole choice of a multiple_select or ordering question; whether it fits the question is checked on receipt. */
+function optionIds(value: unknown) {
+  if (value === undefined) return {};
+  check(Array.isArray(value) && value.length > 0 && value.length <= 12);
+  return { optionIds: value.map(id) };
+}
 
 function answer(value: unknown) {
   const a = object(value);
   return {
-    questionId: id(a.questionId), optionId: id(a.optionId), timeTakenMs: number(a.timeTakenMs, 86400000),
+    questionId: id(a.questionId), optionId: id(a.optionId), ...optionIds(a.optionIds), timeTakenMs: number(a.timeTakenMs, 86400000),
     ...(a.isCorrect !== undefined ? { isCorrect: bool(a.isCorrect) } : {}),
     ...(a.pointsEarned !== undefined ? { pointsEarned: number(a.pointsEarned) } : {}),
   };
 }
 export function submission(value: unknown) {
   const a = object(value);
-  return { roundId: id(a.roundId), playerId: id(a.playerId), questionId: id(a.questionId), optionId: id(a.optionId), timeTakenMs: number(a.timeTakenMs, 86400000) };
+  return { roundId: id(a.roundId), playerId: id(a.playerId), questionId: id(a.questionId), optionId: id(a.optionId), ...optionIds(a.optionIds), timeTakenMs: number(a.timeTakenMs, 86400000) };
+}
+/** A homework answer: no round and no time, the server records when it arrives. */
+export function assignmentSubmission(value: unknown) {
+  const a = object(value);
+  return { playerId: id(a.playerId), questionId: id(a.questionId), optionId: id(a.optionId), ...optionIds(a.optionIds) };
 }
 export function player(value: unknown, joining = false): Player {
   const p = object(value);
@@ -58,6 +70,7 @@ export function player(value: unknown, joining = false): Player {
     id: id(p.id), nickname: text(p.nickname, 64), avatar: text(p.avatar, 32),
     score: joining ? 0 : number(p.score), streak: joining ? 0 : integer(p.streak),
   };
+  if (p.teamId !== undefined) result.teamId = id(p.teamId);
   if (joining) return { ...result, name: result.nickname, joinedAt: Date.now(), connected: true };
   if (p.name !== undefined) result.name = text(p.name, 64);
   for (const key of ['correctAnswersCount', 'totalTimeTakenMs', 'joinedAt', 'connectedAt'] as const) {
@@ -75,7 +88,7 @@ export function player(value: unknown, joining = false): Player {
 }
 export function session(value: unknown): GameSession {
   const s = object(value);
-  check(statuses.has(s.status) && ['standard', 'video'].includes(s.mode));
+  check(statuses.has(s.status) && ['standard', 'video', 'assignment'].includes(s.mode));
   check(s.status !== 'video' || s.mode === 'video');
   const totalQuestions = integer(s.totalQuestions, 10000);
   check(totalQuestions > 0);
@@ -101,9 +114,27 @@ export function session(value: unknown): GameSession {
       return { id: id(o.id), text: text(o.text, 10000, true), color: o.color, shape: o.shape };
     });
     check(new Set(options.map(o => o.id)).size === options.length);
-    result.currentQuestion = { id: id(q.id), text: text(q.text, 20000), options };
+    check(q.type === undefined || QUESTION_TYPES.includes(q.type));
+    result.currentQuestion = { id: id(q.id), text: text(q.text, 20000), ...(q.type !== undefined ? { type: q.type } : {}), options };
   }
   check(s.status !== 'question' || (result.currentQuestion && result.questionStartTime > 0));
+  if (s.teams !== undefined) {
+    check(Array.isArray(s.teams) && s.teams.length >= 2 && s.teams.length <= 6);
+    result.teams = s.teams.map((value: unknown) => {
+      const team = object(value); check(colors.has(team.color));
+      return { id: id(team.id), name: text(team.name, 40), color: team.color };
+    });
+    check(new Set(result.teams!.map(team => team.id)).size === result.teams!.length);
+  }
+  // A player's team must exist: without teams, or after a team is removed, the player has none.
+  const teamIds = new Set(result.teams?.map(team => team.id));
+  for (const p of Object.values(result.players)) if (p.teamId !== undefined && !teamIds.has(p.teamId)) delete p.teamId;
+  if (s.assignment !== undefined) {
+    check(s.mode === 'assignment');
+    const a = object(s.assignment);
+    result.assignment = { deadline: integer(a.deadline), showFeedback: bool(a.showFeedback), ...(a.closed !== undefined ? { closed: bool(a.closed) } : {}) };
+  }
+  check(s.mode !== 'assignment' || (result.assignment && !result.teams));
   if (s.videoState !== undefined) {
     const v = object(s.videoState);
     result.videoState = { currentTime: number(v.currentTime, 86400), isPlaying: bool(v.isPlaying), activeCheckpointIndex: integer(v.activeCheckpointIndex, 10000), ...(v.ended !== undefined ? { ended: bool(v.ended) } : {}) };
@@ -131,13 +162,32 @@ export function participantSession(s: GameSession, roundPlayers: Record<string, 
 }
 
 /** Private grading definition: no video URL, asset, image or unrelated saved-quiz metadata. */
+export const MAX_ASSIGNMENT_BYTES = 32 * 1024 * 1024;
+const MAX_MEDIA_URL = 4 * 1024 * 1024;
+/** Homework images must be safe and reachable by every participant, including bundled covers. */
+function mediaUrl(value: unknown) {
+  if (value === undefined || value === '') return {};
+  const bundled = typeof value === 'string' && /^quizzes\/covers\/[a-z0-9-]+\.webp$/.test(value);
+  check(typeof value === 'string' && value.length <= MAX_MEDIA_URL &&
+    (bundled || /^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+=*$/.test(value) || /^https:\/\/[^\s"'<>]+$/.test(value)));
+  return { mediaUrl: value as string };
+}
+/** A homework quiz is a private quiz (like a video quiz) plus each question's image. */
+export function assignmentQuizDefinition(value: unknown): Quiz {
+  const quiz = videoQuizDefinition(value), questions = object(value).questions as unknown[];
+  return { ...quiz, questions: quiz.questions.map((question, index) => {
+    const source = object(questions[index]);
+    return source.mediaType === 'video' ? question : { ...question, ...mediaUrl(source.mediaUrl) };
+  }) };
+}
 export function videoQuizDefinition(value: unknown): Quiz {
   const q = object(value), settings = object(q.settings);
   check(Array.isArray(q.questions) && q.questions.length > 0 && q.questions.length <= 10000);
   const questions = q.questions.map((value: unknown) => {
     const question = object(value);
-    check(['multiple_choice', 'true_false'].includes(question.type));
-    check(Array.isArray(question.options) && question.options.length >= 2 && question.options.length <= 12);
+    check(QUESTION_TYPES.includes(question.type));
+    const [fewest, most] = OPTION_LIMITS[question.type as keyof typeof OPTION_LIMITS];
+    check(Array.isArray(question.options) && question.options.length >= fewest && question.options.length <= most);
     const options = question.options.map((value: unknown) => {
       const option = object(value);
       check(colors.has(option.color) && shapes.has(option.shape));

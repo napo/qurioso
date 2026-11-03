@@ -1,11 +1,15 @@
 import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { Trophy, Medal, Download, ArrowLeft, RotateCcw, Check, Sparkles, Clock, Flame } from 'lucide-react';
-import { Player, Question } from '../../types/quiz';
+import { Player, Question, type Team } from '../../types/quiz';
+import { TeamRanking } from './TeamRanking';
 import { sounds } from '../../services/soundEffects';
 import { lobbyTranslations } from '../../i18n/lobby';
 import { useLanguage } from '../../context/LanguageContext';
 import { QuriosoIcon } from '../common/QuriosoLogo';
+import { fill } from '../../i18n/format';
+import { reportCsv, type QuestionReport } from '../../services/gameReport';
+import { QuestionReportList } from './QuestionReportList';
 
 interface FinalPodiumProps {
   players: Player[] | Record<string, Player>;
@@ -14,6 +18,10 @@ interface FinalPodiumProps {
   onPlayAgain?: () => void;
   onRestart?: () => void;
   onExit: () => void;
+  /** Per-question results of this game, and the classroom review of the missed questions when there are some. */
+  reports?: QuestionReport[];
+  onReview?: () => void;
+  teams?: Team[];
 }
 
 export const FinalPodium: React.FC<FinalPodiumProps> = ({
@@ -23,6 +31,9 @@ export const FinalPodium: React.FC<FinalPodiumProps> = ({
   onPlayAgain,
   onRestart,
   onExit,
+  reports = [],
+  onReview,
+  teams,
 }) => {
   const { t, language } = useLanguage();
   const lobby = lobbyTranslations[language];
@@ -113,6 +124,13 @@ export const FinalPodium: React.FC<FinalPodiumProps> = ({
     downloadAnchor.remove();
   };
 
+  const exportReport = () => {
+    const url = URL.createObjectURL(new Blob([reportCsv(reports, lobby.reportHeaders.split('|'))], { type: 'text/csv;charset=utf-8' }));
+    const anchor = document.createElement('a');
+    anchor.href = url; anchor.download = `${lobby.reportFile}_${quizTitle.toLowerCase().replace(/\s+/g, '_')}.csv`;
+    anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   return (
     <div className="min-h-full w-full bg-white text-ink flex flex-col p-4 md:p-8 overflow-y-auto">
       {/* Top Header */}
@@ -146,9 +164,15 @@ export const FinalPodium: React.FC<FinalPodiumProps> = ({
             <Download className="w-4 h-4 text-petrolio" />
             <span>{t.exportJson}</span>
           </button>
+          {reports.length > 0 && <button type="button" onClick={exportReport}
+            className="flex items-center gap-1.5 px-3 py-2 bg-surface-soft hover:bg-surface-hover text-muted text-xs font-bold rounded-xl border border-line transition active:scale-95 cursor-pointer">
+            <Download className="w-4 h-4 text-accent-ink" />
+            <span>{lobby.reportCsv}</span>
+          </button>}
         </div>
       </div>
 
+      {teams && <div className="max-w-3xl mx-auto w-full"><TeamRanking teams={teams} players={playerList} /></div>}
       {/* 3-Tier Podium */}
       <div className="max-w-3xl mx-auto w-full flex items-end justify-center gap-3 md:gap-6 my-6 min-h-[320px]">
         {/* 2nd Place (Silver) */}
@@ -324,6 +348,16 @@ export const FinalPodium: React.FC<FinalPodiumProps> = ({
           </table>
         </div>
       </div>
+
+      {reports.length > 0 && <section aria-labelledby="question-report-title" className="question-report max-w-4xl mx-auto w-full mt-8 space-y-3">
+        <div>
+          <h2 id="question-report-title" className="text-xl font-black text-ink">{lobby.reportTitle}</h2>
+          <p className="text-sm text-muted">{lobby.reportHint}</p>
+        </div>
+        <QuestionReportList reports={reports} />
+        {onReview ? <button type="button" onClick={onReview} className="btn-primary rounded-2xl px-5 py-3 font-bold text-sm">{lobby.reviewButton}</button>
+          : <p className="text-sm text-muted">{lobby.reviewNone}</p>}
+      </section>}
 
       {/* Footer Actions */}
       <div className="max-w-4xl mx-auto w-full flex items-center justify-center gap-4 mt-8 pb-8">

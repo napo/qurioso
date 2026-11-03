@@ -8,8 +8,8 @@ export function participantRouteAllowed(method: string, pathname: string, pin = 
   // Express routes are case-insensitive: mixed-case API paths must not pass as assets.
   if (!/^\/api(?:\/|$)/i.test(pathname)) return method === 'GET' || method === 'HEAD';
   const base = `/api/session/${pin}`;
-  if (method === 'GET') return new RegExp(`^${base}(?:/player/[a-zA-Z0-9_-]+)?$`).test(pathname);
-  if (method === 'POST') return new RegExp(`^${base}/(?:join|answer|player/[a-zA-Z0-9_-]+/leave)$`).test(pathname);
+  if (method === 'GET') return new RegExp(`^${base}(?:/player/[a-zA-Z0-9_-]+|/assignment)?$`).test(pathname);
+  if (method === 'POST') return new RegExp(`^${base}/(?:join|answer|assignment/answer|player/[a-zA-Z0-9_-]+/leave)$`).test(pathname);
   return false;
 }
 
