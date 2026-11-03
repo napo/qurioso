@@ -22,10 +22,12 @@ import {
   Wifi,
   Smartphone,
   Globe,
-  X
+  X,
+  GripVertical,
+  Shuffle
 } from 'lucide-react';
 import { Quiz, GameSession, Player, Question, type Team } from '../../types/quiz';
-import { assignTeams, makeTeams } from '../../services/teams';
+import { assignTeams, makeTeams, randomlyAssignTeams } from '../../services/teams';
 import { TeamRanking } from '../leaderboard/TeamRanking';
 import { gameSync, BOT_PLAYERS, generateBotAnswer, ServerInfo } from '../../services/gameSync';
 import { sounds } from '../../services/soundEffects';
@@ -83,6 +85,8 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
   const [status, setStatus] = useState<GameSession['status']>(recoveredSession?.status || 'lobby');
   const [players, setPlayers] = useState<Record<string, Player>>(recoveredSession?.players || {});
   const [teams, setTeams] = useState<Team[] | undefined>(recoveredSession?.teams);
+  const [teamNameDrafts, setTeamNameDrafts] = useState<Record<string, string>>({});
+  const [draggedPlayerId, setDraggedPlayerId] = useState<string>();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(recoveredSession?.currentQuestionIndex || 0);
   const [questionStartTime, setQuestionStartTime] = useState<number>(recoveredSession?.questionStartTime || 0);
   const [timeRemaining, setTimeRemaining] = useState<number>(recoveredSession?.timeRemaining || 20);
@@ -98,6 +102,9 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
     document.addEventListener('fullscreenchange', update);
     return () => { document.removeEventListener('fullscreenchange', update); if (document.fullscreenElement === element) void document.exitFullscreen?.().catch(() => {}); };
   }, []);
+  useEffect(() => {
+    setTeamNameDrafts(Object.fromEntries((teams ?? []).map(team => [team.id, team.name])));
+  }, [teams]);
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
   const [selectedAddress, setSelectedAddress] = useState('');
   const sharing = useInternetSharing(pin);
@@ -277,15 +284,40 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
   };
   const moveToTeam = (playerId: string, teamId: string) => {
     const player = sessionRef.current.players[playerId];
-    if (player) void broadcastCurrentSession({ players: { ...sessionRef.current.players, [playerId]: { ...player, teamId } } });
+    if (!player) return;
+    const { teamId: _previousTeam, ...unassigned } = player;
+    void broadcastCurrentSession({ players: { ...sessionRef.current.players, [playerId]: teamId ? { ...player, teamId } : unassigned } });
+  };
+  const renameTeam = (teamId: string, name: string) => {
+    const clean = name.trim();
+    if (!clean || !sessionRef.current.teams) return;
+    void broadcastCurrentSession({ teams: sessionRef.current.teams.map(team => team.id === teamId ? { ...team, name: clean } : team) });
+  };
+  const randomizeTeams = () => {
+    const current = sessionRef.current;
+    if (current.teams) void broadcastCurrentSession({ players: randomlyAssignTeams(current.players, current.teams) });
+  };
+  const startPlayerDrag = (event: React.DragEvent, player: Player) => {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', player.id);
+    setDraggedPlayerId(player.id);
+  };
+  const dropPlayer = (event: React.DragEvent, teamId: string) => {
+    event.preventDefault();
+    const playerId = event.dataTransfer.getData('text/plain') || draggedPlayerId;
+    if (playerId) moveToTeam(playerId, teamId);
+    setDraggedPlayerId(undefined);
   };
   const playerCard = (player: Player) => <div key={player.id}
-    className="bg-surface-soft hover:bg-surface-hover border border-line p-3 rounded-xl flex items-center gap-2.5 transition transform hover:-translate-y-0.5 shadow-md">
+    className={`bg-surface-soft hover:bg-surface-hover border border-line p-3 rounded-xl flex items-center gap-2.5 transition transform hover:-translate-y-0.5 shadow-md ${draggedPlayerId === player.id ? 'opacity-50' : ''}`}>
+    {teams && <button type="button" draggable aria-label={fill(lobby.dragPlayer, { name: player.name || player.nickname })}
+      title={lobby.dragPlayerHint} onDragStart={event => startPlayerDrag(event, player)} onDragEnd={() => setDraggedPlayerId(undefined)}
+      className="shrink-0 cursor-grab touch-none text-muted active:cursor-grabbing"><GripVertical className="w-4 h-4" aria-hidden="true" /></button>}
     <span className="text-2xl">{player.avatar}</span>
     <span className="font-bold text-xs text-ink truncate">{player.name}</span>
     {teams && <select aria-label={fill(lobby.teamOf, { name: player.name || player.nickname })} value={player.teamId ?? ''} onChange={event => moveToTeam(player.id, event.target.value)}
       className="ml-auto min-w-0 max-w-24 rounded-lg border border-line bg-white text-xs">
-      {!player.teamId && <option value="">{lobby.noTeam}</option>}
+      <option value="">{lobby.noTeam}</option>
       {teams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
     </select>}
     {removeButton(player)}
@@ -609,11 +641,14 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                     {fill(lobby.lobbyPlayers, { count: playerCount })}
                   </h3>
                 </div>
-                {playerCount === 0 && (
-                  <span className="text-xs text-muted animate-pulse">
-                    {lobby.waitingPlayers}
-                  </span>
-                )}
+                <div className="flex items-center gap-3">
+                  {playerCount === 0 && <span className="text-xs text-muted animate-pulse">{lobby.waitingPlayers}</span>}
+                  {teams && <button type="button" onClick={randomizeTeams} disabled={playerCount === 0}
+                    className="btn-quiet px-3 py-2 text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <Shuffle className="w-4 h-4" aria-hidden="true" />
+                    <span>{lobby.randomizeTeams}</span>
+                  </button>}
+                </div>
               </div>
 
               {playerCount === 0 ? (
@@ -628,10 +663,23 @@ export const HostScreen: React.FC<HostScreenProps> = ({ quiz: sourceQuiz, onExit
                 teams ? <div className="host-team-list grid gap-3 md:grid-cols-2">
                   {[...teams.map(team => ({ key: team.id, team, members: Object.values(players).filter(player => player.teamId === team.id) })),
                     { key: 'none', team: undefined, members: Object.values(players).filter(player => !player.teamId || !teams.some(team => team.id === player.teamId)) }]
-                    .filter(group => group.team || group.members.length).map(group => <section key={group.key} aria-label={group.team?.name ?? lobby.noTeam}
+                    .map(group => <section key={group.key} aria-label={group.team?.name ?? lobby.noTeam}
+                      onDragOver={event => event.preventDefault()} onDrop={event => dropPlayer(event, group.team?.id ?? '')}
                       className={`rounded-xl border-2 p-2 ${group.team ? OPTION_COLORS[group.team.color].border : 'border-dashed border-line'}`}>
-                      <h4 className="font-black text-sm text-ink mb-2">{group.team?.name ?? lobby.noTeam} · {fill(lobby.teamMembers, { n: group.members.length })}</h4>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h4 className="font-black text-sm text-ink">{group.team?.name ?? lobby.noTeam} · {fill(lobby.teamMembers, { n: group.members.length })}</h4>
+                        {group.team && <form className="flex min-w-0 items-center gap-1" onSubmit={event => {
+                          event.preventDefault();
+                          renameTeam(group.team!.id, teamNameDrafts[group.team!.id] ?? group.team!.name);
+                        }}>
+                          <input aria-label={fill(lobby.teamName, { name: group.team.name })} maxLength={40} required value={teamNameDrafts[group.team.id] ?? group.team.name}
+                            onChange={event => setTeamNameDrafts(previous => ({ ...previous, [group.team!.id]: event.target.value }))}
+                            className="w-28 min-w-0 rounded-lg border border-line bg-white px-2 py-1 text-xs font-normal" />
+                          <button type="submit" className="rounded-lg border border-line bg-white px-2 py-1 text-xs font-bold">{lobby.saveTeamName}</button>
+                        </form>}
+                      </div>
                       <div className="host-player-list grid grid-cols-1 sm:grid-cols-2 gap-2">{group.members.map(playerCard)}</div>
+                      {!group.members.length && <p className="py-2 text-center text-xs text-muted">{lobby.dropPlayerHere}</p>}
                     </section>)}
                 </div> : <div className="host-player-list grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                   {Object.values(players).map(playerCard)}

@@ -6,7 +6,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import QRCode from 'qrcode';
 import { startLanServer, round } from './helpers/lanServer';
 import { DEFAULT_QUIZZES } from '../src/data/defaultQuizzes';
-import { assignTeams, makeTeams, MAX_TEAMS, teamStandings } from '../src/services/teams';
+import { assignTeams, makeTeams, MAX_TEAMS, randomlyAssignTeams, teamStandings } from '../src/services/teams';
 import type { GameSession, Player, Team } from '../src/types/quiz';
 
 const names = { red: 'Rossa', blue: 'Blu', yellow: 'Gialla', green: 'Verde', purple: 'Viola', orange: 'Arancione' };
@@ -33,6 +33,17 @@ test('teams: 2 to 6 with distinct colours, average score ranking, the unassigned
   // d (3) goes to blue, e (4, team removed) to yellow, c (5) to blue or yellow: the first smallest, blue.
   assert.deepEqual(Object.fromEntries(Object.values(assigned).map(p => [p.id, p.teamId])), { a: 'team-red', b: 'team-red', c: 'team-blue', d: 'team-blue', e: 'team-yellow' });
   assert.equal(players.c.teamId, undefined, 'the input is not changed');
+
+  const randomPlayers = Object.fromEntries(['a', 'b', 'c', 'd', 'e'].map(id => [id, person(id, { teamId: 'team-red' })]));
+  const randomized = randomlyAssignTeams(randomPlayers, teams, () => 0);
+  assert.deepEqual(Object.fromEntries(Object.entries(randomized).map(([id, player]) => [id, player.teamId])), {
+    a: 'team-blue', b: 'team-red', c: 'team-blue', d: 'team-yellow', e: 'team-red',
+  });
+  assert.deepEqual(Object.values(randomized).reduce<Record<string, number>>((counts, player) => {
+    counts[player.teamId!] = (counts[player.teamId!] ?? 0) + 1;
+    return counts;
+  }, {}), { 'team-red': 2, 'team-blue': 2, 'team-yellow': 1 });
+  assert.ok(Object.values(randomPlayers).every(player => player.teamId === 'team-red'), 'the input is not changed');
 });
 
 test('team games on the server: a team is required to join, invalid teams are refused or dropped, the presenter moves players in a video quiz', { timeout: 15000 }, async t => {
@@ -112,14 +123,47 @@ test('presenter lobby: the teacher picks the teams, moves a participant, and the
   assert.deepEqual(writes.at(-1)!.teams!.map(team => team.name), ['Squadra rossa', 'Squadra blu', 'Squadra gialla']);
   assert.deepEqual(groups(), [['Squadra rossa', []], ['Squadra blu', []], ['Squadra gialla', []], ['Senza squadra', ['Anna', 'Bruno', 'Carla']]]);
 
+  const redName = document.querySelector<HTMLInputElement>('input[aria-label="Nome della squadra: Squadra rossa"]')!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')!.set!.call(redName, 'Ospiti');
+    redName.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    redName.closest('form')!.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+  });
+  assert.equal(writes.at(-1)!.teams!.find(team => team.id === 'team-red')!.name, 'Ospiti');
+  assert.deepEqual(groups()[0], ['Ospiti', []]);
+
   await choose(document.querySelector<HTMLSelectElement>('select[aria-label="Squadra di Bruno"]')!, 'team-blue');
   assert.equal(writes.at(-1)!.players.b.teamId, 'team-blue');
   assert.deepEqual(groups()[1], ['Squadra blu', ['Bruno']]);
 
+  const dragHandle = document.querySelector<HTMLButtonElement>('button[aria-label="Sposta Anna trascinandolo"]')!;
+  const data = new Map<string, string>();
+  const transfer = { effectAllowed: '', setData: (type: string, value: string) => data.set(type, value), getData: (type: string) => data.get(type) ?? '' };
+  await act(async () => {
+    const start = new dom.window.Event('dragstart', { bubbles: true });
+    Object.defineProperty(start, 'dataTransfer', { value: transfer });
+    dragHandle.dispatchEvent(start);
+    const drop = new dom.window.Event('drop', { bubbles: true, cancelable: true });
+    Object.defineProperty(drop, 'dataTransfer', { value: transfer });
+    document.querySelector<HTMLElement>('.host-team-list section[aria-label="Squadra gialla"]')!.dispatchEvent(drop);
+  });
+  assert.equal(writes.at(-1)!.players.a.teamId, 'team-yellow');
+  assert.deepEqual(groups()[2], ['Squadra gialla', ['Anna']]);
+
+  const randomize = [...document.querySelectorAll('button')].find(button => button.textContent!.trim() === 'Assegna a caso')!;
+  assert.equal(randomize.closest('.host-lobby-players') !== null, true, 'random assignment is beside the participants lobby');
+  await act(async () => randomize.click());
+  const randomized = writes.at(-1)!.players;
+  assert.ok(Object.values(randomized).every(player => player.teamId), 'random assignment puts everyone in a team');
+  assert.deepEqual(Object.values(randomized).reduce<Record<string, number>>((counts, player) => {
+    counts[player.teamId!] = (counts[player.teamId!] ?? 0) + 1;
+    return counts;
+  }, {}), { 'team-red': 1, 'team-blue': 1, 'team-yellow': 1 }, 'random assignment balances teams');
+
   await act(async () => [...document.querySelectorAll('button')].find(button => button.textContent!.trim() === 'Inizia il quiz')!.click());
   const started = writes.find(write => Object.values(write.players).every(p => p.teamId))!;
   assert.ok(started, 'the start assigns everyone');
-  assert.deepEqual(Object.fromEntries(Object.entries(started.players).map(([id, p]) => [id, p.teamId])), { a: 'team-red', b: 'team-blue', c: 'team-yellow' });
+  assert.deepEqual(started.players, randomized);
 
   // Back to no teams: nobody keeps one.
   await act(async () => root.render(React.createElement(LanguageProvider, null, React.createElement(HostScreen, { key: 'again', quiz, onExit: () => {}, recoveredSession: { ...started, status: 'lobby' } }))));

@@ -30,3 +30,14 @@ export function assignTeams(players: Record<string, Player>, teams: Team[]): Rec
   }
   return result;
 }
+
+/** Randomly redistributes everyone as evenly as possible, without changing the source players. */
+export function randomlyAssignTeams(players: Record<string, Player>, teams: Team[], random = Math.random): Record<string, Player> {
+  if (!teams.length) return { ...players };
+  const shuffled = Object.entries(players);
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return Object.fromEntries(shuffled.map(([id, player], index) => [id, { ...player, teamId: teams[index % teams.length].id }]));
+}
